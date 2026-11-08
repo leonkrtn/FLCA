@@ -30,4 +30,4 @@ npm run dev | build | lint | typecheck | test
 
 ## Gestaltung
 
-Richtung „Auftragskarte“: warmes Hellgrau (`boden`), Schwarz, **Verkehrsrot nur für die Termin-Handlung**, Archivo schmal für Überschriften (`.schmal`), IBM Plex Sans für Text, Plex Mono für Zahlen (`.zahlen`, rechtsbündig). Reifenprofil (`.profil`) ist das einzige grafische Motiv. Keine Emojis, keine Deko-Icons, keine Karten-Raster. Tokens in `src/app/globals.css`.
+Richtung „Auftragskarte“: warmes Hellgrau (`boden`), Schwarz, **Verkehrsrot nur für die Termin-Handlung**. Schrift: Barlow Condensed für Überschriften (`.schmal`, passt zur schmalen Grotesk im Logo), Barlow für Text, Zahlen in Barlow mit gleich breiten Ziffern (`.zahlen`, rechtsbündig). Keine Monospace-Schrift, keine Ziermuster, keine Emojis, keine Deko-Icons, keine Karten-Raster. Logo: `src/components/logo.tsx`, Vektor aus der Originaldatei nachgezeichnet (`src/assets/logo-pfade.json`). Tokens in `src/app/globals.css`.

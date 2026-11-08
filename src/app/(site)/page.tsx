@@ -102,8 +102,6 @@ export default async function Startseite() {
         </div>
       </section>
 
-      <div className="profil opacity-90" aria-hidden />
-
       {/* Preise */}
       <section id="preise" className="rand scroll-mt-20 bg-papier py-16 md:py-24">
         <div className="mb-10 grid gap-4 md:grid-cols-12">

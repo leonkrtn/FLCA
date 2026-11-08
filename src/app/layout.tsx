@@ -3,34 +3,27 @@ import localFont from "next/font/local";
 import { ENV } from "@/lib/env";
 import "./globals.css";
 
-const archivo = localFont({
+const barlow = localFont({
   src: [
-    { path: "../fonts/archivo-latin-wdth-normal.woff2", weight: "100 900", style: "normal" },
-    { path: "../fonts/archivo-latin-ext-wdth-normal.woff2", weight: "100 900", style: "normal" },
+    { path: "../fonts/barlow-latin-400-normal.woff2", weight: "400" },
+    { path: "../fonts/barlow-latin-500-normal.woff2", weight: "500" },
+    { path: "../fonts/barlow-latin-600-normal.woff2", weight: "600" },
+    { path: "../fonts/barlow-latin-ext-400-normal.woff2", weight: "400" },
+    { path: "../fonts/barlow-latin-ext-500-normal.woff2", weight: "500" },
+    { path: "../fonts/barlow-latin-ext-600-normal.woff2", weight: "600" },
   ],
-  variable: "--font-archivo",
-  display: "swap",
-  declarations: [{ prop: "font-stretch", value: "62% 125%" }],
-});
-
-const plex = localFont({
-  src: [
-    { path: "../fonts/ibm-plex-sans-latin-400-normal.woff2", weight: "400" },
-    { path: "../fonts/ibm-plex-sans-latin-500-normal.woff2", weight: "500" },
-    { path: "../fonts/ibm-plex-sans-latin-600-normal.woff2", weight: "600" },
-    { path: "../fonts/ibm-plex-sans-latin-ext-400-normal.woff2", weight: "400" },
-    { path: "../fonts/ibm-plex-sans-latin-ext-600-normal.woff2", weight: "600" },
-  ],
-  variable: "--font-plex",
+  variable: "--font-barlow",
   display: "swap",
 });
 
-const plexMono = localFont({
+const barlowCondensed = localFont({
   src: [
-    { path: "../fonts/ibm-plex-mono-latin-400-normal.woff2", weight: "400" },
-    { path: "../fonts/ibm-plex-mono-latin-500-normal.woff2", weight: "500" },
+    { path: "../fonts/barlow-condensed-latin-600-normal.woff2", weight: "600" },
+    { path: "../fonts/barlow-condensed-latin-700-normal.woff2", weight: "700" },
+    { path: "../fonts/barlow-condensed-latin-ext-600-normal.woff2", weight: "600" },
+    { path: "../fonts/barlow-condensed-latin-ext-700-normal.woff2", weight: "700" },
   ],
-  variable: "--font-plex-mono",
+  variable: "--font-barlow-condensed",
   display: "swap",
 });
 
@@ -51,7 +44,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="de" className={`${archivo.variable} ${plex.variable} ${plexMono.variable}`}>
+    <html lang="de" className={`${barlow.variable} ${barlowCondensed.variable}`}>
       <body className="min-h-dvh">{children}</body>
     </html>
   );

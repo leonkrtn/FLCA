@@ -23,10 +23,9 @@ export function Fuss({ e }: { e: Einstellungen }) {
   const f = e.firma;
   return (
     <footer className="bg-graphit pb-28 pt-14 text-boden md:pb-14">
-      <div className="profil profil-hell -mt-14 mb-14 opacity-20" aria-hidden />
       <div className="rand grid gap-10 md:grid-cols-[1.2fr_1fr_1fr_1fr]">
         <div>
-          <Logo className="h-20 w-auto text-boden" aussparung="var(--color-graphit)" />
+          <Logo className="h-14 w-auto text-boden" />
         </div>
         <div className="text-sm leading-relaxed">
           <p className="mb-2 font-semibold text-weiss">Werkstatt</p>

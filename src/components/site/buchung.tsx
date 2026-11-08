@@ -192,7 +192,7 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
             <p className="text-grau">Wählen Sie zuerst eine Leistung, dann zeigen wir die freien Zeiten.</p>
           ) : (
             <div aria-busy={laedt}>
-              <div className={`profil mb-4 h-1.5 bg-[length:12px_6px] ${laedt ? "profil-laeuft opacity-60" : "opacity-0"}`} aria-hidden />
+              <div className={`ladebalken mb-4 ${laedt ? "" : "invisible"}`} aria-hidden />
               {ladeFehler ? <p className="mb-4 text-rot">{ladeFehler}</p> : null}
               <div className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-3 [scrollbar-width:thin] md:mx-0 md:px-0" role="listbox" aria-label="Tag wählen">
                 {tage.map((t) => {

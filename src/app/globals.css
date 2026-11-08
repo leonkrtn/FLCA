@@ -8,9 +8,8 @@
  * Schriftgrößen folgen einer Reihe mit Faktor 1,25 ab 16 px, Abstände einem 4-px-Raster.
  */
 @theme {
-  --font-display: var(--font-archivo), "Arial Narrow", sans-serif;
-  --font-sans: var(--font-plex), system-ui, sans-serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+  --font-display: var(--font-barlow-condensed), "Arial Narrow", sans-serif;
+  --font-sans: var(--font-barlow), system-ui, sans-serif;
 
   --color-boden: #ecebe7;
   --color-papier: #f6f5f2;
@@ -95,23 +94,16 @@
 }
 
 @layer components {
-  /* Display-Schrift: Archivo in schmaler Breite, wie auf einem Typenschild */
+  /* Überschriften: Barlow Condensed, dieselbe schmale Grotesk-Familie wie die Schrift im Logo */
   .schmal {
     font-family: var(--font-display);
-    font-stretch: 72%;
-    font-weight: 780;
-    letter-spacing: -0.005em;
+    font-weight: 700;
+    letter-spacing: 0.005em;
     text-transform: uppercase;
   }
-  .schmal-normal {
-    font-family: var(--font-display);
-    font-stretch: 80%;
-    font-weight: 650;
-  }
+  /* Zahlen in derselben Schrift, nur mit gleich breiten Ziffern, damit Preise untereinander stehen */
   .zahlen {
-    font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.01em;
   }
   .knopf {
     display: inline-flex;
@@ -216,23 +208,28 @@
   }
 }
 
-/* Reifenprofil als einziges grafisches Motiv: Trenner und Ladeanzeige */
-.profil {
-  height: 12px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='12' viewBox='0 0 24 12'%3E%3Cpath d='M0 0h6l6 6-6 6H0l6-6z' fill='%23141414'/%3E%3Cpath d='M12 0h6l6 6-6 6h-6l6-6z' fill='%23141414' opacity='.55'/%3E%3C/svg%3E");
-  background-size: 24px 12px;
-  background-repeat: repeat-x;
+/* Ladeanzeige: schmaler Balken, der von links nach rechts läuft */
+.ladebalken {
+  height: 3px;
+  overflow: hidden;
+  background: var(--color-linie);
+  position: relative;
 }
-.profil-hell {
-  filter: invert(1);
+.ladebalken::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 30%;
+  background: var(--color-tinte);
+  animation: laden 900ms var(--ease-ruhig) infinite;
 }
-@keyframes profil-laufen {
-  to {
-    background-position-x: 24px;
+@keyframes laden {
+  from {
+    transform: translateX(-100%);
   }
-}
-.profil-laeuft {
-  animation: profil-laufen 400ms linear infinite;
+  to {
+    transform: translateX(340%);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

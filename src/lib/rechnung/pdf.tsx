@@ -10,13 +10,12 @@ import type { RechnungsDaten } from "./zugferd";
 const wurzel = process.cwd();
 
 Font.register({
-  family: "Plex",
+  family: "Barlow",
   fonts: [
-    { src: path.join(wurzel, "src/fonts/plex-sans-400.ttf"), fontWeight: 400 },
-    { src: path.join(wurzel, "src/fonts/plex-sans-600.ttf"), fontWeight: 600 },
+    { src: path.join(wurzel, "src/fonts/barlow-400.ttf"), fontWeight: 400 },
+    { src: path.join(wurzel, "src/fonts/barlow-600.ttf"), fontWeight: 600 },
   ],
 });
-Font.register({ family: "PlexMono", src: path.join(wurzel, "src/fonts/plex-mono-400.ttf") });
 Font.registerHyphenationCallback((wort) => [wort]);
 
 const logo = readFileSync(path.join(wurzel, "src/assets/logo-schwarz.png"));
@@ -27,9 +26,9 @@ const linie = "#d6d3cd";
 const rot = "#cc0605";
 
 const s = StyleSheet.create({
-  seite: { paddingTop: 40, paddingBottom: 96, paddingHorizontal: 56, fontFamily: "Plex", fontSize: 9.5, color: tinte, lineHeight: 1.45 },
+  seite: { paddingTop: 40, paddingBottom: 96, paddingHorizontal: 56, fontFamily: "Barlow", fontSize: 9.5, color: tinte, lineHeight: 1.45 },
   kopf: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 36 },
-  logo: { width: 120 },
+  logo: { width: 150 },
   firma: { fontSize: 8.5, color: grau, textAlign: "right", lineHeight: 1.5 },
   absender: { fontSize: 7, color: grau, borderBottom: `0.5pt solid ${linie}`, paddingBottom: 2, marginBottom: 6, width: 240 },
   adressblock: { flexDirection: "row", justifyContent: "space-between", marginBottom: 32 },
@@ -37,7 +36,7 @@ const s = StyleSheet.create({
   info: { width: 190 },
   infoZeile: { flexDirection: "row", justifyContent: "space-between", marginBottom: 2 },
   infoLabel: { color: grau },
-  zahl: { fontFamily: "PlexMono" },
+  zahl: {},
   titel: { fontSize: 17, fontWeight: 600, marginBottom: 10 },
   absatz: { marginBottom: 8 },
   tabelle: { marginTop: 12, borderTop: `1.2pt solid ${tinte}` },

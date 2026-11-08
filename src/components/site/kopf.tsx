@@ -17,7 +17,7 @@ export function Kopf({ module }: { module: { galerie: boolean; karriere: boolean
     <header className="sticky top-0 z-40 border-b border-linie bg-boden/95 backdrop-blur-sm">
       <div className="rand flex h-16 items-center justify-between gap-4">
         <Link href="/" className="shrink-0 text-tinte" aria-label="FLC Automotive, zur Startseite">
-          <Logo className="h-11 w-auto" mitClaim={false} />
+          <Logo className="h-9 w-auto md:h-10" />
         </Link>
         <nav aria-label="Hauptnavigation" className="hidden items-center gap-8 md:flex">
           {nav.map((n) => (
