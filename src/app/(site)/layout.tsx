@@ -7,7 +7,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
   const e = await einstellungen();
   return (
     <>
-      <Kopf module={e.module} />
+      <Kopf module={e.module} telefon={e.firma.telefon} oeffnungszeiten={e.oeffnungszeiten} />
       <main>{children}</main>
       <Fuss e={e} />
       <MobilLeiste telefon={e.firma.telefon} whatsapp={e.firma.whatsapp} />
