@@ -11,6 +11,7 @@ export type Position = {
   einheit: string;
   einzel_brutto_cent: number;
   mwst_satz: number;
+  /** Herkunft aus dem Angebot (leistungen.id). Heißt aus historischen Gründen noch artikel_id. */
   artikel_id?: string | null;
 };
 

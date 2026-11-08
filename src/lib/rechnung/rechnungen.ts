@@ -57,6 +57,16 @@ export const RECHNUNG_STATUS: Record<Rechnung["status"], string> = {
   storniert: "Storniert",
 };
 
+export type AngebotsPosition = { id: string; name: string; einheit: string; preis_brutto_cent: number; mwst_satz: number };
+
+/** Auswahl „Aus dem Angebot“ im Rechnungseditor: alles Aktive, Leistungen und Teile, in der Reihenfolge des Angebots. */
+export async function angebotFuerRechnung(): Promise<AngebotsPosition[]> {
+  const { data } = await db().from("leistungen").select("*").order("sortierung");
+  return (data ?? [])
+    .filter((l) => l.aktiv !== false)
+    .map((l) => ({ id: l.id, name: l.name, einheit: l.einheit ?? "Pauschal", preis_brutto_cent: l.preis_cent ?? 0, mwst_satz: Number(l.mwst_satz ?? 19) }));
+}
+
 export async function rechnungLaden(id: string): Promise<Rechnung | null> {
   const { data } = await db().from("rechnungen").select("*, kunde:kunden(nummer)").eq("id", id).maybeSingle();
   return data as Rechnung | null;
@@ -84,15 +94,16 @@ export async function entwurfAusTermin(terminId: string, vonBenutzer: string): P
 
   const positionen: Position[] = [];
   if (t.leistung_id) {
-    const { data: artikel } = await db().from("artikel").select("*").eq("leistung_id", t.leistung_id).eq("aktiv", true).limit(1).maybeSingle();
-    const { data: leistung } = await db().from("leistungen").select("preis_cent").eq("id", t.leistung_id).maybeSingle();
+    // Derselbe Preis wie auf der Website: Es gibt ihn nur einmal, im Angebot. Bei „ab“-Preisen steht der
+    // Startwert drin und wird in der Rechnung angepasst.
+    const { data: leistung } = await db().from("leistungen").select("*").eq("id", t.leistung_id).maybeSingle();
     positionen.push({
-      text: artikel?.name ?? t.leistung_name,
+      text: leistung?.name ?? t.leistung_name,
       menge: 1,
-      einheit: artikel?.einheit ?? "Pauschal",
-      einzel_brutto_cent: artikel?.preis_brutto_cent ?? leistung?.preis_cent ?? 0,
-      mwst_satz: Number(artikel?.mwst_satz ?? 19),
-      artikel_id: artikel?.id ?? null,
+      einheit: leistung?.einheit ?? "Pauschal",
+      einzel_brutto_cent: leistung?.preis_cent ?? 0,
+      mwst_satz: Number(leistung?.mwst_satz ?? 19),
+      artikel_id: leistung?.id ?? null,
     });
   } else {
     positionen.push({ text: t.leistung_name, menge: 1, einheit: "Pauschal", einzel_brutto_cent: 0, mwst_satz: 19 });

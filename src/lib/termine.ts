@@ -27,7 +27,17 @@ export type Leistung = {
   sichtbar: boolean;
   sortierung: number;
   bild_pfad: string | null;
+  /** Felder für Rechnungen (seit der Migration „angebot“; in den Startdaten nicht vorhanden). */
+  nummer?: string;
+  einheit?: string;
+  mwst_satz?: number;
+  /** „leistung“ = Arbeit mit Dauer (Website, Termine); „position“ = Teil, Material, Zuschlag (nur Rechnung). */
+  art?: "leistung" | "position";
+  aktiv?: boolean;
 };
+
+/** Was als Termin eingetragen werden kann: Leistungen, keine Teile, nichts Ausgeblendetes. */
+export const istTerminLeistung = (l: Pick<Leistung, "art" | "aktiv">) => (l.art ?? "leistung") === "leistung" && l.aktiv !== false;
 
 export type Termin = {
   id: string;

@@ -1,21 +1,18 @@
 import Link from "next/link";
 import { DateiFeld } from "@/components/admin/datei-feld";
 import { Formular, Senden } from "@/components/admin/formular";
-import { Abschnitt, Feld, Kopf, Marke, Reiter, Schalter, Textfeld } from "@/components/admin/ui";
+import { Abschnitt, Feld, Kopf, Reiter, Schalter, Textfeld } from "@/components/admin/ui";
 import { bewertungSpeichern, eintragLoeschen, galerieSpeichern, texteSpeichern } from "@/lib/aktionen/website";
 import { benutzerMitRecht } from "@/lib/auth";
 import { einstellungen } from "@/lib/einstellungen";
-import { preis } from "@/lib/format";
-import { KATEGORIEN } from "@/lib/inhalte";
 import { db, websiteDatei } from "@/lib/supabase/admin";
 
 export const metadata = { title: "Website" };
 
 export default async function Website({ searchParams }: { searchParams: Promise<{ bereich?: string }> }) {
   await benutzerMitRecht("website");
-  const { bereich = "leistungen" } = await searchParams;
+  const { bereich = "texte" } = await searchParams;
   const reiter = [
-    ["leistungen", "Leistungen und Preise"],
     ["texte", "Texte und Bilder"],
     ["galerie", "Vorher/Nachher"],
     ["bewertungen", "Bewertungen"],
@@ -27,34 +24,11 @@ export default async function Website({ searchParams }: { searchParams: Promise<
         <a href="/" target="_blank" className="knopf knopf-rahmen knopf-klein">Website ansehen</a>
       </Kopf>
       <Reiter eintraege={reiter} aktiv={`/admin/website?bereich=${bereich}`} />
-      {bereich === "leistungen" ? <Leistungen /> : bereich === "texte" ? <Texte /> : bereich === "galerie" ? <Galerie /> : <Bewertungen />}
+      <p className="mb-6 text-sm text-grau">
+        Leistungen und Preise stehen im <Link href="/admin/angebot" className="font-semibold text-tinte underline">Angebot</Link>, zusammen mit den Positionen für Rechnungen.
+      </p>
+      {bereich === "galerie" ? <Galerie /> : bereich === "bewertungen" ? <Bewertungen /> : <Texte />}
     </>
-  );
-}
-
-async function Leistungen() {
-  const { data } = await db().from("leistungen").select("*").order("sortierung");
-  return (
-    <Abschnitt aktion={<Link href="/admin/website/leistung/neu" className="knopf knopf-dunkel knopf-klein">Leistung anlegen</Link>}>
-      <ul className="divide-y divide-linie">
-        {(data ?? []).map((l) => (
-          <li key={l.id}>
-            <Link href={`/admin/website/leistung/${l.id}`} className="grid grid-cols-[1fr_auto] items-center gap-x-4 py-3 hover:bg-papier sm:grid-cols-[minmax(0,1fr)_7rem_5.5rem_11rem]">
-              <span>
-                <span className="font-semibold">{l.name}</span> <span className="text-sm text-grau">· {KATEGORIEN[l.kategorie] ?? l.kategorie}</span>
-              </span>
-              <span className="zahlen text-right">{preis(l.preis_cent, l.preis_ab)}</span>
-              <span className="zahlen hidden text-right text-grau sm:block">{l.dauer_min} min</span>
-              {/* Feste Spaltenbreite für die Hinweise: jede Zeile ist ein eigenes Raster, Preis und Dauer stehen trotzdem untereinander. */}
-              <span className="hidden justify-end gap-1 sm:flex">
-                {!l.sichtbar ? <Marke ton="hell">versteckt</Marke> : null}
-                {!l.online_anfragbar ? <Marke ton="hell">nicht buchbar</Marke> : null}
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </Abschnitt>
   );
 }
 

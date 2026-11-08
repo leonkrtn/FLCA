@@ -1,49 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { benutzerMitRecht } from "../auth";
 import { einstellungen, einstellungenSpeichern } from "../einstellungen";
-import { centAus, type Ergebnis, ja, sicher, text, zahl } from "../forms";
+import { type Ergebnis, ja, sicher, text, zahl } from "../forms";
 import { db } from "../supabase/admin";
 
 function websiteNeu() {
   revalidatePath("/", "layout");
-}
-
-export async function leistungSpeichern(id: string | null, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
-  let ziel = "";
-  const e = await sicher(fd, async () => {
-    await benutzerMitRecht("website");
-    const name = text(fd, "name", 120);
-    const slug = (text(fd, "slug", 80) || name)
-      .toLowerCase()
-      .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "");
-    if (!name || !slug) return { status: "fehler", meldung: "Bitte einen Namen angeben." };
-    const daten = {
-      name,
-      slug,
-      kurz: text(fd, "kurz", 160),
-      beschreibung: text(fd, "beschreibung", 4000),
-      kategorie: text(fd, "kategorie", 20) || "service",
-      preis_cent: centAus(fd, "preis"),
-      preis_ab: ja(fd, "preis_ab"),
-      dauer_min: Math.min(Math.max(Math.round(zahl(fd, "dauer_min") ?? 60), 5), 720),
-      online_anfragbar: ja(fd, "online_anfragbar"),
-      sichtbar: ja(fd, "sichtbar"),
-      sortierung: Math.round(zahl(fd, "sortierung") ?? 0),
-      bild_pfad: text(fd, "bild_pfad", 200) || null,
-    };
-    const { data, error } = id ? await db().from("leistungen").update(daten).eq("id", id).select("id").single() : await db().from("leistungen").insert(daten).select("id").single();
-    if (error) return { status: "fehler", meldung: error.code === "23505" ? "Diese Adresse (Slug) gibt es schon." : error.message };
-    if (!id) ziel = `/admin/website/leistung/${data.id}`;
-    websiteNeu();
-    return { status: "ok", meldung: "Gespeichert. Die Website zeigt es in wenigen Minuten." };
-  });
-  if (ziel) redirect(ziel);
-  return e;
 }
 
 export async function galerieSpeichern(id: string | null, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {

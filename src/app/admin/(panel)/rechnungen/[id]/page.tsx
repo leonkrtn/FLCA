@@ -5,7 +5,7 @@ import { Abschnitt, Kopf, Marke } from "@/components/admin/ui";
 import { entwurfLoeschen } from "@/lib/aktionen/rechnungen";
 import { benutzerMitRecht } from "@/lib/auth";
 import { datumZeit } from "@/lib/format";
-import { RECHNUNG_STATUS, rechnungLaden } from "@/lib/rechnung/rechnungen";
+import { angebotFuerRechnung, RECHNUNG_STATUS, rechnungLaden } from "@/lib/rechnung/rechnungen";
 import { db } from "@/lib/supabase/admin";
 
 export default async function RechnungSeite({ params }: { params: Promise<{ id: string }> }) {
@@ -13,8 +13,8 @@ export default async function RechnungSeite({ params }: { params: Promise<{ id: 
   const { id } = await params;
   const r = await rechnungLaden(id);
   if (!r) notFound();
-  const [{ data: artikel }, { data: verlauf }] = await Promise.all([
-    db().from("artikel").select("id, name, einheit, preis_brutto_cent, mwst_satz").eq("aktiv", true).order("sortierung"),
+  const [angebot, { data: verlauf }] = await Promise.all([
+    angebotFuerRechnung(),
     db().from("verlauf").select("text, erstellt_am").eq("bezug_typ", "rechnung").eq("bezug_id", id).order("erstellt_am", { ascending: false }),
   ]);
   return (
@@ -35,7 +35,7 @@ export default async function RechnungSeite({ params }: { params: Promise<{ id: 
           {r.status === "entwurf" ? (
             <RechnungEditor
               id={r.id}
-              artikel={(artikel ?? []).map((a) => ({ ...a, mwst_satz: Number(a.mwst_satz) }))}
+              angebot={angebot}
               start={{
                 empfaenger: r.empfaenger as Record<string, string>,
                 fahrzeug: r.fahrzeug ?? {},

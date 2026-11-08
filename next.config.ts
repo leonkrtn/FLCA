@@ -37,7 +37,11 @@ const nextConfig: NextConfig = {
   },
   // „Artikel“ heißt jetzt „Angebot“. Alte Lesezeichen landen weiter auf der richtigen Seite.
   async redirects() {
-    return [{ source: "/admin/artikel", destination: "/admin/angebot", permanent: true }];
+    return [
+      { source: "/admin/artikel", destination: "/admin/angebot", permanent: true },
+      // Leistungen und Preise standen früher unter Website, jetzt im Angebot.
+      { source: "/admin/website/leistung/:id", destination: "/admin/angebot/:id", permanent: true },
+    ];
   },
   async headers() {
     return [

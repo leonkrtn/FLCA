@@ -6,7 +6,9 @@ import { entwurfSpeichernAktion } from "@/lib/aktionen/rechnungen";
 import { LEER } from "@/lib/forms";
 import { berechne, type Position } from "@/lib/rechnung/berechnung";
 
+/** Eine Position aus dem Angebot (Leistung oder Teil). */
 type Artikel = { id: string; name: string; einheit: string; preis_brutto_cent: number; mwst_satz: number };
+
 type Daten = {
   empfaenger: Record<string, string>;
   fahrzeug: { kennzeichen?: string; modell?: string; km?: number | null };
@@ -26,7 +28,7 @@ const textZuCent = (t: string) => {
  * Rechnungsentwurf bearbeiten. Beträge werden live mit derselben Funktion gerechnet wie auf dem PDF und
  * in der E-Rechnung (lib/rechnung/berechnung.ts), die Vorschau weicht also nie vom Ergebnis ab.
  */
-export function RechnungEditor({ id, start, artikel, kompakt = false }: { id: string; start: Daten; artikel: Artikel[]; kompakt?: boolean }) {
+export function RechnungEditor({ id, start, angebot, kompakt = false }: { id: string; start: Daten; angebot: Artikel[]; kompakt?: boolean }) {
   const [d, setD] = useState<Daten>(start);
   const [preisTexte, setPreisTexte] = useState<string[]>(start.positionen.map((p) => centZuText(p.einzel_brutto_cent)));
   const [zustand, aktion, laeuft] = useActionState(entwurfSpeichernAktion.bind(null, id), LEER);
@@ -108,14 +110,14 @@ export function RechnungEditor({ id, start, artikel, kompakt = false }: { id: st
           <select
             value=""
             onChange={(ev) => {
-              const a = artikel.find((x) => x.id === ev.target.value);
+              const a = angebot.find((x) => x.id === ev.target.value);
               if (a) neu(a);
             }}
             className={`feld min-h-10 ${kompakt ? "" : "w-auto"}`}
             aria-label="Position aus dem Angebot hinzufügen"
           >
             <option value="">+ Aus dem Angebot</option>
-            {artikel.map((a) => (
+            {angebot.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name} · {euro(a.preis_brutto_cent)}
               </option>

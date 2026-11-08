@@ -305,6 +305,11 @@ body:has(.dunkel) {
   }
 }
 
+/* Angebot: Teile und Material haben keine Termin- und Website-Felder. Folgt der Auswahl „Art“ ohne Skript. */
+.angebot-formular:has(select[name="art"] option[value="position"]:checked) .nur-leistung {
+  display: none;
+}
+
 /* Hero: Überschrift, Text und Knöpfe blenden als ein Block ein, nie Stück für Stück. */
 .einblenden {
   animation: einblenden 700ms var(--ease-ruhig) 80ms both;

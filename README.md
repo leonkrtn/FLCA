@@ -16,7 +16,9 @@ Website, Terminvergabe, Werkstatt-Verwaltung, Rechnungen, Team und Karriere für
 
 **Termine.** Kunden sehen nur Zeiten, die frei sind: Öffnungszeiten minus bestätigte Termine minus offene Anfragen minus Einträge im Google-Kalender. Wie viele Autos gleichzeitig gehen, steht in den Einstellungen. Eine Anfrage hält ihren Termin 48 Stunden (einstellbar), bis sie angenommen oder abgelehnt wird. Doppelbuchungen verhindert die Datenbank selbst (`termin_anlegen` mit Sperre), nicht nur die Oberfläche. Bestätigte Termine landen im Google-Kalender. Was Flavio direkt in Google einträgt, blockiert freie Zeiten: mit Uhrzeit einen Arbeitsplatz, ganztägig die ganze Werkstatt (Betriebsurlaub), „Verfügbar“ markiert gar nichts.
 
-**Rechnungen.** Entwurf aus dem Termin (Leistung mit Festpreis ist schon eingetragen), Positionen aus dem Angebot (feste Positionen mit Preis) oder frei, Preise brutto. Beim Stellen bekommt die Rechnung eine lückenlose Nummer und ist danach unveränderlich (Datenbank-Trigger). Korrektur nur über eine Stornorechnung. Das PDF enthält einen GiroCode und die E-Rechnung als `factur-x.xml` (ZUGFeRD, Profil EN 16931). DATEV-Export als ZIP (Buchungsstapel + PDFs) unter Rechnungen oder automatisch am Monatsersten an den Steuerberater.
+**Angebot.** Eine Liste für alles mit Preis: Leistungen (mit Dauer, auf der Website, online buchbar oder nicht) und Teile, Material, Zuschläge (nur für Rechnungen). Jeder Preis steht nur dort; Website, Terminbuchung und die Rechnung zum Termin lesen ihn von da.
+
+**Rechnungen.** Entwurf aus dem Termin (Leistung mit Festpreis ist schon eingetragen), Positionen aus dem Angebot oder frei, Preise brutto. Beim Stellen bekommt die Rechnung eine lückenlose Nummer und ist danach unveränderlich (Datenbank-Trigger). Korrektur nur über eine Stornorechnung. Das PDF enthält einen GiroCode und die E-Rechnung als `factur-x.xml` (ZUGFeRD, Profil EN 16931). DATEV-Export als ZIP (Buchungsstapel + PDFs) unter Rechnungen oder automatisch am Monatsersten an den Steuerberater.
 
 **Team.** Arbeitszeiten je Person, Urlaub beantragen und genehmigen, krank melden, Zeiterfassung (pro Person einschaltbar), Aufträge zuweisen, Status und Fotos aus der Team-App.
 
@@ -30,6 +32,7 @@ Website, Terminvergabe, Werkstatt-Verwaltung, Rechnungen, Team und Karriere für
 2. Im SQL-Editor nacheinander ausführen:
    - `supabase/migrations/20261108100000_grundsystem.sql`
    - `supabase/migrations/20261108100100_zeitsteuerung.sql`, **vorher** die Platzhalter `<<WEBSITE_URL>>` und `<<CRON_SECRET>>` ersetzen.
+   - `supabase/migrations/20261109100000_angebot.sql` (Leistungen und Rechnungspositionen in einer Liste)
 3. *Authentication → Sign In / Providers*: „Allow new users to sign up“ **aus** (Konten legt nur der Inhaber an), Provider „Email“ an.
 4. *Authentication → Emails → SMTP Settings*: eigenen SMTP eintragen, sonst schickt Supabase nur 2 Mails pro Stunde. Mit Resend: Host `smtp.resend.com`, Port 465, Benutzer `resend`, Passwort = Resend-API-Key, Absender wie `MAIL_FROM`.
 5. *Authentication → Emails → Templates*: In „Invite user“ und „Reset password“ den Link ersetzen durch

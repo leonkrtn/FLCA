@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { benutzerMitRecht } from "../auth";
-import { centAus, type Ergebnis, istEmail, ja, sicher, text, zahl } from "../forms";
+import { type Ergebnis, istEmail, ja, sicher, text } from "../forms";
 import type { Position } from "../rechnung/berechnung";
 import { alsBezahlt, entwurfAnlegen, entwurfSpeichern, type Empfaenger, rechnungLaden, stellen, stornieren, versenden } from "../rechnung/rechnungen";
 import { db } from "../supabase/admin";
@@ -172,27 +172,6 @@ export async function neueRechnung(kundeId: string | null): Promise<void> {
   }
   const id = await entwurfAnlegen({ kunde_id: kundeId, empfaenger, positionen: [], leistungsdatum: berlinDatum() }, b.id);
   redirect(`/admin/rechnungen/${id}`);
-}
-
-export async function artikelSpeichern(id: string | null, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
-  return sicher(fd, async () => {
-    await benutzerMitRecht("rechnungen");
-    const name = text(fd, "name", 200);
-    if (!name) return { status: "fehler", meldung: "Bitte eine Bezeichnung angeben." };
-    const daten = {
-      nummer: text(fd, "nummer", 40),
-      name,
-      einheit: text(fd, "einheit", 20) || "Stk",
-      preis_brutto_cent: centAus(fd, "preis") ?? 0,
-      mwst_satz: [0, 7, 19].includes(zahl(fd, "mwst_satz") ?? 19) ? (zahl(fd, "mwst_satz") ?? 19) : 19,
-      aktiv: ja(fd, "aktiv"),
-      leistung_id: text(fd, "leistung_id", 40) || null,
-    };
-    const { error } = id ? await db().from("artikel").update(daten).eq("id", id) : await db().from("artikel").insert(daten);
-    if (error) throw new Error(error.message);
-    revalidatePath("/admin/angebot");
-    return { status: "ok", meldung: "Gespeichert." };
-  });
 }
 
 export async function rechnungFuerEditor(id: string) {
