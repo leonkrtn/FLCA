@@ -39,7 +39,7 @@ export default async function KundenTermin({ params }: { params: Promise<{ token
       <p className="mb-2 text-sm font-medium uppercase tracking-[0.14em] text-grau">Termin Nr. {t.nummer}</p>
       <h1 className="schmal mb-2 text-4xl md:text-5xl">{t.leistung_name}</h1>
       <p className="mb-8 text-lg">
-        <span className={`mr-3 inline-block px-2 py-0.5 text-sm font-semibold ${t.status === "bestaetigt" ? "bg-tinte text-weiss" : "bg-linie"}`}>{status}</span>
+        <span className={`mr-3 inline-block px-2 py-0.5 text-sm font-semibold ${t.status === "bestaetigt" ? "bg-tinte text-boden" : "bg-linie"}`}>{status}</span>
         {erklaerung}
       </p>
       <dl className="grid gap-y-4 border-t-2 border-tinte pt-5 sm:grid-cols-[10rem_1fr]">

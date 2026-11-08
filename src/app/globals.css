@@ -24,6 +24,9 @@
   --color-ok: #2d6a3e;
   --color-warnung: #8a5a00;
   --color-kreide: #e9c64b;
+  /* Erhöhte Fläche (Karten, Eingabefelder) und reines Weiß für Text auf Fotos und Video */
+  --color-flaeche: #ffffff;
+  --color-hell: #ffffff;
 
   --text-xs: 0.8rem;
   --text-xs--line-height: 1.4;
@@ -119,6 +122,14 @@
     transition: background-color 120ms var(--ease-ruhig), color 120ms var(--ease-ruhig), border-color 120ms var(--ease-ruhig);
     -webkit-tap-highlight-color: transparent;
   }
+  /* Auf der dunklen Website sind Knöpfe und Felder runder. In dieser Ebene, damit Utilities (px-0) gewinnen. */
+  :where(.dunkel) .knopf {
+    border-radius: 999px;
+    padding-inline: 1.5rem;
+  }
+  :where(.dunkel) .feld {
+    border-radius: 0.75rem;
+  }
   .knopf:disabled {
     opacity: 0.45;
     cursor: not-allowed;
@@ -132,10 +143,10 @@
   }
   .knopf-dunkel {
     background: var(--color-tinte);
-    color: #fff;
+    color: var(--color-boden);
   }
   .knopf-dunkel:hover:not(:disabled) {
-    background: #000;
+    opacity: 0.88;
   }
   .knopf-rahmen {
     border: 1px solid currentColor;
@@ -156,7 +167,7 @@
     padding: 0.625rem 0.875rem;
     border: 1px solid var(--color-linie);
     border-radius: var(--radius);
-    background: var(--color-weiss);
+    background: var(--color-flaeche);
     color: var(--color-tinte);
     transition: border-color 120ms var(--ease-ruhig);
   }
@@ -206,6 +217,33 @@
   .rechtstext a {
     text-decoration: underline;
   }
+}
+
+/*
+ * Dunkles Design der öffentlichen Website. Die Farbnamen bleiben gleich, nur ihre Werte drehen sich um:
+ * „boden“ ist der Grund, „tinte“ die Schrift. So gilt dieselbe Gestaltung in der hellen Verwaltung und
+ * auf der dunklen Website, ohne zwei Sätze Komponenten.
+ */
+.dunkel {
+  --color-boden: #0b0b0c;
+  --color-papier: #121214;
+  --color-flaeche: #1a1a1d;
+  --color-tinte: #f2f0eb;
+  --color-graphit: #060607;
+  --color-grau: #a7a39b;
+  --color-grau-hell: #7d7972;
+  --color-linie: #2b2b2f;
+  color-scheme: dark;
+  background: var(--color-boden);
+  color: var(--color-tinte);
+}
+.dunkel ::selection {
+  background: var(--color-rot);
+  color: #fff;
+}
+html:has(.dunkel),
+body:has(.dunkel) {
+  background: #0b0b0c;
 }
 
 /* Ladeanzeige: schmaler Balken, der von links nach rechts läuft */

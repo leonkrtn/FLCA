@@ -10,25 +10,34 @@ export const metadata: Metadata = { title: "Leistungen", description: "Reifenser
 export default async function LeistungenSeite() {
   const leistungen = await oeffentlicheLeistungen();
   return (
-    <div className="rand pb-24 pt-8 md:pt-14">
-      <h1 className="schmal mb-12 text-4xl md:text-5xl">Leistungen</h1>
-      <div className="space-y-14">
+    <div className="rand pb-24 pt-10 md:pt-16">
+      <h1 className="schmal mb-14 text-6xl md:text-8xl">Leistungen</h1>
+      <div className="space-y-16">
         {Object.entries(KATEGORIEN).map(([k, name]) => {
           const liste = leistungen.filter((l) => l.kategorie === k);
           if (!liste.length) return null;
           return (
-            <section key={k} className="grid gap-6 md:grid-cols-12">
-              <h2 className="schmal text-2xl text-grau md:col-span-3">{name}</h2>
-              <ul className="border-t-2 border-tinte md:col-span-9">
+            <section key={k}>
+              <h2 className="schmal mb-5 text-3xl text-grau">{name}</h2>
+              <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {liste.map((l) => (
-                  <li key={l.id} className="border-b border-linie">
-                    <Link href={`/leistungen/${l.slug}`} className="group grid grid-cols-[1fr_auto] gap-x-6 gap-y-1 py-5 md:grid-cols-[1fr_8rem_auto]">
+                  <li key={l.id}>
+                    <Link
+                      href={`/leistungen/${l.slug}`}
+                      className="group flex h-full flex-col justify-between gap-6 rounded-3xl bg-flaeche p-6 ring-1 ring-linie transition-colors hover:ring-grau-hell"
+                    >
                       <span>
-                        <span className="text-lg font-semibold group-hover:underline">{l.name}</span>
-                        <span className="mt-1 block max-w-prose text-grau">{l.beschreibung}</span>
+                        <span className="flex items-start justify-between gap-4">
+                          <span className="text-xl font-semibold">{l.name}</span>
+                          <span className={`zahlen shrink-0 rounded-full px-3 py-1 text-sm ${l.preis_cent === null ? "text-grau ring-1 ring-linie" : "bg-tinte font-semibold text-boden"}`}>
+                            {preis(l.preis_cent, l.preis_ab)}
+                          </span>
+                        </span>
+                        <span className="mt-3 block text-grau">{l.beschreibung}</span>
                       </span>
-                      <span className="zahlen self-start text-right text-lg">{preis(l.preis_cent, l.preis_ab)}</span>
-                      <Pfeil className="hidden size-5 self-start text-grau group-hover:text-tinte md:block" />
+                      <span className="inline-flex items-center gap-2 text-sm font-semibold text-tinte/70 group-hover:text-tinte">
+                        Details und Termin <Pfeil className="size-4 transition-transform group-hover:translate-x-1" />
+                      </span>
                     </Link>
                   </li>
                 ))}

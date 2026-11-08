@@ -12,16 +12,16 @@ export function Fragen({ e }: { e: Einstellungen }) {
     ["Kann ich einen Termin absagen?", `Ja, bis ${e.buchung.stornoFristStd} Stunden vorher über den Link in Ihrer Bestätigungsmail. Danach bitte anrufen.`],
   ];
   return (
-    <div className="divide-y divide-linie border-y border-linie">
+    <div className="grid gap-2">
       {fragen.map(([f, a]) => (
-        <details key={f} className="group py-1">
-          <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 font-semibold [&::-webkit-details-marker]:hidden">
+        <details key={f} className="group rounded-2xl bg-flaeche px-5 ring-1 ring-linie open:ring-grau-hell">
+          <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 font-semibold [&::-webkit-details-marker]:hidden">
             {f}
-            <span aria-hidden className="text-xl leading-none text-grau transition-transform group-open:rotate-45">
+            <span aria-hidden className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/5 text-lg leading-none text-grau transition-transform duration-300 group-open:rotate-45">
               +
             </span>
           </summary>
-          <p className="max-w-prose pb-4 text-grau">{a}</p>
+          <p className="max-w-prose pb-5 text-grau">{a}</p>
         </details>
       ))}
     </div>

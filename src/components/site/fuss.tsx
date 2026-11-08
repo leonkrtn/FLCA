@@ -22,13 +22,13 @@ function zeitenZusammenfassen(o: Einstellungen["oeffnungszeiten"]): [string, str
 export function Fuss({ e }: { e: Einstellungen }) {
   const f = e.firma;
   return (
-    <footer className="bg-graphit pb-28 pt-14 text-boden md:pb-14">
+    <footer className="bg-graphit pb-28 pt-14 text-tinte md:pb-14">
       <div className="rand grid gap-10 md:grid-cols-[1.2fr_1fr_1fr_1fr]">
         <div>
-          <Logo className="h-14 w-auto text-boden" />
+          <Logo className="h-14 w-auto text-tinte" />
         </div>
         <div className="text-sm leading-relaxed">
-          <p className="mb-2 font-semibold text-weiss">Werkstatt</p>
+          <p className="mb-2 font-semibold text-hell">Werkstatt</p>
           <p>
             {f.strasse}
             <br />
@@ -37,7 +37,7 @@ export function Fuss({ e }: { e: Einstellungen }) {
           <p className="mt-2 text-grau-hell">{f.hinweisAnfahrt}</p>
         </div>
         <div className="text-sm">
-          <p className="mb-2 font-semibold text-weiss">Öffnungszeiten</p>
+          <p className="mb-2 font-semibold text-hell">Öffnungszeiten</p>
           <table className="zahlen text-[13px]">
             <tbody>
               {zeitenZusammenfassen(e.oeffnungszeiten).map(([tag, zeit]) => (
@@ -50,19 +50,19 @@ export function Fuss({ e }: { e: Einstellungen }) {
           </table>
         </div>
         <div className="text-sm">
-          <p className="mb-2 font-semibold text-weiss">Kontakt</p>
+          <p className="mb-2 font-semibold text-hell">Kontakt</p>
           <p>
-            <a href={telHref(f.telefon)} className="hover:text-weiss">
+            <a href={telHref(f.telefon)} className="hover:text-hell">
               {f.telefon}
             </a>
             <br />
-            <a href={`mailto:${f.email}`} className="hover:text-weiss">
+            <a href={`mailto:${f.email}`} className="hover:text-hell">
               {f.email}
             </a>
             {f.instagram ? (
               <>
                 <br />
-                <a href={`https://www.instagram.com/${f.instagram}/`} className="hover:text-weiss" rel="noopener noreferrer">
+                <a href={`https://www.instagram.com/${f.instagram}/`} className="hover:text-hell" rel="noopener noreferrer">
                   Instagram @{f.instagram}
                 </a>
               </>
@@ -72,10 +72,10 @@ export function Fuss({ e }: { e: Einstellungen }) {
       </div>
       <div className="rand mt-12 flex flex-wrap gap-x-6 gap-y-2 border-t border-white/10 pt-6 text-xs text-grau-hell">
         <span>© {new Date().getFullYear()} {f.name}</span>
-        <Link href="/impressum" className="hover:text-weiss">Impressum</Link>
-        <Link href="/datenschutz" className="hover:text-weiss">Datenschutz</Link>
-        <Link href="/agb" className="hover:text-weiss">AGB</Link>
-        <Link href="/login" className="hover:text-weiss">Mitarbeiter-Login</Link>
+        <Link href="/impressum" className="hover:text-hell">Impressum</Link>
+        <Link href="/datenschutz" className="hover:text-hell">Datenschutz</Link>
+        <Link href="/agb" className="hover:text-hell">AGB</Link>
+        <Link href="/login" className="hover:text-hell">Mitarbeiter-Login</Link>
       </div>
     </footer>
   );

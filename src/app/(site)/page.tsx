@@ -7,10 +7,11 @@ import lanciaHeck from "@/assets/lancia-heck.jpg";
 import porsche from "@/assets/porsche-felge.jpg";
 import standbild from "@/assets/start-standbild.jpg";
 import { Nachricht, Pfeil, Route, Telefon } from "@/components/icons";
+import { Sterne } from "@/components/icons-stern";
 import { Fragen } from "@/components/site/fragen";
 import { Leistungsbereiche } from "@/components/site/leistungsbereiche";
 import { NaechsterTermin } from "@/components/site/naechster-termin";
-import { Oeffnungszeiten } from "@/components/site/oeffnungszeiten";
+import { jetztStatus, Oeffnungszeiten } from "@/components/site/oeffnungszeiten";
 import { einstellungen } from "@/lib/einstellungen";
 import { absaetze, mapsHref, preis, telHref, whatsappHref } from "@/lib/format";
 import { bewertungen, oeffentlicheLeistungen, stellen } from "@/lib/inhalte";
@@ -25,16 +26,17 @@ export default async function Startseite() {
   // Eigenes Video aus der Verwaltung hat Vorrang, sonst das mitgelieferte.
   const eigenesVideo = websiteDatei(e.medien.heroVideo);
   const eigenesBild = websiteDatei(e.medien.heroBild);
+  const status = jetztStatus(e.oeffnungszeiten);
 
   return (
     <>
-      {/* Start: dunkles Video aus der Werkstatt, darauf, was der Betrieb macht und wie man einen Termin bekommt */}
-      <section className="relative isolate flex min-h-[78svh] items-end overflow-hidden bg-[#0b0b0b] text-weiss md:min-h-[min(88vh,860px)]">
+      {/* Start: Video in voller Höhe, darauf, was der Betrieb macht und wie man einen Termin bekommt */}
+      <section className="relative isolate -mt-16 flex min-h-[100svh] items-end overflow-hidden bg-black text-hell">
         {/* Standbild immer darunter: Es steht da, bis das Video läuft, und bleibt bei „Bewegung reduzieren“ allein stehen. */}
-        <Image src={eigenesBild ?? standbild} alt="" fill priority sizes="100vw" className="-z-20 object-cover" />
+        <Image src={eigenesBild ?? standbild} alt="" fill priority sizes="100vw" className="-z-20 object-cover object-[65%_50%] md:object-center" />
         {eigenesVideo || !eigenesBild ? (
           <video
-            className="absolute inset-0 -z-10 size-full object-cover motion-reduce:hidden"
+            className="absolute inset-0 -z-10 size-full object-cover object-[65%_50%] motion-reduce:hidden md:object-center"
             poster={eigenesBild ?? standbild.src}
             autoPlay
             muted
@@ -48,205 +50,215 @@ export default async function Startseite() {
             {!eigenesVideo ? <source src="/medien/start.mp4" type="video/mp4" /> : null}
           </video>
         ) : null}
-        <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/80 via-black/30 to-black/10 md:bg-gradient-to-r md:from-black/75 md:via-black/35 md:to-transparent" />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black via-black/40 to-black/30 md:bg-gradient-to-r md:from-black/85 md:via-black/30 md:to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-t from-boden to-transparent" />
 
-        <div className="rand w-full pb-10 pt-24 md:pb-20">
-          <p className="mb-4 text-sm font-medium uppercase tracking-[0.14em] text-white/70">
-            Kfz-Meisterbetrieb · {f.ort}
+        <div className="rand w-full pb-14 pt-32 md:pb-24">
+          <p className="mb-6 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm text-hell/90 ring-1 ring-white/15 backdrop-blur-md">
+            <span className={`size-2 rounded-full ${status.offen ? "bg-[#3ccf6e] shadow-[0_0_10px_#3ccf6e]" : "bg-white/40"}`} aria-hidden />
+            <span className="hidden sm:inline">Kfz-Meisterbetrieb in {f.ort} · </span>
+            {status.text}
           </p>
-          <h1 className="schmal max-w-3xl text-5xl leading-[0.95] sm:text-6xl md:text-7xl">Reifen, Service und Aufbereitung</h1>
-          <p className="mt-5 max-w-xl text-lg text-white/85">{e.texte.heroUnterzeile}</p>
+          <h1 className="schmal max-w-4xl text-[3.4rem] leading-[0.9] sm:text-7xl md:text-8xl">
+            Reifen, Service
+            <br />
+            und Aufbereitung
+          </h1>
+          <p className="mt-6 max-w-xl text-lg text-hell/80">{e.texte.heroUnterzeile}</p>
           {/* Auf dem Telefon übernimmt die feste Leiste unten Termin und Anruf. */}
-          <div className="mt-8 hidden flex-wrap items-center gap-3 md:flex">
-            <Link href="/termin" className="knopf knopf-rot">
+          <div className="mt-9 hidden flex-wrap items-center gap-3 md:flex">
+            <Link href="/termin" className="knopf knopf-rot min-h-14 px-8 text-lg shadow-[0_10px_40px_-10px_rgb(204_6_5/0.8)]">
               Termin anfragen
             </Link>
-            <a href={telHref(f.telefon)} className="knopf knopf-rahmen border-white/50 hover:bg-white/10">
+            <a href={telHref(f.telefon)} className="knopf min-h-14 bg-white/10 px-7 text-hell ring-1 ring-white/20 backdrop-blur-md hover:bg-white/20">
               <Telefon /> {f.telefon}
             </a>
           </div>
-          <a href={f.googleBewertungLink} rel="noopener noreferrer" className="mt-6 inline-flex items-baseline gap-2 text-sm text-white/80 hover:text-weiss md:mt-8">
-            <span className="zahlen text-lg font-semibold text-weiss">{f.googleNote}</span> von 5 bei {f.googleAnzahl} Google-Bewertungen
+          <a href={f.googleBewertungLink} rel="noopener noreferrer" className="mt-8 inline-flex items-center gap-3 text-sm text-hell/80 hover:text-hell">
+            <Sterne />
+            <span>
+              <span className="zahlen font-semibold text-hell">{f.googleNote}</span> bei {f.googleAnzahl} Google-Bewertungen
+            </span>
           </a>
         </div>
       </section>
 
-      {/* Schnellwahl: die häufigsten Leistungen direkt in die Terminanfrage */}
-      <section className="rand bg-papier py-8 md:py-10">
-        <div className="grid gap-6 md:grid-cols-12 md:items-start">
-          <div className="md:col-span-4">
-            <h2 className="schmal text-2xl">Wofür brauchen Sie einen Termin?</h2>
-            <div className="mt-2 min-h-5">
-              <Suspense fallback={null}>
-                <NaechsterTermin leistung={leistungen.find((l) => l.slug === "radwechsel") ?? schnellwahl[0]} />
-              </Suspense>
-            </div>
+      {/* Schnellwahl als Chips */}
+      <section className="rand relative py-10 md:py-14">
+        <div className="rounded-3xl bg-papier p-6 ring-1 ring-linie md:p-10">
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+            <h2 className="schmal text-3xl md:text-4xl">Wofür brauchen Sie einen Termin?</h2>
+            <Suspense fallback={null}>
+              <NaechsterTermin leistung={leistungen.find((l) => l.slug === "radwechsel") ?? schnellwahl[0]} />
+            </Suspense>
           </div>
-          <ul className="border-t border-tinte md:col-span-8 md:grid md:grid-cols-2 md:gap-x-10">
+          <div className="flex flex-wrap gap-2 md:gap-3">
             {schnellwahl.map((l) => (
-              <li key={l.id} className="border-b border-linie">
-                <Link href={`/termin?leistung=${l.slug}`} className="group flex min-h-14 items-center justify-between gap-4 py-2">
-                  <span className="font-semibold">{l.name}</span>
-                  <span className="flex items-center gap-3">
-                    <span className="zahlen">{preis(l.preis_cent, l.preis_ab)}</span>
-                    <Pfeil className="size-5 text-grau transition-transform group-hover:translate-x-0.5 group-hover:text-tinte" />
-                  </span>
-                </Link>
-              </li>
-            ))}
-            <li className="border-b border-linie">
-              <Link href="/termin" className="flex min-h-14 items-center justify-between py-2 text-grau hover:text-tinte">
-                <span>Andere Leistung oder Reparatur</span>
-                <Pfeil className="size-5" />
+              <Link
+                key={l.id}
+                href={`/termin?leistung=${l.slug}`}
+                className="group inline-flex items-center gap-3 rounded-full bg-flaeche py-3 pl-5 pr-3 ring-1 ring-linie transition-colors hover:bg-tinte hover:text-boden"
+              >
+                <span className="font-semibold">{l.name}</span>
+                <span className="zahlen rounded-full bg-white/5 px-2.5 py-1 text-sm group-hover:bg-black/10">{preis(l.preis_cent, l.preis_ab)}</span>
               </Link>
-            </li>
-          </ul>
+            ))}
+            <Link href="/termin" className="inline-flex items-center gap-2 rounded-full px-5 py-3 text-grau ring-1 ring-dashed ring-linie hover:text-tinte">
+              Andere Leistung <Pfeil className="size-4" />
+            </Link>
+          </div>
         </div>
       </section>
 
-      {/* Leistungen nach Bereich, mit Bild und Preisen */}
-      <section id="preise" className="rand scroll-mt-20 py-16 md:py-24">
-        <div className="mb-12 max-w-2xl">
-          <h2 className="schmal text-4xl md:text-5xl">Leistungen und Preise</h2>
-          <p className="mt-3 text-grau">Alle Preise sind Endpreise inklusive 19 % Mehrwertsteuer. Bezahlen können Sie bar oder per Überweisung.</p>
+      {/* Leistungen als Bildkacheln */}
+      <section id="preise" className="rand scroll-mt-20 pb-20 pt-6 md:pb-28">
+        <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
+          <h2 className="schmal text-5xl md:text-7xl">Leistungen</h2>
+          <p className="max-w-sm text-grau">Endpreise inklusive 19 % Mehrwertsteuer. Bezahlen bar oder per Überweisung.</p>
         </div>
         <Leistungsbereiche leistungen={leistungen} />
       </section>
 
-      {/* Ablauf: drei Schritte, so wie es tatsächlich passiert */}
-      <section className="rand border-y border-linie bg-papier py-14 md:py-20">
-        <h2 className="schmal mb-10 text-3xl md:text-4xl">So läuft ein Termin ab</h2>
-        <ol className="grid gap-10 md:grid-cols-3 md:gap-12">
+      {/* Ablauf mit großen Schrittnummern */}
+      <section className="rand py-20 md:py-28">
+        <h2 className="schmal mb-14 text-5xl md:text-7xl">So läuft&apos;s</h2>
+        <ol className="grid gap-12 md:grid-cols-3 md:gap-8">
           {[
             ["Termin wählen", "Online sehen Sie nur Zeiten, die wirklich frei sind. Lieber telefonisch? Auch gut."],
-            ["Bestätigung bekommen", `Wir bestätigen per E-Mail, meist am selben Tag. Bis dahin halten wir den Termin ${e.buchung.haltenStd} Stunden für Sie fest.`],
-            ["Auto bringen", `${f.hinweisAnfahrt} Bezahlt wird nach der Arbeit, bar oder per Überweisung.`],
+            ["Bestätigung bekommen", `Per E-Mail, meist am selben Tag. Bis dahin halten wir den Termin ${e.buchung.haltenStd} Stunden für Sie fest.`],
+            ["Auto bringen", `${f.hinweisAnfahrt} Bezahlt wird nach der Arbeit.`],
           ].map(([titel, text], i) => (
-            <li key={titel} className="border-t-2 border-tinte pt-4">
-              <p className="zahlen mb-2 text-sm text-grau">Schritt {i + 1}</p>
-              <h3 className="mb-2 text-lg font-semibold">{titel}</h3>
-              <p className="text-grau">{text}</p>
+            <li key={titel} className="relative">
+              <span className="schmal block text-[7rem] leading-none text-transparent [-webkit-text-stroke:1.5px_var(--color-grau-hell)] md:text-[9rem]" aria-hidden>
+                0{i + 1}
+              </span>
+              <h3 className="-mt-6 mb-2 text-xl font-semibold md:-mt-8">{titel}</h3>
+              <p className="max-w-sm text-grau">{text}</p>
             </li>
           ))}
         </ol>
       </section>
 
-      {/* Inhaber und Werkstatt */}
-      <section className="rand grid gap-10 py-16 md:grid-cols-12 md:py-24">
-        <div className="relative aspect-[4/3] overflow-hidden bg-graphit md:col-span-6 md:aspect-auto md:min-h-[480px]">
-          <Image
-            src={websiteDatei(e.medien.ueberBild) ?? handschuhe}
-            alt="Arbeitshandschuhe und Schraubendreher auf dem Motor eines Autos"
-            fill
-            sizes="(min-width: 768px) 50vw, 100vw"
-            className="object-cover"
-          />
-        </div>
-        <div className="md:col-span-5 md:col-start-8 md:self-center">
-          <p className="mb-3 text-sm font-medium uppercase tracking-[0.14em] text-grau">
-            {f.inhaber}, {f.titel}
-          </p>
-          <h2 className="schmal mb-6 text-4xl md:text-5xl">{e.texte.ueberTitel}</h2>
-          <div className="fliesstext max-w-prose">
-            {absaetze(e.texte.ueberText).map((a) => (
-              <p key={a.slice(0, 30)}>{a}</p>
-            ))}
+      {/* Inhaber: Bild mit Text darüber */}
+      <section className="rand pb-20 md:pb-28">
+        <div className="relative isolate overflow-hidden rounded-3xl">
+          <div className="relative aspect-[4/5] md:aspect-[21/9]">
+            <Image src={websiteDatei(e.medien.ueberBild) ?? handschuhe} alt="Arbeitshandschuhe und Schraubendreher auf dem Motor eines Autos" fill sizes="100vw" className="-z-10 object-cover" />
+            <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black via-black/50 to-transparent md:bg-gradient-to-r md:from-black/90 md:via-black/60 md:to-transparent" />
+          </div>
+          <div className="absolute inset-0 flex flex-col justify-end p-6 text-hell md:w-1/2 md:justify-center md:p-14">
+            <p className="mb-3 text-sm uppercase tracking-[0.16em] text-hell/60">
+              {f.inhaber}, {f.titel}
+            </p>
+            <h2 className="schmal mb-5 text-4xl md:text-6xl">{e.texte.ueberTitel}</h2>
+            <div className="fliesstext max-w-prose text-hell/80">
+              {absaetze(e.texte.ueberText).map((a) => (
+                <p key={a.slice(0, 30)}>{a}</p>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Echte Fotos aus der Halle, auf dem Telefon seitlich wischbar */}
-      <section aria-labelledby="halle-titel" className="pb-16 md:pb-24">
-        <div className="rand mb-5 flex items-baseline justify-between gap-4">
-          <h2 id="halle-titel" className="schmal text-2xl">Aus unserer Halle</h2>
+      {/* Echte Fotos aus der Halle */}
+      <section aria-labelledby="halle-titel" className="pb-20 md:pb-28">
+        <div className="rand mb-8 flex items-end justify-between gap-4">
+          <h2 id="halle-titel" className="schmal text-5xl md:text-7xl">Aus der Halle</h2>
           {e.module.galerie ? (
-            <Link href="/galerie" className="inline-flex items-center gap-2 text-sm font-semibold hover:underline">
-              Vorher und nachher <Pfeil className="size-4" />
+            <Link href="/galerie" className="inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ring-1 ring-linie hover:bg-flaeche">
+              Vorher / nachher <Pfeil className="size-4" />
             </Link>
           ) : null}
         </div>
-        <div className="rand flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 [scrollbar-width:none] md:grid md:grid-cols-3 md:overflow-visible">
+        <div className="rand flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [scrollbar-width:none] md:grid md:grid-cols-3 md:overflow-visible">
           {[
             { src: porsche, alt: "Porsche 911 mit schwarzen Felgen und gelben Bremssätteln in der Halle" },
             { src: lanciaHeck, alt: "Roter Lancia Delta von hinten, daneben ein schwarzer BMW" },
             { src: halle, alt: "Werkstatthalle mit geöffneter Motorhaube" },
-          ].map((b) => (
-            <div key={b.alt} className="relative aspect-[3/4] w-[78vw] shrink-0 snap-start overflow-hidden sm:w-[45vw] md:w-auto">
-              <Image src={b.src} alt={b.alt} fill sizes="(min-width: 768px) 30vw, 78vw" className="object-cover" />
+          ].map((b, i) => (
+            <div key={b.alt} className={`group relative aspect-[3/4] w-[78vw] shrink-0 snap-start overflow-hidden rounded-3xl sm:w-[45vw] md:w-auto ${i === 1 ? "md:mt-12" : ""}`}>
+              <Image src={b.src} alt={b.alt} fill sizes="(min-width: 768px) 30vw, 78vw" className="object-cover transition-transform duration-700 group-hover:scale-[1.04]" />
             </div>
           ))}
         </div>
       </section>
 
-      {/* Bewertungen: echte Zitate mit Namen, kein Karussell */}
+      {/* Bewertungen als Karten, auf dem Telefon seitlich wischbar */}
       {e.module.bewertungen && stimmen.length ? (
-        <section className="rand bg-graphit py-16 text-boden md:py-24">
-          <div className="grid gap-12 md:grid-cols-12">
-            <div className="md:col-span-4">
-              <p className="schmal text-6xl text-weiss md:text-[7rem] md:leading-none">{f.googleNote}</p>
-              <p className="mt-2 text-grau-hell">von 5 bei {f.googleAnzahl} Google-Bewertungen</p>
-              <a href={f.googleBewertungLink} className="mt-6 inline-flex items-center gap-2 font-semibold text-weiss hover:underline" rel="noopener noreferrer">
-                Alle Bewertungen bei Google <Pfeil className="size-4" />
-              </a>
+        <section className="pb-20 md:pb-28">
+          <div className="rand mb-10 flex flex-wrap items-end justify-between gap-6">
+            <div>
+              <p className="schmal text-7xl leading-none md:text-9xl">{f.googleNote}</p>
+              <div className="mt-3 flex items-center gap-3 text-grau">
+                <Sterne className="size-5" /> {f.googleAnzahl} Google-Bewertungen
+              </div>
             </div>
-            <ul className="grid gap-10 md:col-span-8">
-              {stimmen.slice(0, 3).map((b) => (
-                <li key={b.id} className="border-l-2 border-white/20 pl-5">
-                  <blockquote className="text-lg leading-relaxed text-weiss">„{b.text}“</blockquote>
-                  <p className="mt-3 text-sm text-grau-hell">
-                    {b.name}, {b.quelle}
-                  </p>
-                </li>
-              ))}
-            </ul>
+            <a href={f.googleBewertungLink} className="inline-flex items-center gap-2 rounded-full px-5 py-3 font-semibold ring-1 ring-linie hover:bg-flaeche" rel="noopener noreferrer">
+              Alle bei Google lesen <Pfeil className="size-4" />
+            </a>
           </div>
+          <ul className="rand flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [scrollbar-width:none] md:grid md:grid-cols-3 md:overflow-visible">
+            {stimmen.slice(0, 3).map((b) => (
+              <li key={b.id} className="flex w-[82vw] shrink-0 snap-start flex-col justify-between rounded-3xl bg-flaeche p-7 ring-1 ring-linie sm:w-[60vw] md:w-auto">
+                <div>
+                  <Sterne anzahl={b.sterne} />
+                  <blockquote className="mt-5 text-lg leading-relaxed">„{b.text}“</blockquote>
+                </div>
+                <p className="mt-6 flex items-center gap-3 text-sm text-grau">
+                  <span className="flex size-9 items-center justify-center rounded-full bg-white/10 font-semibold text-tinte">{b.name.slice(0, 1)}</span>
+                  {b.name} · {b.quelle}
+                </p>
+              </li>
+            ))}
+          </ul>
         </section>
       ) : null}
 
       {/* Fragen */}
-      <section className="rand grid gap-8 py-16 md:grid-cols-12 md:py-24">
-        <h2 className="schmal text-3xl md:col-span-4 md:text-4xl">Häufige Fragen</h2>
+      <section className="rand grid gap-10 pb-20 md:grid-cols-12 md:pb-28">
+        <h2 className="schmal text-5xl md:col-span-4 md:text-6xl">Fragen</h2>
         <div className="md:col-span-8">
           <Fragen e={e} />
         </div>
       </section>
 
       {/* Anfahrt */}
-      <section id="anfahrt" className="rand grid scroll-mt-20 gap-12 border-t border-linie py-16 md:grid-cols-12 md:py-24">
-        <div className="md:col-span-5">
-          <h2 className="schmal mb-6 text-4xl md:text-5xl">So finden Sie uns</h2>
-          <address className="text-lg not-italic">
-            {f.name}
-            <br />
-            {f.strasse}
-            <br />
-            {f.plz} {f.ort}
-          </address>
-          <p className="mt-4 border-l-2 border-kreide bg-papier px-4 py-3">{f.hinweisAnfahrt}</p>
-          <div className="mt-8 flex flex-wrap gap-2">
-            <a href={mapsHref(f.strasse, f.plz, f.ort)} className="knopf knopf-dunkel" rel="noopener noreferrer">
-              <Route /> Route planen
-            </a>
-            <a href={telHref(f.telefon)} className="knopf knopf-rahmen">
-              <Telefon /> Anrufen
-            </a>
-            <a href={whatsappHref(f.whatsapp)} className="knopf knopf-rahmen" rel="noopener noreferrer">
-              <Nachricht /> WhatsApp
-            </a>
+      <section id="anfahrt" className="rand scroll-mt-20 pb-20 md:pb-28">
+        <div className="grid gap-10 rounded-3xl bg-papier p-6 ring-1 ring-linie md:grid-cols-12 md:p-12">
+          <div className="md:col-span-5">
+            <h2 className="schmal mb-6 text-5xl md:text-6xl">So finden Sie uns</h2>
+            <address className="text-xl not-italic">
+              {f.strasse}
+              <br />
+              {f.plz} {f.ort}
+            </address>
+            <p className="mt-5 rounded-2xl bg-kreide/10 px-4 py-3 text-sm ring-1 ring-kreide/30">{f.hinweisAnfahrt}</p>
+            <div className="mt-8 flex flex-wrap gap-2">
+              <a href={mapsHref(f.strasse, f.plz, f.ort)} className="knopf knopf-dunkel" rel="noopener noreferrer">
+                <Route /> Route planen
+              </a>
+              <a href={telHref(f.telefon)} className="knopf knopf-rahmen">
+                <Telefon /> Anrufen
+              </a>
+              <a href={whatsappHref(f.whatsapp)} className="knopf knopf-rahmen" rel="noopener noreferrer">
+                <Nachricht /> WhatsApp
+              </a>
+            </div>
           </div>
-        </div>
-        <div className="md:col-span-6 md:col-start-7">
-          <h3 className="schmal mb-3 text-lg tracking-wide text-grau">Öffnungszeiten</h3>
-          <Oeffnungszeiten zeiten={e.oeffnungszeiten} />
+          <div className="md:col-span-7">
+            <Oeffnungszeiten zeiten={e.oeffnungszeiten} />
+          </div>
         </div>
       </section>
 
       {e.module.karriere && offeneStellen.length ? (
-        <section className="rand border-t border-linie py-12">
-          <Link href="/karriere" className="group grid gap-2 md:grid-cols-12 md:items-baseline">
-            <span className="text-sm font-medium uppercase tracking-[0.14em] text-grau md:col-span-3">Wir stellen ein</span>
-            <span className="schmal text-2xl group-hover:underline md:col-span-7 md:text-3xl">{offeneStellen.map((s) => s.titel).join(" · ")}</span>
-            <span className="inline-flex items-center gap-2 font-semibold md:col-span-2 md:justify-self-end">
+        <section className="rand pb-20">
+          <Link href="/karriere" className="group flex flex-wrap items-center justify-between gap-6 rounded-3xl bg-flaeche px-6 py-8 ring-1 ring-linie md:px-12 md:py-10">
+            <span>
+              <span className="block text-sm uppercase tracking-[0.16em] text-grau">Wir stellen ein</span>
+              <span className="schmal mt-1 block text-3xl md:text-5xl">{offeneStellen.map((s) => s.titel).join(" · ")}</span>
+            </span>
+            <span className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 font-semibold text-black transition-transform group-hover:translate-x-1">
               Bewerben <Pfeil className="size-4" />
             </span>
           </Link>

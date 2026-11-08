@@ -13,9 +13,9 @@ export function VorherNachher({ vorher, nachher, titel }: { vorher: string; nach
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={vorher} alt={`${titel}, vorher`} className="absolute inset-0 size-full object-cover" loading="lazy" />
       </div>
-      <div className="pointer-events-none absolute inset-y-0 w-0.5 bg-weiss" style={{ left: `${wert}%` }} />
-      <span className="absolute left-3 top-3 bg-tinte/80 px-2 py-1 text-xs font-semibold text-weiss">Vorher</span>
-      <span className="absolute right-3 top-3 bg-tinte/80 px-2 py-1 text-xs font-semibold text-weiss">Nachher</span>
+      <div className="pointer-events-none absolute inset-y-0 w-0.5 bg-flaeche" style={{ left: `${wert}%` }} />
+      <span className="absolute left-3 top-3 bg-black/70 px-2 py-1 text-xs font-semibold text-hell rounded-full">Vorher</span>
+      <span className="absolute right-3 top-3 bg-black/70 px-2 py-1 text-xs font-semibold text-hell rounded-full">Nachher</span>
       <input
         type="range"
         min={0}

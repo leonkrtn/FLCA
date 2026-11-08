@@ -112,7 +112,7 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
     const d = zustand.daten as { token: string; leistung: string; wann: string; email: string };
     return (
       <div className="max-w-xl" role="status">
-        <div className="mb-6 flex size-14 items-center justify-center rounded-full bg-tinte text-weiss">
+        <div className="mb-6 flex size-14 items-center justify-center rounded-full bg-tinte text-boden">
           <Haken className="size-7" />
         </div>
         <h2 className="schmal mb-3 text-3xl">Anfrage ist da.</h2>
@@ -135,7 +135,7 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
       <div className="space-y-12 lg:col-span-8">
         <Schritt nummer={1} titel="Leistung" aktiv={!leistung} id="schritt-leistung">
           {leistung && !listeOffen ? (
-            <div className="flex min-h-14 items-center justify-between gap-4 border-l-4 border-tinte bg-weiss py-2 pl-3 pr-2">
+            <div className="flex min-h-16 items-center justify-between gap-4 rounded-2xl bg-flaeche px-4 py-3 ring-1 ring-tinte/40">
               <span>
                 <span className="font-semibold">{leistung.name}</span>
                 <span className="block text-sm text-grau">
@@ -151,14 +151,14 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
             {gruppen.map((g) => (
               <fieldset key={g.name}>
                 <legend className="mb-2 text-sm font-semibold text-grau">{g.name}</legend>
-                <div className="border-t border-linie">
+                <div className="grid gap-2">
                   {g.eintraege.map((l) => {
                     const gewaehlt = l.id === leistungId;
                     return (
                       <label
                         key={l.id}
-                        className={`flex min-h-14 cursor-pointer items-center justify-between gap-4 border-b border-linie py-2 pl-3 pr-2 transition-colors ${
-                          gewaehlt ? "border-l-4 border-l-tinte bg-weiss" : "border-l-4 border-l-transparent hover:bg-papier"
+                        className={`flex min-h-16 cursor-pointer items-center justify-between gap-4 rounded-2xl px-4 py-3 ring-1 transition-colors ${
+                          gewaehlt ? "bg-tinte text-boden ring-tinte" : "bg-flaeche ring-linie hover:ring-grau-hell"
                         }`}
                       >
                         <input
@@ -174,9 +174,9 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
                         />
                         <span>
                           <span className="font-semibold">{l.name}</span>
-                          <span className="block text-sm text-grau">{dauerText(l.dauer_min)}</span>
+                          <span className={`block text-sm ${gewaehlt ? "opacity-70" : "text-grau"}`}>{dauerText(l.dauer_min)}</span>
                         </span>
-                        <span className={`zahlen text-right ${l.preis_cent === null ? "text-sm text-grau" : ""}`}>{preisText(l.preis_cent, l.preis_ab)}</span>
+                        <span className={`zahlen text-right ${l.preis_cent === null ? `text-sm ${gewaehlt ? "opacity-70" : "text-grau"}` : "font-semibold"}`}>{preisText(l.preis_cent, l.preis_ab)}</span>
                       </label>
                     );
                   })}
@@ -209,13 +209,13 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
                         setDatum(t.datum);
                         setUhrzeit(null);
                       }}
-                      className={`flex w-[4.5rem] shrink-0 snap-start flex-col items-center gap-0.5 rounded-sm border py-2.5 transition-colors ${
-                        gewaehlt ? "border-tinte bg-tinte text-weiss" : frei ? "border-linie bg-weiss hover:border-tinte" : "border-transparent text-grau-hell"
+                      className={`flex w-[4.5rem] shrink-0 snap-start flex-col items-center gap-0.5 rounded-2xl border py-2.5 transition-colors ${
+                        gewaehlt ? "border-tinte bg-tinte text-boden" : frei ? "border-linie bg-flaeche hover:border-tinte" : "border-transparent text-grau-hell"
                       }`}
                     >
                       <span className="text-xs uppercase">{wt.format(alsDatum(t.datum)).replace(".", "")}</span>
                       <span className="zahlen font-medium">{tm.format(alsDatum(t.datum))}</span>
-                      <span className={`text-[11px] ${gewaehlt ? "text-weiss/70" : "text-grau"}`}>{frei ? `${frei} frei` : "voll"}</span>
+                      <span className={`text-[11px] ${gewaehlt ? "text-boden/70" : "text-grau"}`}>{frei ? `${frei} frei` : "voll"}</span>
                     </button>
                   );
                 })}
@@ -224,7 +224,7 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
                     type="button"
                     onClick={() => leistung && laden(leistung.id, plusTage(tage.at(-1)!.datum, 1), true)}
                     disabled={laedt}
-                    className="w-[4.5rem] shrink-0 rounded-sm border border-dashed border-linie text-sm text-grau hover:border-tinte hover:text-tinte"
+                    className="w-[4.5rem] shrink-0 rounded-2xl border border-dashed border-linie text-sm text-grau hover:border-tinte hover:text-tinte"
                   >
                     weitere Tage
                   </button>
@@ -245,8 +245,8 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
                           setUhrzeit(s);
                           requestAnimationFrame(() => document.getElementById("schritt-daten")?.scrollIntoView({ behavior: "smooth", block: "start" }));
                         }}
-                        className={`zahlen min-h-12 rounded-sm border transition-colors ${
-                          s === uhrzeit ? "border-tinte bg-tinte text-weiss" : "border-linie bg-weiss hover:border-tinte"
+                        className={`zahlen min-h-12 rounded-full border transition-colors ${
+                          s === uhrzeit ? "border-tinte bg-tinte text-boden" : "border-linie bg-flaeche hover:border-tinte"
                         }`}
                       >
                         {s}
@@ -353,7 +353,7 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
       </div>
 
       <aside className="hidden lg:col-span-4 lg:block">
-        <div className="sticky top-24 bg-papier p-6">
+        <div className="sticky top-24 rounded-3xl bg-flaeche p-6 ring-1 ring-linie">
           <p className="mb-4 text-sm font-semibold uppercase tracking-[0.12em] text-grau">Ihre Anfrage</p>
           <dl className="space-y-4">
             <div>
@@ -374,7 +374,7 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
 
       {/* Telefon: Zusammenfassung über der festen Leiste, sobald eine Zeit gewählt ist */}
       {leistung && uhrzeit ? (
-        <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 border-t border-linie bg-weiss px-4 py-2 text-sm md:hidden">
+        <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 border-t border-linie bg-flaeche px-4 py-2 text-sm md:hidden">
           <span className="font-semibold">{leistung.name}</span>
           <span className="zahlen ml-2 text-grau">
             {tm.format(alsDatum(datum!))} · {uhrzeit}

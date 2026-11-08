@@ -32,7 +32,7 @@ export function BewerbungsFormular({ stelle }: { stelle: string }) {
   if (zustand.status === "ok") {
     return (
       <div role="status" className="flex gap-4">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-tinte text-weiss">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-tinte text-boden">
           <Haken />
         </span>
         <p className="text-lg">Danke! Ihre Bewerbung ist angekommen. Wir melden uns in den nächsten Tagen bei Ihnen.</p>

@@ -4,77 +4,94 @@ import oelstand from "@/assets/oelstand.jpg";
 import porsche from "@/assets/porsche-felge.jpg";
 import reifenmaschine from "@/assets/reifenmaschine.jpg";
 import schweissen from "@/assets/schweissen.jpg";
+import { Pfeil } from "@/components/icons";
 import { preis } from "@/lib/format";
 import type { Leistung } from "@/lib/termine";
 
-const BEREICHE: { kategorie: string; titel: string; text: string; bild: StaticImageData; alt: string }[] = [
+const BEREICHE: { kategorie: string; titel: string; text: string; bild: StaticImageData; alt: string; flaeche: string }[] = [
   {
     kategorie: "reifen",
     titel: "Reifen",
-    text: "Radwechsel dauert rund 30 Minuten, Sie können dabei warten. Gewuchtet wird immer, angezogen mit dem Drehmomentschlüssel.",
+    text: "Radwechsel in rund 30 Minuten, gewuchtet und mit Drehmoment angezogen.",
     bild: reifenmaschine,
     alt: "Reifenmontiermaschine und Wuchtmaschine in der Werkstatt in Dietzenbach",
+    flaeche: "md:col-span-7 md:row-span-2",
   },
   {
     kategorie: "service",
     titel: "Service und Reparatur",
-    text: "Ölwechsel mit Markenöl, Inspektion nach Herstellervorgabe, Bremsen, Fahrwerk, Klima. Bei Reparaturen nennen wir den Preis, bevor wir anfangen.",
+    text: "Ölwechsel, Inspektion, Bremsen, Klima. Preis vorher.",
     bild: oelstand,
     alt: "Ölstand wird mit dem Messstab und einem Tuch geprüft",
+    flaeche: "md:col-span-5",
   },
   {
     kategorie: "aufbereitung",
     titel: "Aufbereitung",
-    text: "Vom gründlich gereinigten Innenraum bis zur Politur mit Versiegelung. Das Auto bleibt dafür meist einen Tag bei uns.",
+    text: "Innenraum, Politur, Versiegelung.",
     bild: porsche,
-    alt: "Porsche 911 in Blau mit schwarzen Felgen nach der Aufbereitung",
+    alt: "Porsche 911 in Blau mit schwarzen Felgen in der Halle",
+    flaeche: "md:col-span-5",
   },
   {
     kategorie: "schutz",
     titel: "Rostschutz",
-    text: "Hohlraumversiegelung und Unterbodenschutz halten Rost von Schwellern, Türen und Boden fern. Rechnen Sie mit einem ganzen Tag.",
+    text: "Hohlraum und Unterboden, damit Schweller und Boden halten.",
     bild: schweissen,
     alt: "Schweißarbeit im Dunkeln, Lichtbogen am Metall",
+    flaeche: "md:col-span-12 md:aspect-[21/8]",
   },
 ];
 
 /**
- * Leistungen nach Bereich, jeweils mit Foto und Preisliste. Die Seiten wechseln von Bereich zu Bereich,
- * damit die Seite nicht wie ein Raster gleicher Kästen wirkt.
+ * Leistungen als Bildkacheln in unterschiedlicher Größe. Auf jeder Kachel stehen die Leistungen als
+ * Preis-Chips, die direkt in die Terminanfrage führen.
  */
 export function Leistungsbereiche({ leistungen }: { leistungen: Leistung[] }) {
   return (
-    <div className="grid gap-16 md:gap-24">
-      {BEREICHE.map((b, i) => {
+    <>
+    <div className="grid gap-4 md:auto-rows-[minmax(300px,auto)] md:grid-cols-12">
+      {BEREICHE.map((b) => {
         const liste = leistungen.filter((l) => l.kategorie === b.kategorie);
         if (!liste.length) return null;
+        const ab = Math.min(...liste.map((l) => l.preis_cent ?? Infinity));
         return (
-          <section key={b.kategorie} aria-labelledby={`bereich-${b.kategorie}`} className="grid gap-6 md:grid-cols-12 md:gap-12">
-            <div className={`relative aspect-[4/3] overflow-hidden bg-graphit md:col-span-5 md:aspect-auto md:min-h-[420px] ${i % 2 ? "md:order-2 md:col-start-8" : ""}`}>
-              <Image src={b.bild} alt={b.alt} fill sizes="(min-width: 768px) 40vw, 100vw" className="object-cover" />
-            </div>
-            <div className={`md:col-span-7 md:self-center ${i % 2 ? "md:order-1" : ""}`}>
-              <h3 id={`bereich-${b.kategorie}`} className="schmal mb-2 text-3xl">
-                {b.titel}
-              </h3>
-              <p className="mb-5 max-w-xl text-grau">{b.text}</p>
-              <ul className="border-t-2 border-tinte">
+          <article key={b.kategorie} className={`group relative isolate flex min-h-[480px] flex-col justify-end overflow-hidden rounded-3xl bg-flaeche ${b.flaeche}`}>
+            <Image
+              src={b.bild}
+              alt={b.alt}
+              fill
+              sizes="(min-width: 768px) 60vw, 100vw"
+              className="-z-10 object-cover transition-transform duration-700 ease-[var(--ease-ruhig)] group-hover:scale-[1.04]"
+            />
+            <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black via-black/75 to-black/10" />
+            <div className="p-5 md:p-7">
+              <div className="mb-1 flex items-baseline justify-between gap-4">
+                <h3 className="schmal text-3xl text-hell md:text-4xl">{b.titel}</h3>
+                {Number.isFinite(ab) ? <span className="zahlen shrink-0 text-sm text-hell/70">ab {preis(ab)}</span> : null}
+              </div>
+              <p className="mb-4 max-w-md text-hell/75">{b.text}</p>
+              <ul className="flex flex-wrap gap-2">
                 {liste.map((l) => (
-                  <li key={l.id} className="border-b border-linie">
-                    <Link href={`/termin?leistung=${l.slug}`} className="group grid grid-cols-[1fr_auto] items-baseline gap-x-4 py-3">
-                      <span>
-                        <span className="font-semibold group-hover:underline">{l.name}</span>
-                        <span className="block text-sm text-grau">{l.kurz}</span>
-                      </span>
-                      <span className={`zahlen text-right ${l.preis_cent === null ? "text-sm text-grau" : "text-lg font-medium"}`}>{preis(l.preis_cent, l.preis_ab)}</span>
+                  <li key={l.id}>
+                    <Link
+                      href={`/termin?leistung=${l.slug}`}
+                      className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-2 text-sm text-hell ring-1 ring-white/15 backdrop-blur-md transition-colors hover:bg-white hover:text-black"
+                    >
+                      {l.name}
+                      <span className="zahlen opacity-70">{preis(l.preis_cent, l.preis_ab)}</span>
                     </Link>
                   </li>
                 ))}
               </ul>
             </div>
-          </section>
+          </article>
         );
       })}
     </div>
+      <Link href="/leistungen" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-grau hover:text-tinte">
+        Alle Leistungen mit Beschreibung <Pfeil className="size-4" />
+      </Link>
+    </>
   );
 }
