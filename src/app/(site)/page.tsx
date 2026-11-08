@@ -77,7 +77,7 @@ export default async function Startseite() {
       {/* Leistungen als Bildkacheln */}
       <section id="preise" className="rand scroll-mt-20 pb-16 pt-16 md:pb-20 md:pt-24">
         <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
-          <h2 className="schmal text-5xl md:text-7xl">Leistungen</h2>
+          <h2 className="schmal text-3xl sm:text-4xl md:text-7xl">Leistungen</h2>
           <p className="max-w-sm text-grau">Endpreise inklusive 19 % Mehrwertsteuer. Bezahlen bar oder per Überweisung.</p>
         </div>
         <Leistungsbereiche leistungen={leistungen} />
@@ -85,7 +85,7 @@ export default async function Startseite() {
 
       {/* Ablauf mit großen Schrittnummern */}
       <section className="rand pb-20 md:pb-28">
-        <h2 className="schmal mb-8 text-5xl md:text-7xl">So läuft&apos;s</h2>
+        <h2 className="schmal mb-8 text-3xl sm:text-4xl md:text-7xl">So läuft&apos;s</h2>
         <ol className="grid gap-12 md:grid-cols-3 md:gap-8">
           {[
             ["Termin wählen", "Online sehen Sie nur Zeiten, die wirklich frei sind. Lieber telefonisch? Auch gut."],
@@ -114,7 +114,7 @@ export default async function Startseite() {
             <p className="mb-3 text-sm uppercase tracking-[0.16em] text-hell/60">
               {f.inhaber}, {f.titel}
             </p>
-            <h2 className="schmal mb-5 text-4xl md:text-6xl">{e.texte.ueberTitel}</h2>
+            <h2 className="schmal mb-5 text-3xl sm:text-4xl md:text-6xl">{e.texte.ueberTitel}</h2>
             <div className="fliesstext max-w-prose text-hell/80">
               {absaetze(e.texte.ueberText).map((a) => (
                 <p key={a.slice(0, 30)}>{a}</p>
@@ -127,7 +127,7 @@ export default async function Startseite() {
       {/* Echte Fotos aus der Halle */}
       <section aria-labelledby="halle-titel" className="pb-20 md:pb-28">
         <div className="rand mb-8 flex items-end justify-between gap-4">
-          <h2 id="halle-titel" className="schmal text-4xl sm:text-5xl md:text-7xl">Aus der Halle</h2>
+          <h2 id="halle-titel" className="schmal text-3xl sm:text-4xl md:text-7xl">Aus der Halle</h2>
           {e.module.galerie ? (
             <Link href="/galerie" className="inline-flex shrink-0 items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold ring-1 ring-linie hover:bg-flaeche">
               Vorher / nachher <Pfeil className="size-4" />
@@ -152,7 +152,7 @@ export default async function Startseite() {
         <section className="pb-20 md:pb-28">
           <div className="rand mb-10 flex flex-wrap items-end justify-between gap-6">
             <div>
-              <p className="schmal text-7xl leading-none md:text-9xl">{f.googleNote}</p>
+              <p className="schmal text-6xl leading-none md:text-9xl">{f.googleNote}</p>
               <div className="mt-3 flex items-center gap-3 text-grau">
                 <Sterne className="size-5" /> {f.googleAnzahl} Google-Bewertungen
               </div>
@@ -180,7 +180,7 @@ export default async function Startseite() {
 
       {/* Fragen */}
       <section className="rand grid gap-10 pb-20 md:grid-cols-12 md:pb-28">
-        <h2 className="schmal text-5xl md:col-span-4 md:text-6xl">Fragen</h2>
+        <h2 className="schmal text-3xl sm:text-4xl md:col-span-4 md:text-6xl">Fragen</h2>
         <div className="md:col-span-8">
           <Fragen e={e} />
         </div>
@@ -190,21 +190,21 @@ export default async function Startseite() {
       <section id="anfahrt" className="rand scroll-mt-20 pb-20 md:pb-28">
         <div className="grid gap-10 rounded-lg bg-papier p-6 ring-1 ring-linie md:grid-cols-12 md:p-12">
           <div className="md:col-span-5">
-            <h2 className="schmal mb-6 text-5xl md:text-6xl">So finden Sie uns</h2>
-            <address className="text-xl not-italic">
+            <h2 className="schmal mb-5 text-3xl sm:text-4xl md:text-6xl">So finden Sie uns</h2>
+            <address className="text-base not-italic md:text-xl">
               {f.strasse}
               <br />
               {f.plz} {f.ort}
             </address>
             <p className="mt-5 rounded-md bg-white/[0.04] px-4 py-3 text-sm ring-1 ring-linie">{f.hinweisAnfahrt}</p>
             <div className="mt-8 grid gap-2 lg:grid-cols-3">
-              <a href={mapsHref(f.strasse, f.plz, f.ort)} className="w-full px-3 knopf knopf-dunkel" rel="noopener noreferrer">
+              <a href={mapsHref(f.strasse, f.plz, f.ort)} className="w-full min-h-11 px-3 text-[15px] md:min-h-12 md:text-base knopf knopf-dunkel" rel="noopener noreferrer">
                 <Route /> Route planen
               </a>
-              <a href={telHref(f.telefon)} className="w-full px-3 knopf knopf-rahmen">
+              <a href={telHref(f.telefon)} className="w-full min-h-11 px-3 text-[15px] md:min-h-12 md:text-base knopf knopf-rahmen">
                 <Telefon /> Anrufen
               </a>
-              <a href={whatsappHref(f.whatsapp)} className="w-full px-3 knopf knopf-rahmen" rel="noopener noreferrer">
+              <a href={whatsappHref(f.whatsapp)} className="w-full min-h-11 px-3 text-[15px] md:min-h-12 md:text-base knopf knopf-rahmen" rel="noopener noreferrer">
                 <Nachricht /> WhatsApp
               </a>
             </div>
@@ -220,7 +220,7 @@ export default async function Startseite() {
           <Link href="/karriere" className="group flex flex-wrap items-center justify-between gap-6 rounded-lg bg-flaeche px-6 py-8 ring-1 ring-linie md:px-12 md:py-10">
             <span>
               <span className="block text-sm uppercase tracking-[0.16em] text-grau">Wir stellen ein</span>
-              <span className="schmal mt-1 block text-3xl md:text-5xl">{offeneStellen.map((s) => s.titel).join(" · ")}</span>
+              <span className="schmal mt-1 block text-2xl md:text-5xl">{offeneStellen.map((s) => s.titel).join(" · ")}</span>
             </span>
             <span className="inline-flex items-center gap-2 rounded-md bg-white/10 px-6 py-3 font-semibold text-tinte ring-1 ring-white/15 transition-transform group-hover:translate-x-1">
               Bewerben <Pfeil className="size-4" />

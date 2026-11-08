@@ -25,7 +25,7 @@ export function Fuss({ e }: { e: Einstellungen }) {
     <footer className="bg-graphit pb-28 pt-14 text-tinte md:pb-14">
       <div className="rand grid gap-10 md:grid-cols-[1.2fr_1fr_1fr_1fr]">
         <div>
-          <Logo className="h-14 w-auto text-tinte" />
+          <Logo className="h-10 w-auto text-tinte md:h-14" />
         </div>
         <div className="text-sm leading-relaxed">
           <p className="mb-2 font-semibold text-hell">Werkstatt</p>
