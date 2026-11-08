@@ -11,24 +11,26 @@ export function jetztStatus(zeiten: Einstellungen["oeffnungszeiten"]): { offen: 
   return { offen: false, text: spaeter ? `Geschlossen · öffnet um ${spaeter[0]} Uhr` : "Gerade geschlossen" };
 }
 
+/** Öffnungszeiten als ruhige Liste: gleich hohe Zeilen, heute nur fett. */
 export function Oeffnungszeiten({ zeiten }: { zeiten: Einstellungen["oeffnungszeiten"] }) {
   const heute = wochentag(berlinDatum());
   const status = jetztStatus(zeiten);
   return (
     <div>
-      <p className="mb-6 inline-flex items-center gap-2 rounded-md bg-flaeche px-4 py-2 text-sm font-semibold ring-1 ring-linie">
-        <span className={`size-2 rounded-full ${status.offen ? "bg-tinte/80" : "bg-grau-hell"}`} aria-hidden />
-        {status.text}
-      </p>
-      <ul className="grid gap-2 sm:grid-cols-2">
+      <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+        <h3 className="schmal text-2xl">Öffnungszeiten</h3>
+        <p className="flex items-center gap-2 text-sm text-grau">
+          <span className={`size-2 rounded-full ${status.offen ? "bg-tinte/80" : "bg-grau-hell"}`} aria-hidden />
+          {status.text}
+        </p>
+      </div>
+      <ul className="divide-y divide-linie border-y border-linie">
         {(["1", "2", "3", "4", "5", "6", "7"] as const).map((t) => {
           const istHeute = Number(t) === heute;
           return (
-            <li key={t} className={`flex items-baseline justify-between gap-4 rounded-md px-4 py-3 ${istHeute ? "bg-white/[0.07] ring-1 ring-grau-hell" : "bg-flaeche"}`}>
-              <span className="font-semibold">{WOCHENTAGE[Number(t) - 1]}</span>
-              <span className={`zahlen text-right text-sm ${istHeute ? "" : "text-grau"}`}>
-                {zeiten[t].length ? zeiten[t].map(([a, b]) => `${a}–${b}`).join(" · ") : "geschlossen"}
-              </span>
+            <li key={t} className={`flex min-h-12 items-center justify-between gap-4 ${istHeute ? "font-semibold text-tinte" : "text-grau"}`}>
+              <span>{WOCHENTAGE[Number(t) - 1]}</span>
+              <span className="zahlen text-right text-sm">{zeiten[t].length ? zeiten[t].map(([a, b]) => `${a}–${b}`).join(" · ") : "geschlossen"}</span>
             </li>
           );
         })}

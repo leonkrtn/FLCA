@@ -1,6 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Suspense } from "react";
 import halle from "@/assets/halle-lancia.jpg";
 import handschuhe from "@/assets/handschuhe.jpg";
 import lanciaHeck from "@/assets/lancia-heck.jpg";
@@ -10,8 +9,7 @@ import { Nachricht, Pfeil, Route, Telefon } from "@/components/icons";
 import { Sterne } from "@/components/icons-stern";
 import { Fragen } from "@/components/site/fragen";
 import { Leistungsbereiche } from "@/components/site/leistungsbereiche";
-import { NaechsterTermin } from "@/components/site/naechster-termin";
-import { jetztStatus, Oeffnungszeiten } from "@/components/site/oeffnungszeiten";
+import { Oeffnungszeiten } from "@/components/site/oeffnungszeiten";
 import { einstellungen } from "@/lib/einstellungen";
 import { absaetze, mapsHref, preis, telHref, whatsappHref } from "@/lib/format";
 import { bewertungen, oeffentlicheLeistungen, stellen } from "@/lib/inhalte";
@@ -22,11 +20,9 @@ export const revalidate = 300;
 export default async function Startseite() {
   const [e, leistungen, stimmen, offeneStellen] = await Promise.all([einstellungen(), oeffentlicheLeistungen(), bewertungen(), stellen()]);
   const f = e.firma;
-  const schnellwahl = leistungen.filter((l) => l.online_anfragbar && l.preis_cent !== null).slice(0, 5);
   // Eigenes Video aus der Verwaltung hat Vorrang, sonst das mitgelieferte.
   const eigenesVideo = websiteDatei(e.medien.heroVideo);
   const eigenesBild = websiteDatei(e.medien.heroBild);
-  const status = jetztStatus(e.oeffnungszeiten);
 
   return (
     <>
@@ -54,11 +50,6 @@ export default async function Startseite() {
         <div className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-t from-boden to-transparent" />
 
         <div className="rand w-full pb-14 pt-32 md:pb-24">
-          <p className="mb-6 inline-flex items-center gap-2 rounded-md bg-white/10 px-4 py-1.5 text-sm text-hell/90 ring-1 ring-white/15 backdrop-blur-md">
-            <span className={`size-2 rounded-full ${status.offen ? "bg-tinte/80" : "bg-white/40"}`} aria-hidden />
-            <span className="hidden sm:inline">Kfz-Meisterbetrieb in {f.ort} · </span>
-            {status.text}
-          </p>
           <h1 className="schmal max-w-4xl text-[3.4rem] leading-[0.9] sm:text-7xl md:text-8xl">
             Reifen, Service
             <br />
@@ -83,35 +74,8 @@ export default async function Startseite() {
         </div>
       </section>
 
-      {/* Schnellwahl als Chips */}
-      <section className="rand relative py-10 md:py-14">
-        <div className="rounded-lg bg-papier p-6 ring-1 ring-linie md:p-10">
-          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-            <h2 className="schmal text-3xl md:text-4xl">Wofür brauchen Sie einen Termin?</h2>
-            <Suspense fallback={null}>
-              <NaechsterTermin leistung={leistungen.find((l) => l.slug === "radwechsel") ?? schnellwahl[0]} />
-            </Suspense>
-          </div>
-          <div className="flex flex-wrap gap-2 md:gap-3">
-            {schnellwahl.map((l) => (
-              <Link
-                key={l.id}
-                href={`/termin?leistung=${l.slug}`}
-                className="group inline-flex items-center gap-3 rounded-md bg-flaeche py-3 pl-5 pr-3 ring-1 ring-linie transition-colors hover:bg-white/[0.06] hover:ring-grau-hell"
-              >
-                <span className="font-semibold">{l.name}</span>
-                <span className="zahlen rounded-md bg-white/5 px-2.5 py-1 text-sm ">{preis(l.preis_cent, l.preis_ab)}</span>
-              </Link>
-            ))}
-            <Link href="/termin" className="inline-flex items-center gap-2 rounded-md px-5 py-3 text-grau ring-1 ring-dashed ring-linie hover:text-tinte">
-              Andere Leistung <Pfeil className="size-4" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
       {/* Leistungen als Bildkacheln */}
-      <section id="preise" className="rand scroll-mt-20 pb-20 pt-6 md:pb-28">
+      <section id="preise" className="rand scroll-mt-20 pb-16 pt-16 md:pb-20 md:pt-24">
         <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
           <h2 className="schmal text-5xl md:text-7xl">Leistungen</h2>
           <p className="max-w-sm text-grau">Endpreise inklusive 19 % Mehrwertsteuer. Bezahlen bar oder per Überweisung.</p>
@@ -120,8 +84,8 @@ export default async function Startseite() {
       </section>
 
       {/* Ablauf mit großen Schrittnummern */}
-      <section className="rand py-20 md:py-28">
-        <h2 className="schmal mb-14 text-5xl md:text-7xl">So läuft&apos;s</h2>
+      <section className="rand pb-20 md:pb-28">
+        <h2 className="schmal mb-8 text-5xl md:text-7xl">So läuft&apos;s</h2>
         <ol className="grid gap-12 md:grid-cols-3 md:gap-8">
           {[
             ["Termin wählen", "Online sehen Sie nur Zeiten, die wirklich frei sind. Lieber telefonisch? Auch gut."],
@@ -129,10 +93,10 @@ export default async function Startseite() {
             ["Auto bringen", `${f.hinweisAnfahrt} Bezahlt wird nach der Arbeit.`],
           ].map(([titel, text], i) => (
             <li key={titel} className="relative">
-              <span className="schmal block text-[7rem] leading-none text-transparent [-webkit-text-stroke:1.5px_var(--color-grau-hell)] md:text-[9rem]" aria-hidden>
+              <span className="schmal block text-[5rem] leading-none text-transparent [-webkit-text-stroke:1.5px_var(--color-grau-hell)] md:text-[6.5rem]" aria-hidden>
                 0{i + 1}
               </span>
-              <h3 className="-mt-6 mb-2 text-xl font-semibold md:-mt-8">{titel}</h3>
+              <h3 className="mb-2 mt-2 text-xl font-semibold">{titel}</h3>
               <p className="max-w-sm text-grau">{text}</p>
             </li>
           ))}
@@ -163,7 +127,7 @@ export default async function Startseite() {
       {/* Echte Fotos aus der Halle */}
       <section aria-labelledby="halle-titel" className="pb-20 md:pb-28">
         <div className="rand mb-8 flex items-end justify-between gap-4">
-          <h2 id="halle-titel" className="schmal text-5xl md:text-7xl">Aus der Halle</h2>
+          <h2 id="halle-titel" className="schmal text-4xl sm:text-5xl md:text-7xl">Aus der Halle</h2>
           {e.module.galerie ? (
             <Link href="/galerie" className="inline-flex shrink-0 items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold ring-1 ring-linie hover:bg-flaeche">
               Vorher / nachher <Pfeil className="size-4" />
@@ -233,14 +197,14 @@ export default async function Startseite() {
               {f.plz} {f.ort}
             </address>
             <p className="mt-5 rounded-md bg-white/[0.04] px-4 py-3 text-sm ring-1 ring-linie">{f.hinweisAnfahrt}</p>
-            <div className="mt-8 flex flex-wrap gap-2">
-              <a href={mapsHref(f.strasse, f.plz, f.ort)} className="knopf knopf-dunkel" rel="noopener noreferrer">
+            <div className="mt-8 grid gap-2 lg:grid-cols-3">
+              <a href={mapsHref(f.strasse, f.plz, f.ort)} className="w-full px-3 knopf knopf-dunkel" rel="noopener noreferrer">
                 <Route /> Route planen
               </a>
-              <a href={telHref(f.telefon)} className="knopf knopf-rahmen">
+              <a href={telHref(f.telefon)} className="w-full px-3 knopf knopf-rahmen">
                 <Telefon /> Anrufen
               </a>
-              <a href={whatsappHref(f.whatsapp)} className="knopf knopf-rahmen" rel="noopener noreferrer">
+              <a href={whatsappHref(f.whatsapp)} className="w-full px-3 knopf knopf-rahmen" rel="noopener noreferrer">
                 <Nachricht /> WhatsApp
               </a>
             </div>

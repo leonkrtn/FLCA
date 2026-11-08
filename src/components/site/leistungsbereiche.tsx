@@ -15,7 +15,7 @@ const BEREICHE: { kategorie: string; titel: string; text: string; bild: StaticIm
     text: "Radwechsel in rund 30 Minuten, gewuchtet und mit Drehmoment angezogen.",
     bild: reifenmaschine,
     alt: "Reifenmontiermaschine und Wuchtmaschine in der Werkstatt in Dietzenbach",
-    flaeche: "md:col-span-7 md:row-span-2",
+    flaeche: "md:col-span-6 md:row-span-2",
   },
   {
     kategorie: "service",
@@ -23,7 +23,7 @@ const BEREICHE: { kategorie: string; titel: string; text: string; bild: StaticIm
     text: "Ölwechsel, Inspektion, Bremsen, Klima. Preis vorher.",
     bild: oelstand,
     alt: "Ölstand wird mit dem Messstab und einem Tuch geprüft",
-    flaeche: "md:col-span-5",
+    flaeche: "md:col-span-6",
   },
   {
     kategorie: "aufbereitung",
@@ -31,7 +31,7 @@ const BEREICHE: { kategorie: string; titel: string; text: string; bild: StaticIm
     text: "Innenraum, Politur, Versiegelung.",
     bild: porsche,
     alt: "Porsche 911 in Blau mit schwarzen Felgen in der Halle",
-    flaeche: "md:col-span-5",
+    flaeche: "md:col-span-6",
   },
   {
     kategorie: "schutz",
