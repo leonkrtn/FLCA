@@ -32,45 +32,47 @@ export default async function Person({ params, searchParams }: { params: Promise
   return (
     <>
       <Kopf titel={p.name || p.email} unter={p.email} zurueck={{ href: "/admin/team", text: "Team" }} />
-      <div className="grid gap-x-8 lg:grid-cols-2">
-        <Abschnitt titel="Person">
-          <Formular aktion={profilSpeichern.bind(null, id)} className="grid gap-4 sm:grid-cols-2">
-            <Feld label="Name" name="name" wert={p.name} />
-            <Feld label="Telefon" name="telefon" wert={p.telefon} typ="tel" />
-            <Auswahl label="Rolle" name="rolle" wert={p.rolle} optionen={ROLLEN.map((r) => [r.wert, r.name])} />
-            <Feld label="Urlaubstage pro Jahr" name="urlaubstage" wert={p.urlaubstage} inputMode="numeric" hilfe={`${urlaubGenommen} Tage in ${monat.slice(0, 4)} genehmigt`} />
-            <Schalter label="Zeiterfassung" name="zeiterfassung" an={p.zeiterfassung} hilfe="Ein- und Ausstempeln in der Team-App" />
-            <Schalter label="Konto aktiv" name="aktiv" an={p.aktiv} hilfe="Aus = kein Login mehr möglich" />
-            <div className="sm:col-span-2"><Senden>Speichern</Senden></div>
-          </Formular>
-        </Abschnitt>
-        <Abschnitt titel="Arbeitszeiten">
-          <Formular aktion={arbeitszeitenSpeichern.bind(null, id)} className="grid gap-2">
+      <Abschnitt titel="Person">
+        <Formular aktion={profilSpeichern.bind(null, id)} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <Feld label="Name" name="name" wert={p.name} />
+          <Feld label="Telefon" name="telefon" wert={p.telefon} typ="tel" />
+          <Auswahl label="Rolle" name="rolle" wert={p.rolle} optionen={ROLLEN.map((r) => [r.wert, r.name])} />
+          <Feld label="Urlaubstage pro Jahr" name="urlaubstage" wert={p.urlaubstage} inputMode="numeric" hilfe={`${urlaubGenommen} Tage in ${monat.slice(0, 4)} genehmigt`} />
+          <Schalter label="Zeiterfassung" name="zeiterfassung" an={p.zeiterfassung} hilfe="Ein- und Ausstempeln in der Team-App" />
+          <Schalter label="Konto aktiv" name="aktiv" an={p.aktiv} hilfe="Aus = kein Login mehr möglich" />
+          <div className="sm:col-span-2 xl:col-span-4"><Senden vorab="Gespeichert">Speichern</Senden></div>
+        </Formular>
+      </Abschnitt>
+      {/* Arbeitszeiten als Raster mit Spaltenköpfen statt Paaren in einer engen Hälfte: Uhrzeitfelder brauchen Platz. */}
+      <Abschnitt titel="Arbeitszeiten">
+        <Formular aktion={arbeitszeitenSpeichern.bind(null, id)} className="max-w-3xl">
+          <div className="grid grid-cols-[5.5rem_repeat(4,minmax(0,1fr))] items-center gap-x-2 gap-y-2 overflow-x-auto">
+            <span />
+            {["Beginn", "Ende", "Beginn 2", "Ende 2"].map((k) => (
+              <span key={k} className="label mb-0 text-grau">{k}</span>
+            ))}
             {WOCHENTAGE.map((tag, i) => (
-              <div key={tag} className="grid grid-cols-[6.5rem_1fr_1fr] items-center gap-2">
+              <div key={tag} className="contents">
                 <span className="text-sm font-semibold">{tag}</span>
-                {[1, 2].map((n) => (
-                  <div key={n} className="flex items-center gap-1">
-                    <input type="time" name={`t${i + 1}_${n}_von`} defaultValue={fenster(i + 1, n)?.beginn?.slice(0, 5)} step={900} className="feld min-h-10 px-2" aria-label={`${tag} Fenster ${n} von`} />
-                    <span className="text-grau">–</span>
-                    <input type="time" name={`t${i + 1}_${n}_bis`} defaultValue={fenster(i + 1, n)?.ende?.slice(0, 5)} step={900} className="feld min-h-10 px-2" aria-label={`${tag} Fenster ${n} bis`} />
-                  </div>
-                ))}
+                {[1, 2].flatMap((n) => [
+                  <input key={`${n}v`} type="time" name={`t${i + 1}_${n}_von`} defaultValue={fenster(i + 1, n)?.beginn?.slice(0, 5)} step={900} className="feld min-w-[5.5rem] tabular-nums" aria-label={`${tag} ${n === 1 ? "Beginn" : "Beginn 2"}`} />,
+                  <input key={`${n}b`} type="time" name={`t${i + 1}_${n}_bis`} defaultValue={fenster(i + 1, n)?.ende?.slice(0, 5)} step={900} className="feld min-w-[5.5rem] tabular-nums" aria-label={`${tag} ${n === 1 ? "Ende" : "Ende 2"}`} />,
+                ])}
               </div>
             ))}
-            <p className="text-sm text-grau">Zweites Fenster für geteilte Schichten (z. B. Mittagspause). Leer lassen = frei.</p>
-            <div><Senden>Arbeitszeiten speichern</Senden></div>
-          </Formular>
-        </Abschnitt>
-      </div>
+          </div>
+          <p className="mt-3 text-sm text-grau">Zweites Zeitfenster für geteilte Schichten (z. B. mit Mittagspause). Leer lassen = frei.</p>
+          <div className="mt-4"><Senden vorab="Gespeichert">Arbeitszeiten speichern</Senden></div>
+        </Formular>
+      </Abschnitt>
 
       <Abschnitt titel="Abwesenheiten">
-        <Formular aktion={abwesenheitMelden.bind(null, id)} zuruecksetzen className="mb-6 grid items-end gap-3 sm:grid-cols-[10rem_10rem_10rem_minmax(0,1fr)_auto]">
+        <Formular aktion={abwesenheitMelden.bind(null, id)} zuruecksetzen className="mb-6 grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-[10rem_11rem_11rem_minmax(0,1fr)_auto]">
           <Auswahl label="Art" name="art" optionen={[["urlaub", "Urlaub"], ["krank", "Krank"], ["sonstiges", "Sonstiges"]]} />
           <Feld label="Von" name="von" typ="date" required />
           <Feld label="Bis" name="bis" typ="date" />
           <Feld label="Notiz" name="notiz" />
-          <Senden klein>Eintragen</Senden>
+          <Senden vorab="Eingetragen">Eintragen</Senden>
         </Formular>
         <ul className="divide-y divide-linie text-sm">
           {(abw ?? []).map((a) => (
@@ -103,12 +105,12 @@ export default async function Person({ params, searchParams }: { params: Promise
               );
             })}
           </Tabelle>
-          <Formular aktion={zeitNachtragen.bind(null, id)} zuruecksetzen className="mt-6 grid items-end gap-3 sm:grid-cols-[10rem_8rem_8rem_minmax(0,1fr)_auto]">
+          <Formular aktion={zeitNachtragen.bind(null, id)} zuruecksetzen className="mt-6 grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-[11rem_8rem_8rem_minmax(0,1fr)_auto]">
             <Feld label="Datum" name="datum" typ="date" required />
             <Feld label="Kommt" name="von" typ="time" required />
             <Feld label="Geht" name="bis" typ="time" required />
             <Feld label="Notiz" name="notiz" placeholder="nachgetragen" />
-            <Senden klein>Nachtragen</Senden>
+            <Senden vorab="Nachgetragen">Nachtragen</Senden>
           </Formular>
         </Abschnitt>
       ) : null}

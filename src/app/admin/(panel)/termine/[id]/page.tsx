@@ -67,7 +67,7 @@ export default async function TerminDetail({ params }: { params: Promise<{ id: s
               <Feld label="Kilometerstand" name="km_stand" wert={t.km_stand} inputMode="numeric" />
               <Textfeld label="Interne Notiz" name="notiz_intern" wert={t.notiz_intern} zeilen={3} className="sm:col-span-2" />
               <div className="sm:col-span-2">
-                <Senden>Speichern</Senden>
+                <Senden vorab="Gespeichert">Speichern</Senden>
               </div>
             </Formular>
             {z.fotos.length ? (
@@ -124,7 +124,7 @@ export default async function TerminDetail({ params }: { params: Promise<{ id: s
                 {z.rechnungen.map((r) => (
                   <li key={r.id}>
                     <Link href={`/admin/rechnungen/${r.id}`} className="flex justify-between gap-2 hover:underline">
-                      <span>{r.nummer ?? "Entwurf"} <span className="text-grau">· {RECHNUNG_STATUS[r.status as keyof typeof RECHNUNG_STATUS]}</span></span>
+                      <span>{r.nummer ? <>{r.nummer} <span className="text-grau">· {RECHNUNG_STATUS[r.status as keyof typeof RECHNUNG_STATUS]}</span></> : "Entwurf"}</span>
                       <span className="zahlen">{euro(r.summe_brutto_cent)}</span>
                     </Link>
                   </li>

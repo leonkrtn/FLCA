@@ -21,7 +21,7 @@ export default async function EinlagerungDetail({ params }: { params: Promise<{ 
         <Abschnitt titel="Räder">
           <Formular aktion={einlagerungSpeichern.bind(null, e.id)} className="grid gap-4 sm:grid-cols-2">
             <EinlagerungFelder e={e} />
-            <div><Senden>Speichern</Senden></div>
+            <div><Senden vorab="Gespeichert">Speichern</Senden></div>
           </Formular>
         </Abschnitt>
         <div>
@@ -33,7 +33,7 @@ export default async function EinlagerungDetail({ params }: { params: Promise<{ 
             <Abschnitt titel="Auslagern">
               <Formular aktion={auslagern.bind(null, e.id)} className="grid gap-3">
                 <Feld label="Datum" name="am" typ="date" wert={berlinDatum()} />
-                <Senden art="rahmen">Als ausgelagert markieren</Senden>
+                <Senden art="rahmen" vorab="Ausgelagert">Als ausgelagert markieren</Senden>
               </Formular>
             </Abschnitt>
           ) : null}

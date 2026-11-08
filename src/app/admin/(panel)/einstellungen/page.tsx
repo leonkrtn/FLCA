@@ -63,7 +63,7 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
               <Feld key={k} label={l} name={k} wert={e.firma[k]} />
             ))}
             <Textfeld label="Hinweis zur Anfahrt" name="hinweisAnfahrt" wert={e.firma.hinweisAnfahrt} zeilen={2} className="sm:col-span-2 lg:col-span-3" />
-            <div><Senden>Speichern</Senden></div>
+            <div><Senden vorab="Gespeichert">Speichern</Senden></div>
           </Formular>
         </Abschnitt>
       ) : null}
@@ -86,7 +86,7 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
                 </div>
               );
             })}
-            <div className="mt-2"><Senden>Speichern</Senden></div>
+            <div className="mt-2"><Senden vorab="Gespeichert">Speichern</Senden></div>
           </Formular>
         </Abschnitt>
       ) : null}
@@ -102,7 +102,7 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
             <Feld label="Höchstens (Tage im Voraus)" name="maxTage" wert={e.buchung.maxTage} inputMode="numeric" />
             <Feld label="Anfrage hält den Termin (Stunden)" name="haltenStd" wert={e.buchung.haltenStd} inputMode="numeric" />
             <Feld label="Kunde kann online absagen bis (Std. vorher)" name="stornoFristStd" wert={e.buchung.stornoFristStd} inputMode="numeric" />
-            <div className="sm:col-span-2 lg:col-span-3"><Senden>Speichern</Senden></div>
+            <div className="sm:col-span-2 lg:col-span-3"><Senden vorab="Gespeichert">Speichern</Senden></div>
           </Formular>
         </Abschnitt>
       ) : null}
@@ -135,7 +135,7 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
               <Feld label="Kasse" name="kasse" wert={e.automatik.datev.kasse} />
               <Feld label="Bank" name="bank" wert={e.automatik.datev.bank} />
             </fieldset>
-            <div><Senden>Speichern</Senden></div>
+            <div><Senden vorab="Gespeichert">Speichern</Senden></div>
           </Formular>
         </Abschnitt>
       ) : null}
@@ -144,7 +144,7 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
         <Abschnitt titel="Benachrichtigungen">
           <Formular aktion={benachrichtigungSpeichern} className="grid max-w-xl gap-4">
             <Textfeld label="E-Mail-Adressen für neue Anfragen und Bewerbungen" name="emails" wert={e.benachrichtigung.emails.join("\n")} zeilen={3} hilfe={`Eine pro Zeile. Leer = ${e.firma.email}. Push-Nachrichten schaltet jede Person in ihrer Handy-App selbst ein.`} />
-            <div><Senden>Speichern</Senden></div>
+            <div><Senden vorab="Gespeichert">Speichern</Senden></div>
           </Formular>
         </Abschnitt>
       ) : null}
@@ -157,7 +157,7 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
             <Schalter label="Rädereinlagerung" name="einlagerung" an={e.module.einlagerung} />
             <Schalter label="Zeiterfassung" name="zeiterfassung" an={e.module.zeiterfassung} hilfe="Stempeln in der Team-App (pro Person zusätzlich einschalten)" />
             <Schalter label="Bewertungen auf der Startseite" name="bewertungen" an={e.module.bewertungen} />
-            <div><Senden>Speichern</Senden></div>
+            <div><Senden vorab="Gespeichert">Speichern</Senden></div>
           </Formular>
         </Abschnitt>
       ) : null}
@@ -172,7 +172,7 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
             <Feld label="Adresse AGB" name="agbUrl" wert={e.rechtstexte.agbUrl} placeholder="https://…" />
             <Textfeld label="Datenschutzerklärung (Ersatztext)" name="datenschutzText" wert={e.rechtstexte.datenschutzText} zeilen={8} />
             <Textfeld label="AGB (Ersatztext)" name="agbText" wert={e.rechtstexte.agbText} zeilen={8} />
-            <div><Senden>Speichern</Senden></div>
+            <div><Senden vorab="Gespeichert">Speichern</Senden></div>
           </Formular>
         </Abschnitt>
       ) : null}
@@ -207,7 +207,7 @@ async function KalenderBereich({ fehler, verbunden }: { fehler?: string; verbund
           </dl>
           <Formular aktion={kalenderIdSpeichern} className="grid max-w-md gap-2">
             <Feld label="Kalender" name="kalender_id" wert={k!.kalender_id} hilfe="„primary“ = Hauptkalender. Für einen eigenen Werkstattkalender dessen ID aus den Google-Kalender-Einstellungen eintragen." />
-            <div><Senden klein>Speichern</Senden></div>
+            <div><Senden klein vorab="Gespeichert">Speichern</Senden></div>
           </Formular>
           <div className="flex flex-wrap gap-2">
             <Formular aktion={kalenderAbgleichen}><Senden art="rahmen" klein>Jetzt abgleichen</Senden></Formular>
@@ -259,7 +259,7 @@ async function RechnungBereich() {
         <Feld label="Zahlungsziel (Tage)" name="zahlungszielTage" wert={e.rechnung.zahlungszielTage} inputMode="numeric" className="max-w-xs" />
         <Textfeld label="Einleitungssatz" name="einleitung" wert={e.rechnung.einleitung} zeilen={2} />
         <Textfeld label="Fußtext" name="fusstext" wert={e.rechnung.fusstext} zeilen={2} />
-        <div><Senden>Speichern</Senden></div>
+        <div><Senden vorab="Gespeichert">Speichern</Senden></div>
       </Formular>
     </Abschnitt>
   );

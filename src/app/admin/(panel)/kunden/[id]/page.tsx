@@ -44,7 +44,7 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
             <Feld label="USt-IdNr. (Geschäftskunde)" name="ust_id" wert={k.ust_id} />
             <Feld label="Leitweg-ID (Behörde)" name="leitweg_id" wert={k.leitweg_id} />
             <Textfeld label="Notiz" name="notiz" wert={k.notiz} zeilen={3} className="sm:col-span-2" />
-            <div><Senden>Speichern</Senden></div>
+            <div><Senden vorab="Gespeichert">Speichern</Senden></div>
           </Formular>
         </Abschnitt>
         <div>
@@ -126,7 +126,7 @@ function FahrzeugFormular({ kundeId, f }: { kundeId: string; f?: Record<string, 
       <Feld label="FIN" name="fin" wert={f?.fin} />
       <Feld label="Reifengröße" name="reifengroesse" wert={f?.reifengroesse} placeholder="205/55 R16 91V" />
       <Feld label="Kilometerstand" name="km_stand" wert={f?.km_stand} inputMode="numeric" />
-      <div className="self-end"><Senden klein>Speichern</Senden></div>
+      <div className="self-end"><Senden className="w-full sm:w-auto" vorab="Gespeichert">Speichern</Senden></div>
     </Formular>
   );
 }

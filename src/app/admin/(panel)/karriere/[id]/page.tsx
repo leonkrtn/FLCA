@@ -33,7 +33,7 @@ export default async function Bewerbung({ params }: { params: Promise<{ id: stri
           <Formular aktion={bewerbungSpeichern.bind(null, b.id)} className="grid gap-4">
             <Auswahl label="Status" name="status" wert={b.status} optionen={[["neu", "Neu"], ["in_pruefung", "In Prüfung"], ["gespraech", "Gespräch vereinbart"], ["zusage", "Zusage"], ["absage", "Absage"]]} />
             <Textfeld label="Notiz" name="notiz" wert={b.notiz} zeilen={5} />
-            <div><Senden>Speichern</Senden></div>
+            <div><Senden vorab="Gespeichert">Speichern</Senden></div>
           </Formular>
         </Abschnitt>
       </div>

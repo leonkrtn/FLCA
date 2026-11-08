@@ -39,13 +39,14 @@ async function Leistungen() {
       <ul className="divide-y divide-linie">
         {(data ?? []).map((l) => (
           <li key={l.id}>
-            <Link href={`/admin/website/leistung/${l.id}`} className="grid grid-cols-[1fr_auto] gap-x-4 py-3 hover:bg-papier sm:grid-cols-[1fr_8rem_7rem_auto]">
+            <Link href={`/admin/website/leistung/${l.id}`} className="grid grid-cols-[1fr_auto] items-center gap-x-4 py-3 hover:bg-papier sm:grid-cols-[minmax(0,1fr)_7rem_5.5rem_11rem]">
               <span>
                 <span className="font-semibold">{l.name}</span> <span className="text-sm text-grau">· {KATEGORIEN[l.kategorie] ?? l.kategorie}</span>
               </span>
               <span className="zahlen text-right">{preis(l.preis_cent, l.preis_ab)}</span>
               <span className="zahlen hidden text-right text-grau sm:block">{l.dauer_min} min</span>
-              <span className="hidden gap-1 sm:flex">
+              {/* Feste Spaltenbreite für die Hinweise: jede Zeile ist ein eigenes Raster, Preis und Dauer stehen trotzdem untereinander. */}
+              <span className="hidden justify-end gap-1 sm:flex">
                 {!l.sichtbar ? <Marke ton="hell">versteckt</Marke> : null}
                 {!l.online_anfragbar ? <Marke ton="hell">nicht buchbar</Marke> : null}
               </span>
@@ -72,7 +73,7 @@ async function Texte() {
         <Feld label="Überschrift „Über uns“" name="ueberTitel" wert={e.texte.ueberTitel} />
         <Textfeld label="Text „Über uns“ (Absätze mit Leerzeile trennen)" name="ueberText" wert={e.texte.ueberText} zeilen={8} />
         <Textfeld label="Text Karriereseite" name="karriereText" wert={e.texte.karriereText} zeilen={3} />
-        <div><Senden>Speichern</Senden></div>
+        <div><Senden vorab="Gespeichert">Speichern</Senden></div>
       </Formular>
     </Abschnitt>
   );
@@ -115,10 +116,10 @@ function GalerieEintrag({ g }: { g?: Record<string, string | number | boolean> }
       <div className="grid gap-3 md:col-span-2">
         <Feld label="Titel" name="titel" wert={g?.titel as string} placeholder="z. B. BMW 5er, Aufbereitung Premium" />
         <Feld label="Beschreibung" name="beschreibung" wert={g?.beschreibung as string} />
-        <div className="flex flex-wrap items-center gap-4">
-          <Schalter label="sichtbar" name="sichtbar" an={(g?.sichtbar as boolean) ?? true} />
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <Schalter label="sichtbar" name="sichtbar" an={(g?.sichtbar as boolean) ?? true} zeile />
           <input type="hidden" name="sortierung" value={(g?.sortierung as number) ?? 0} />
-          <Senden klein>{g ? "Speichern" : "Hinzufügen"}</Senden>
+          <Senden vorab={g ? "Gespeichert" : "Hinzugefügt"}>{g ? "Speichern" : "Hinzufügen"}</Senden>
         </div>
       </div>
     </Formular>
@@ -127,13 +128,17 @@ function GalerieEintrag({ g }: { g?: Record<string, string | number | boolean> }
 
 function BewertungEintrag({ b }: { b?: Record<string, string | number | boolean> }) {
   return (
-    <Formular aktion={bewertungSpeichern.bind(null, (b?.id as string) ?? null)} zuruecksetzen={!b} className="grid gap-3 border-b border-linie py-4 md:grid-cols-[12rem_minmax(0,1fr)_6rem_auto]">
+    <Formular aktion={bewertungSpeichern.bind(null, (b?.id as string) ?? null)} zuruecksetzen={!b} className="grid items-start gap-3 border-b border-linie py-4 md:grid-cols-[12rem_minmax(0,1fr)_7rem_9rem]">
       <Feld label="Name" name="name" wert={b?.name as string} />
       <Textfeld label="Text" name="text" wert={b?.text as string} zeilen={2} />
       <Feld label="Reihenfolge" name="sortierung" wert={(b?.sortierung as number) ?? 0} inputMode="numeric" />
-      <div className="flex flex-col justify-end gap-2">
-        <Schalter label="sichtbar" name="sichtbar" an={(b?.sichtbar as boolean) ?? true} />
-        <Senden klein>{b ? "Speichern" : "Hinzufügen"}</Senden>
+      {/* Unsichtbare Beschriftung als Abstandhalter: Häkchen und Knopf starten auf Höhe der Felder daneben. */}
+      <div className="grid gap-2">
+        <span className="label invisible hidden md:block" aria-hidden>
+          Status
+        </span>
+        <Schalter label="sichtbar" name="sichtbar" an={(b?.sichtbar as boolean) ?? true} zeile />
+        <Senden className="w-full" vorab={b ? "Gespeichert" : "Hinzugefügt"}>{b ? "Speichern" : "Hinzufügen"}</Senden>
       </div>
     </Formular>
   )

@@ -36,8 +36,8 @@ export default async function Team() {
                   {a.notiz ? <span className="block text-sm text-grau">{a.notiz}</span> : null}
                 </span>
                 <Formular aktion={abwesenheitEntscheiden.bind(null, a.id)} className="flex gap-2">
-                  <Senden klein name="entscheidung" value="genehmigt">Genehmigen</Senden>
-                  <Senden klein art="rahmen" name="entscheidung" value="abgelehnt">Ablehnen</Senden>
+                  <Senden klein name="entscheidung" value="genehmigt" vorab="Genehmigt">Genehmigen</Senden>
+                  <Senden klein art="rahmen" name="entscheidung" value="abgelehnt" vorab="Abgelehnt">Ablehnen</Senden>
                 </Formular>
               </li>
             ))}

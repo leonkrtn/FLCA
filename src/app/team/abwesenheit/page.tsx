@@ -31,7 +31,7 @@ export default async function Abwesenheit() {
               <Feld label="Bis" name="bis" typ="date" />
             </div>
             <Feld label="Notiz (optional)" name="notiz" />
-            <Senden className="w-full">Senden</Senden>
+            <Senden className="w-full" vorab="Gesendet">Senden</Senden>
           </Formular>
         </Karte>
         {(data ?? []).map((a) => (

@@ -44,7 +44,9 @@ export default async function TeamHeute() {
               <p className="text-sm text-grau">
                 {offen ? `Eingestempelt seit ${zeit(offen.beginn)} Uhr` : "Nicht eingestempelt"} · Monat: {stunden(monat!.minuten)}
               </p>
-              <Senden art={offen ? "rahmen" : "rot"} className="min-h-14 w-full text-lg">{offen ? "Ausstempeln" : "Einstempeln"}</Senden>
+              <Senden art={offen ? "rahmen" : "rot"} className="min-h-14 w-full text-lg" vorab={offen ? "Ausgestempelt" : "Eingestempelt"}>
+                {offen ? "Ausstempeln" : "Einstempeln"}
+              </Senden>
             </Formular>
           </Karte>
         ) : null}

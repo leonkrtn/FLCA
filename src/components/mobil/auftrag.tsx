@@ -25,9 +25,9 @@ export function AuftragKnoepfe({ id, status }: { id: string; status: string }) {
   return (
     <div className="mt-3 grid gap-2">
       <Formular aktion={auftragStatus.bind(null, id)} className="grid grid-cols-2 gap-2">
-        {status === "offen" ? <Senden name="status" value="in_arbeit" className="col-span-2">Anfangen</Senden> : null}
-        {status === "in_arbeit" ? <Senden name="status" value="fertig" className="col-span-2">Fertig</Senden> : null}
-        {status === "fertig" ? <Senden art="rahmen" name="status" value="in_arbeit" className="col-span-2">Doch noch nicht fertig</Senden> : null}
+        {status === "offen" ? <Senden name="status" value="in_arbeit" className="col-span-2" vorab="In Arbeit">Anfangen</Senden> : null}
+        {status === "in_arbeit" ? <Senden name="status" value="fertig" className="col-span-2" vorab="Fertig gemeldet">Fertig</Senden> : null}
+        {status === "fertig" ? <Senden art="rahmen" name="status" value="in_arbeit" className="col-span-2" vorab="Wieder in Arbeit">Doch noch nicht fertig</Senden> : null}
       </Formular>
       <label className="knopf knopf-rahmen cursor-pointer">
         <Kamera /> Foto aufnehmen

@@ -283,6 +283,29 @@ body:has(.dunkel) {
   }
 }
 
+/* Hero: Überschrift, Text und Knöpfe blenden als ein Block ein, nie Stück für Stück. */
+.einblenden {
+  animation: einblenden 700ms var(--ease-ruhig) 80ms both;
+}
+@keyframes einblenden {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* Platzhalter beim Laden: ruhiges Pulsieren in der Linienfarbe, passt hell wie dunkel. */
+.skelett {
+  background: var(--color-linie);
+  border-radius: 4px;
+  animation: skelett 1.4s ease-in-out infinite;
+}
+@keyframes skelett {
+  50% {
+    opacity: 0.5;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

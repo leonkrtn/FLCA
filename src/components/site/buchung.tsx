@@ -192,7 +192,6 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
             <p className="text-grau">Wählen Sie zuerst eine Leistung, dann zeigen wir die freien Zeiten.</p>
           ) : (
             <div aria-busy={laedt}>
-              <div className={`ladebalken mb-4 ${laedt ? "" : "invisible"}`} aria-hidden />
               {ladeFehler ? <p className="mb-4 text-fehler">{ladeFehler}</p> : null}
               <div className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-3 [scrollbar-width:thin] md:mx-0 md:px-0" role="listbox" aria-label="Tag wählen">
                 {tage.map((t) => {
@@ -219,7 +218,11 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
                     </button>
                   );
                 })}
-                {tage.length ? (
+                {/* Beim Laden stehen Platzhalter in Größe der Tageskacheln da, damit nichts springt. */}
+                {laedt
+                  ? Array.from({ length: tage.length ? 3 : 7 }, (_, i) => <div key={i} className="skelett h-[4.75rem] w-[4.5rem] shrink-0 rounded-md" aria-hidden />)
+                  : null}
+                {tage.length && !laedt ? (
                   <button
                     type="button"
                     onClick={() => leistung && laden(leistung.id, plusTage(tage.at(-1)!.datum, 1), true)}
@@ -251,6 +254,15 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
                       >
                         {s}
                       </button>
+                    ))}
+                  </div>
+                </div>
+              ) : laedt && !tage.length ? (
+                <div className="mt-6" aria-hidden>
+                  <div className="skelett mb-3 h-5 w-48" />
+                  <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+                    {Array.from({ length: 8 }, (_, i) => (
+                      <div key={i} className="skelett min-h-12 rounded-md" />
                     ))}
                   </div>
                 </div>

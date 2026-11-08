@@ -73,6 +73,8 @@ export function Reiter({ eintraege, aktiv }: { eintraege: { href: string; text: 
   );
 }
 
+/** Feld mit Beschriftung. Das Eingabefeld steckt im <label>, so braucht es keine id, und mehrere
+ *  gleichartige Zeilen auf einer Seite (Artikel, Arbeitszeiten) kommen sich nicht in die Quere. */
 export function Feld({
   label,
   name,
@@ -91,10 +93,10 @@ export function Feld({
 } & Omit<React.InputHTMLAttributes<HTMLInputElement>, "name" | "type" | "defaultValue">) {
   return (
     <div className={className}>
-      <label htmlFor={`f-${name}`} className="label">
-        {label}
+      <label className="block">
+        <span className="label">{label}</span>
+        <input name={name} type={typ} defaultValue={wert ?? ""} className="feld" {...rest} />
       </label>
-      <input id={`f-${name}`} name={name} type={typ} defaultValue={wert ?? ""} className="feld" {...rest} />
       {hilfe ? <p className="mt-1 text-sm text-grau">{hilfe}</p> : null}
     </div>
   );
@@ -103,10 +105,10 @@ export function Feld({
 export function Textfeld({ label, name, wert, zeilen = 4, hilfe, className = "" }: { label: string; name: string; wert?: string | null; zeilen?: number; hilfe?: string; className?: string }) {
   return (
     <div className={className}>
-      <label htmlFor={`f-${name}`} className="label">
-        {label}
+      <label className="block">
+        <span className="label">{label}</span>
+        <textarea name={name} rows={zeilen} defaultValue={wert ?? ""} className="feld" />
       </label>
-      <textarea id={`f-${name}`} name={name} rows={zeilen} defaultValue={wert ?? ""} className="feld" />
       {hilfe ? <p className="mt-1 text-sm text-grau">{hilfe}</p> : null}
     </div>
   );
@@ -115,25 +117,26 @@ export function Textfeld({ label, name, wert, zeilen = 4, hilfe, className = "" 
 export function Auswahl({ label, name, wert, optionen, className = "", leer }: { label: string; name: string; wert?: string | null; optionen: [string, string][]; className?: string; leer?: string }) {
   return (
     <div className={className}>
-      <label htmlFor={`f-${name}`} className="label">
-        {label}
+      <label className="block">
+        <span className="label">{label}</span>
+        <select name={name} defaultValue={wert ?? ""} className="feld">
+          {leer !== undefined ? <option value="">{leer}</option> : null}
+          {optionen.map(([w, t]) => (
+            <option key={w} value={w}>
+              {t}
+            </option>
+          ))}
+        </select>
       </label>
-      <select id={`f-${name}`} name={name} defaultValue={wert ?? ""} className="feld">
-        {leer !== undefined ? <option value="">{leer}</option> : null}
-        {optionen.map(([w, t]) => (
-          <option key={w} value={w}>
-            {t}
-          </option>
-        ))}
-      </select>
     </div>
   );
 }
 
-export function Schalter({ label, name, an, hilfe }: { label: string; name: string; an: boolean; hilfe?: string }) {
+/** Häkchen mit Beschriftung. `zeile`: steht in einer Reihe mit Feldern und ist dann genau so hoch wie ein Feld. */
+export function Schalter({ label, name, an, hilfe, zeile = false }: { label: string; name: string; an: boolean; hilfe?: string; zeile?: boolean }) {
   return (
-    <label className="flex cursor-pointer items-start gap-3">
-      <input type="checkbox" name={name} defaultChecked={an} className="mt-1 size-5 accent-tinte" />
+    <label className={`flex cursor-pointer gap-3 ${zeile ? "min-h-12 items-center" : "items-start"}`}>
+      <input type="checkbox" name={name} defaultChecked={an} className={`size-5 shrink-0 accent-tinte ${zeile ? "" : "mt-0.5"}`} />
       <span>
         <span className="font-semibold">{label}</span>
         {hilfe ? <span className="block text-sm text-grau">{hilfe}</span> : null}
@@ -159,7 +162,7 @@ export function Tabelle({ kopf, children }: { kopf: (string | { text: string; za
             })}
           </tr>
         </thead>
-        <tbody className="[&_td.zahl]:zahlen [&_td.zahl]:text-right [&_td]:border-b [&_td]:border-linie [&_td]:px-3 [&_td]:py-2.5 [&_td:first-child]:pl-4 md:[&_td:first-child]:pl-0">
+        <tbody className="[&_td.zahl]:tabular-nums [&_td.zahl]:text-right [&_td]:border-b [&_td]:border-linie [&_td]:px-3 [&_td]:py-2.5 [&_td:first-child]:pl-4 md:[&_td:first-child]:pl-0">
           {children}
         </tbody>
       </table>

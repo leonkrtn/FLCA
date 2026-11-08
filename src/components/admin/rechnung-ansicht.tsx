@@ -17,8 +17,8 @@ export function RechnungAnsicht({ r, basis, pdfHref }: { r: Rechnung; basis: "/a
         {r.status === "gestellt" ? (
           <Formular aktion={bezahltAktion.bind(null, r.id)} className="contents">
             <input type="hidden" name="am" value={berlinDatum()} />
-            <Senden art="rahmen" name="zahlungsart" value="bar">Bar bezahlt</Senden>
-            <Senden art="rahmen" name="zahlungsart" value="ueberweisung">Überweisung da</Senden>
+            <Senden art="rahmen" name="zahlungsart" value="bar" vorab="Bezahlt">Bar bezahlt</Senden>
+            <Senden art="rahmen" name="zahlungsart" value="ueberweisung" vorab="Bezahlt">Überweisung da</Senden>
           </Formular>
         ) : null}
       </div>
@@ -66,7 +66,7 @@ export function RechnungAnsicht({ r, basis, pdfHref }: { r: Rechnung; basis: "/a
 
       <Formular aktion={versendenAktion.bind(null, r.id)} className="grid max-w-md gap-2">
         <Feld label="Per E-Mail senden an" name="an" typ="email" wert={r.gesendet_an ?? r.empfaenger.email ?? ""} />
-        <Senden art="rahmen">{r.gesendet_am ? "Erneut senden" : "Senden"}</Senden>
+        <Senden art="rahmen" vorab="Wird gesendet">{r.gesendet_am ? "Erneut senden" : "Senden"}</Senden>
       </Formular>
 
       {r.status !== "storniert" && !r.storno_zu ? (

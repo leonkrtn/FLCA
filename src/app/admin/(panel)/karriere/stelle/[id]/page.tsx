@@ -24,7 +24,7 @@ export default async function Stelle({ params }: { params: Promise<{ id: string 
           <Textfeld label="Was wir bieten (eine pro Zeile)" name="wir_bieten" wert={s?.wir_bieten} />
           <Feld label="Reihenfolge" name="sortierung" wert={s?.sortierung ?? 0} inputMode="numeric" />
           <Schalter label="Online" name="aktiv" an={s?.aktiv ?? true} hilfe="Auf der Website sichtbar und bewerbbar" />
-          <div className="sm:col-span-2"><Senden>Speichern</Senden></div>
+          <div className="sm:col-span-2"><Senden vorab="Gespeichert">Speichern</Senden></div>
         </Formular>
       </Abschnitt>
     </>

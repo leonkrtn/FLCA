@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useZielPfad } from "@/lib/hooks/ziel-pfad";
 
 export type Tab = { href: string; text: string; icon: React.ReactNode; anzahl?: number; hervorgehoben?: boolean };
 
 /** Untere Tab-Leiste der Handy-Apps, mit Abstand für den Home-Balken des iPhones. */
 export function TabLeiste({ tabs, dunkel }: { tabs: Tab[]; dunkel?: boolean }) {
-  const pfad = usePathname();
+  const [pfad, merken] = useZielPfad();
   return (
     <nav
       aria-label="Bereiche"
@@ -20,6 +20,7 @@ export function TabLeiste({ tabs, dunkel }: { tabs: Tab[]; dunkel?: boolean }) {
             <Link
               key={t.href}
               href={t.href}
+              onClick={(ev) => merken(t.href, ev)}
               aria-current={aktiv ? "page" : undefined}
               className={`relative flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold ${aktiv ? "" : "opacity-60"}`}
             >

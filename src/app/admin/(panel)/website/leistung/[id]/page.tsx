@@ -32,7 +32,7 @@ export default async function LeistungBearbeiten({ params }: { params: Promise<{
             <Schalter label="online anfragbar" name="online_anfragbar" an={l?.online_anfragbar ?? true} />
           </div>
           <DateiFeld name="bild_pfad" label="Bild (optional)" ordner="leistungen" vorhanden={l?.bild_pfad} vorschau={websiteDatei(l?.bild_pfad)} />
-          <div className="sm:col-span-2"><Senden>Speichern</Senden></div>
+          <div className="sm:col-span-2"><Senden vorab="Gespeichert">Speichern</Senden></div>
         </Formular>
       </Abschnitt>
     </>

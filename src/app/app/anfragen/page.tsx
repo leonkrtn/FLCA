@@ -28,7 +28,7 @@ export default async function Anfragen() {
             </Link>
             <div className="mt-3 grid grid-cols-[1fr_auto_auto] gap-2">
               <Formular aktion={bestaetigenAktion.bind(null, t.id)}>
-                <Senden className="w-full">Annehmen</Senden>
+                <Senden className="w-full" vorab="Angenommen">Annehmen</Senden>
               </Formular>
               {t.kunde?.telefon ? <a href={telHref(t.kunde.telefon)} className="knopf knopf-rahmen">Anrufen</a> : null}
               <Link href={`/app/termine/${t.id}`} className="knopf knopf-rahmen">Mehr</Link>

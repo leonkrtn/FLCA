@@ -11,7 +11,7 @@ import { Fragen } from "@/components/site/fragen";
 import { Leistungsbereiche } from "@/components/site/leistungsbereiche";
 import { Oeffnungszeiten } from "@/components/site/oeffnungszeiten";
 import { einstellungen } from "@/lib/einstellungen";
-import { absaetze, mapsHref, preis, telHref, whatsappHref } from "@/lib/format";
+import { absaetze, mapsHref, telHref, whatsappHref } from "@/lib/format";
 import { bewertungen, oeffentlicheLeistungen, stellen } from "@/lib/inhalte";
 import { websiteDatei } from "@/lib/supabase/admin";
 
@@ -49,7 +49,7 @@ export default async function Startseite() {
         <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black via-black/40 to-black/30 md:bg-gradient-to-r md:from-black/85 md:via-black/30 md:to-transparent" />
         <div className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-t from-boden to-transparent" />
 
-        <div className="rand w-full pb-14 pt-32 md:pb-24">
+        <div className="rand einblenden w-full pb-14 pt-32 md:pb-24">
           <h1 className="schmal max-w-4xl text-[3.4rem] leading-[0.9] sm:text-7xl md:text-8xl">
             Reifen, Service
             <br />

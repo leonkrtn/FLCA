@@ -3,6 +3,9 @@ import localFont from "next/font/local";
 import { ENV } from "@/lib/env";
 import "./globals.css";
 
+// „block“ statt „swap“: Die Schriften sind klein, liegen auf dem eigenen Server und werden vorgeladen.
+// Mit „swap“ erschien der Hero erst in einer Ersatzschrift und sprang dann um, einzelne Teile
+// (etwa die Telefonnummer) standen kurz allein da. So erscheint der Text einmal und gleich richtig.
 const barlow = localFont({
   src: [
     { path: "../fonts/barlow-latin-400-normal.woff2", weight: "400" },
@@ -13,7 +16,7 @@ const barlow = localFont({
     { path: "../fonts/barlow-latin-ext-600-normal.woff2", weight: "600" },
   ],
   variable: "--font-barlow",
-  display: "swap",
+  display: "block",
 });
 
 const barlowCondensed = localFont({
@@ -24,7 +27,7 @@ const barlowCondensed = localFont({
     { path: "../fonts/barlow-condensed-latin-ext-700-normal.woff2", weight: "700" },
   ],
   variable: "--font-barlow-condensed",
-  display: "swap",
+  display: "block",
 });
 
 export const metadata: Metadata = {

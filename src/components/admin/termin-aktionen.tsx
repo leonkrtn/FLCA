@@ -27,7 +27,7 @@ export function TerminAktionen({
     return (
       <div className="grid gap-3">
         <Formular aktion={aktionen.bestaetigen} className="grid gap-2">
-          <Senden art="dunkel" className={breit}>
+          <Senden art="dunkel" className={breit} vorab="Angenommen">
             Annehmen
           </Senden>
           <label className="flex items-center gap-2 text-sm text-grau">
@@ -38,7 +38,7 @@ export function TerminAktionen({
           <Formular aktion={aktionen.ablehnen} className="grid gap-2">
             <label className="label" htmlFor="grund">Nachricht an den Kunden (optional)</label>
             <textarea id="grund" name="grund" rows={2} className="feld" placeholder="z. B. Am Freitag geht es ab 14 Uhr, rufen Sie gern an." />
-            <Senden art="rahmen" className={breit}>Ablehnen und Kunden informieren</Senden>
+            <Senden art="rahmen" className={breit} vorab="Abgelehnt">Ablehnen und Kunden informieren</Senden>
           </Formular>
         ) : (
           <button type="button" onClick={() => setOffen("ablehnen")} className={`knopf knopf-rahmen ${breit}`}>
@@ -53,8 +53,8 @@ export function TerminAktionen({
   return (
     <div className="grid gap-3">
       <Formular aktion={aktionen.erledigt} className={`grid gap-2 ${gross ? "" : "sm:grid-cols-2"}`}>
-        <Senden art="dunkel" name="art" value="erledigt" className={breit}>Erledigt</Senden>
-        <Senden art="rahmen" name="art" value="nicht_erschienen" className={breit}>Nicht erschienen</Senden>
+        <Senden art="dunkel" name="art" value="erledigt" className={breit} vorab="Erledigt">Erledigt</Senden>
+        <Senden art="rahmen" name="art" value="nicht_erschienen" className={breit} vorab="Vermerkt">Nicht erschienen</Senden>
       </Formular>
       {offen === "verschieben" ? (
         <Formular aktion={aktionen.verschieben} className="grid grid-cols-2 gap-2">
@@ -63,13 +63,13 @@ export function TerminAktionen({
           <label className="col-span-2 flex items-center gap-2 text-sm text-grau">
             <input type="checkbox" name="ueberbuchen" className="size-4 accent-tinte" /> auch wenn die Werkstatt voll ist
           </label>
-          <Senden art="dunkel" className="col-span-2">Verschieben, Kunde bekommt Mail</Senden>
+          <Senden art="dunkel" className="col-span-2" vorab="Verschoben">Verschieben, Kunde bekommt Mail</Senden>
         </Formular>
       ) : null}
       {offen === "absagen" ? (
         <Formular aktion={aktionen.absagen} className="grid gap-2" bestaetigen="Termin wirklich absagen? Der Kunde bekommt eine Mail.">
           <textarea name="grund" rows={2} className="feld" placeholder="Grund (nur intern)" aria-label="Grund" />
-          <Senden art="rahmen">Termin absagen</Senden>
+          <Senden art="rahmen" vorab="Abgesagt">Termin absagen</Senden>
         </Formular>
       ) : null}
       {!offen ? (
