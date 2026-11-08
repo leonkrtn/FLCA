@@ -1,0 +1,247 @@
+@import "tailwindcss";
+
+/*
+ * Gestaltung „Auftragskarte“: warmes Hellgrau wie ein Hallenboden statt Reinweiß, Schwarz, und genau
+ * eine Signalfarbe (RAL 3020 Verkehrsrot) für die eine Handlung, um die es geht: einen Termin anfragen.
+ * Rot taucht deshalb nirgends als Dekoration auf.
+ *
+ * Schriftgrößen folgen einer Reihe mit Faktor 1,25 ab 16 px, Abstände einem 4-px-Raster.
+ */
+@theme {
+  --font-display: var(--font-archivo), "Arial Narrow", sans-serif;
+  --font-sans: var(--font-plex), system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+
+  --color-boden: #ecebe7;
+  --color-papier: #f6f5f2;
+  --color-weiss: #ffffff;
+  --color-tinte: #141414;
+  --color-graphit: #1f1e1c;
+  --color-grau: #66635d;
+  --color-grau-hell: #a19d95;
+  --color-linie: #d6d3cd;
+  --color-rot: #cc0605;
+  --color-rot-dunkel: #a40403;
+  --color-ok: #2d6a3e;
+  --color-warnung: #8a5a00;
+  --color-kreide: #e9c64b;
+
+  --text-xs: 0.8rem;
+  --text-xs--line-height: 1.4;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.45;
+  --text-base: 1rem;
+  --text-base--line-height: 1.55;
+  --text-lg: 1.25rem;
+  --text-lg--line-height: 1.4;
+  --text-xl: 1.5625rem;
+  --text-xl--line-height: 1.2;
+  --text-2xl: 1.953rem;
+  --text-2xl--line-height: 1.1;
+  --text-3xl: 2.441rem;
+  --text-3xl--line-height: 1.02;
+  --text-4xl: 3.052rem;
+  --text-4xl--line-height: 0.98;
+  --text-5xl: 3.815rem;
+  --text-5xl--line-height: 0.94;
+  --text-6xl: 4.768rem;
+  --text-6xl--line-height: 0.92;
+
+  --radius-sm: 2px;
+  --radius: 3px;
+  --radius-md: 4px;
+
+  --ease-ruhig: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Seitenrand: 16 px am Telefon, 32 px am Tablet, ab 1280 px zentrierte Spalte von 80 rem.
+   Als Utility, damit Varianten wie lg:rand funktionieren. */
+@utility rand {
+  padding-inline: 1rem;
+  @media (min-width: 768px) {
+    padding-inline: 2rem;
+  }
+  @media (min-width: 1280px) {
+    padding-inline: max(3rem, calc((100vw - 80rem) / 2));
+  }
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-padding-top: 5rem;
+  }
+  body {
+    background: var(--color-boden);
+    color: var(--color-tinte);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  /* iOS zoomt in Eingabefelder unter 16 px. */
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-tinte);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--color-kreide);
+    color: var(--color-tinte);
+  }
+}
+
+@layer components {
+  /* Display-Schrift: Archivo in schmaler Breite, wie auf einem Typenschild */
+  .schmal {
+    font-family: var(--font-display);
+    font-stretch: 72%;
+    font-weight: 780;
+    letter-spacing: -0.005em;
+    text-transform: uppercase;
+  }
+  .schmal-normal {
+    font-family: var(--font-display);
+    font-stretch: 80%;
+    font-weight: 650;
+  }
+  .zahlen {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .knopf {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 3rem;
+    padding: 0 1.25rem;
+    border-radius: var(--radius);
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    transition: background-color 120ms var(--ease-ruhig), color 120ms var(--ease-ruhig), border-color 120ms var(--ease-ruhig);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .knopf:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .knopf-rot {
+    background: var(--color-rot);
+    color: #fff;
+  }
+  .knopf-rot:hover:not(:disabled) {
+    background: var(--color-rot-dunkel);
+  }
+  .knopf-dunkel {
+    background: var(--color-tinte);
+    color: #fff;
+  }
+  .knopf-dunkel:hover:not(:disabled) {
+    background: #000;
+  }
+  .knopf-rahmen {
+    border: 1px solid currentColor;
+  }
+  .knopf-rahmen:hover:not(:disabled) {
+    background: rgb(0 0 0 / 0.05);
+  }
+  .knopf-klein {
+    min-height: 2.25rem;
+    padding: 0 0.875rem;
+    font-size: var(--text-sm);
+  }
+
+  .feld {
+    display: block;
+    width: 100%;
+    min-height: 3rem;
+    padding: 0.625rem 0.875rem;
+    border: 1px solid var(--color-linie);
+    border-radius: var(--radius);
+    background: var(--color-weiss);
+    color: var(--color-tinte);
+    transition: border-color 120ms var(--ease-ruhig);
+  }
+  .feld:hover {
+    border-color: var(--color-grau-hell);
+  }
+  .feld:focus {
+    outline: none;
+    border-color: var(--color-tinte);
+    box-shadow: 0 0 0 1px var(--color-tinte);
+  }
+  .feld[aria-invalid="true"] {
+    border-color: var(--color-rot);
+  }
+  textarea.feld {
+    min-height: 6rem;
+    resize: vertical;
+  }
+  .label {
+    display: block;
+    margin-bottom: 0.375rem;
+    font-size: var(--text-sm);
+    font-weight: 600;
+  }
+
+  .fliesstext p + p {
+    margin-top: 1em;
+  }
+  .rechtstext h2 {
+    margin: 2rem 0 0.75rem;
+    font-size: var(--text-lg);
+    font-weight: 600;
+  }
+  .rechtstext h3 {
+    margin: 1.5rem 0 0.5rem;
+    font-weight: 600;
+  }
+  .rechtstext p,
+  .rechtstext ul,
+  .rechtstext ol {
+    margin-bottom: 0.75rem;
+  }
+  .rechtstext ul {
+    list-style: disc;
+    padding-left: 1.25rem;
+  }
+  .rechtstext a {
+    text-decoration: underline;
+  }
+}
+
+/* Reifenprofil als einziges grafisches Motiv: Trenner und Ladeanzeige */
+.profil {
+  height: 12px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='12' viewBox='0 0 24 12'%3E%3Cpath d='M0 0h6l6 6-6 6H0l6-6z' fill='%23141414'/%3E%3Cpath d='M12 0h6l6 6-6 6h-6l6-6z' fill='%23141414' opacity='.55'/%3E%3C/svg%3E");
+  background-size: 24px 12px;
+  background-repeat: repeat-x;
+}
+.profil-hell {
+  filter: invert(1);
+}
+@keyframes profil-laufen {
+  to {
+    background-position-x: 24px;
+  }
+}
+.profil-laeuft {
+  animation: profil-laufen 400ms linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
