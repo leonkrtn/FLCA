@@ -38,7 +38,7 @@ const alsDatum = (d: string) => new Date(`${d}T12:00:00Z`);
 
 function Schritt({ nummer, titel, aktiv, children, id }: { nummer: number; titel: string; aktiv: boolean; children: React.ReactNode; id: string }) {
   return (
-    <section id={id} aria-labelledby={`${id}-titel`} className={`scroll-mt-20 border-t-2 pt-5 transition-colors ${aktiv ? "border-tinte" : "border-linie"}`}>
+    <section id={id} aria-labelledby={`${id}-titel`} className={`scroll-mt-20 border-t-2 pt-5 transition-colors ${aktiv ? "border-grau-hell" : "border-linie"}`}>
       <h2 id={`${id}-titel`} className="mb-5 flex items-baseline gap-3">
         <span className="zahlen text-sm text-grau">0{nummer}</span>
         <span className={`schmal text-2xl ${aktiv ? "" : "text-grau"}`}>{titel}</span>
@@ -112,7 +112,7 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
     const d = zustand.daten as { token: string; leistung: string; wann: string; email: string };
     return (
       <div className="max-w-xl" role="status">
-        <div className="mb-6 flex size-14 items-center justify-center rounded-full bg-tinte text-boden">
+        <div className="mb-6 flex size-14 items-center justify-center rounded-full bg-white/10 text-tinte ring-1 ring-linie">
           <Haken className="size-7" />
         </div>
         <h2 className="schmal mb-3 text-3xl">Anfrage ist da.</h2>
@@ -135,7 +135,7 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
       <div className="space-y-12 lg:col-span-8">
         <Schritt nummer={1} titel="Leistung" aktiv={!leistung} id="schritt-leistung">
           {leistung && !listeOffen ? (
-            <div className="flex min-h-16 items-center justify-between gap-4 rounded-2xl bg-flaeche px-4 py-3 ring-1 ring-tinte/40">
+            <div className="flex min-h-16 items-center justify-between gap-4 rounded-md bg-flaeche px-4 py-3 ring-1 ring-tinte/40">
               <span>
                 <span className="font-semibold">{leistung.name}</span>
                 <span className="block text-sm text-grau">
@@ -157,8 +157,8 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
                     return (
                       <label
                         key={l.id}
-                        className={`flex min-h-16 cursor-pointer items-center justify-between gap-4 rounded-2xl px-4 py-3 ring-1 transition-colors ${
-                          gewaehlt ? "bg-tinte text-boden ring-tinte" : "bg-flaeche ring-linie hover:ring-grau-hell"
+                        className={`flex min-h-16 cursor-pointer items-center justify-between gap-4 rounded-md px-4 py-3 ring-1 transition-colors ${
+                          gewaehlt ? "bg-white/[0.08] ring-grau" : "bg-flaeche ring-linie hover:ring-grau-hell"
                         }`}
                       >
                         <input
@@ -193,7 +193,7 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
           ) : (
             <div aria-busy={laedt}>
               <div className={`ladebalken mb-4 ${laedt ? "" : "invisible"}`} aria-hidden />
-              {ladeFehler ? <p className="mb-4 text-rot">{ladeFehler}</p> : null}
+              {ladeFehler ? <p className="mb-4 text-fehler">{ladeFehler}</p> : null}
               <div className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-3 [scrollbar-width:thin] md:mx-0 md:px-0" role="listbox" aria-label="Tag wählen">
                 {tage.map((t) => {
                   const frei = t.slots.length;
@@ -209,13 +209,13 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
                         setDatum(t.datum);
                         setUhrzeit(null);
                       }}
-                      className={`flex w-[4.5rem] shrink-0 snap-start flex-col items-center gap-0.5 rounded-2xl border py-2.5 transition-colors ${
-                        gewaehlt ? "border-tinte bg-tinte text-boden" : frei ? "border-linie bg-flaeche hover:border-tinte" : "border-transparent text-grau-hell"
+                      className={`flex w-[4.5rem] shrink-0 snap-start flex-col items-center gap-0.5 rounded-md border py-2.5 transition-colors ${
+                        gewaehlt ? "border-grau bg-white/[0.08]" : frei ? "border-linie bg-flaeche hover:border-tinte" : "border-transparent text-grau-hell"
                       }`}
                     >
                       <span className="text-xs uppercase">{wt.format(alsDatum(t.datum)).replace(".", "")}</span>
                       <span className="zahlen font-medium">{tm.format(alsDatum(t.datum))}</span>
-                      <span className={`text-[11px] ${gewaehlt ? "text-boden/70" : "text-grau"}`}>{frei ? `${frei} frei` : "voll"}</span>
+                      <span className={`text-[11px] ${"text-grau"}`}>{frei ? `${frei} frei` : "voll"}</span>
                     </button>
                   );
                 })}
@@ -224,7 +224,7 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
                     type="button"
                     onClick={() => leistung && laden(leistung.id, plusTage(tage.at(-1)!.datum, 1), true)}
                     disabled={laedt}
-                    className="w-[4.5rem] shrink-0 rounded-2xl border border-dashed border-linie text-sm text-grau hover:border-tinte hover:text-tinte"
+                    className="w-[4.5rem] shrink-0 rounded-md border border-dashed border-linie text-sm text-grau hover:border-tinte hover:text-tinte"
                   >
                     weitere Tage
                   </button>
@@ -245,8 +245,8 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
                           setUhrzeit(s);
                           requestAnimationFrame(() => document.getElementById("schritt-daten")?.scrollIntoView({ behavior: "smooth", block: "start" }));
                         }}
-                        className={`zahlen min-h-12 rounded-full border transition-colors ${
-                          s === uhrzeit ? "border-tinte bg-tinte text-boden" : "border-linie bg-flaeche hover:border-tinte"
+                        className={`zahlen min-h-12 rounded-md border transition-colors ${
+                          s === uhrzeit ? "border-grau bg-white/[0.08]" : "border-linie bg-flaeche hover:border-tinte"
                         }`}
                       >
                         {s}
@@ -264,7 +264,7 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
                 </p>
               ) : null}
               {fehler.zeit ? (
-                <p className="mt-4 font-semibold text-rot">
+                <p className="mt-4 font-semibold text-fehler">
                   {fehler.zeit}{" "}
                   <button type="button" onClick={() => leistung && waehlen(leistung.id)} className="underline">
                     Freie Zeiten neu laden
@@ -318,7 +318,7 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
                   autoCapitalize={name === "kennzeichen" ? "characters" : undefined}
                   inputMode={typ === "tel" ? "tel" : typ === "email" ? "email" : undefined}
                 />
-                <p id={`${name}-hinweis`} className={`mt-1 text-sm ${fehler[name] ? "text-rot" : "text-grau"}`}>
+                <p id={`${name}-hinweis`} className={`mt-1 text-sm ${fehler[name] ? "text-fehler" : "text-grau"}`}>
                   {fehler[name] ?? hilfe}
                 </p>
               </div>
@@ -335,7 +335,7 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
               </label>
               <textarea id="notiz" name="notiz" defaultValue={wert("notiz")} rows={3} className="feld" placeholder="z. B. Räder sind bei Ihnen eingelagert, Geräusch beim Bremsen …" />
             </div>
-            {zustand.status === "fehler" && zustand.meldung && !fehler.zeit ? <p className="font-semibold text-rot sm:col-span-2">{zustand.meldung}</p> : null}
+            {zustand.status === "fehler" && zustand.meldung && !fehler.zeit ? <p className="font-semibold text-fehler sm:col-span-2">{zustand.meldung}</p> : null}
             <div className="sm:col-span-2">
               <button type="submit" disabled={!uhrzeit || sendet} className="knopf knopf-rot w-full sm:w-auto sm:min-w-64">
                 {sendet ? "Wird gesendet …" : uhrzeit ? "Termin anfragen" : "Bitte zuerst eine Uhrzeit wählen"}
@@ -353,7 +353,7 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
       </div>
 
       <aside className="hidden lg:col-span-4 lg:block">
-        <div className="sticky top-24 rounded-3xl bg-flaeche p-6 ring-1 ring-linie">
+        <div className="sticky top-24 rounded-lg bg-flaeche p-6 ring-1 ring-linie">
           <p className="mb-4 text-sm font-semibold uppercase tracking-[0.12em] text-grau">Ihre Anfrage</p>
           <dl className="space-y-4">
             <div>

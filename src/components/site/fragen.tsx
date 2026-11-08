@@ -14,7 +14,7 @@ export function Fragen({ e }: { e: Einstellungen }) {
   return (
     <div className="grid gap-2">
       {fragen.map(([f, a]) => (
-        <details key={f} className="group rounded-2xl bg-flaeche px-5 ring-1 ring-linie open:ring-grau-hell">
+        <details key={f} className="group rounded-md bg-flaeche px-5 ring-1 ring-linie open:ring-grau-hell">
           <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 font-semibold [&::-webkit-details-marker]:hidden">
             {f}
             <span aria-hidden className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/5 text-lg leading-none text-grau transition-transform duration-300 group-open:rotate-45">

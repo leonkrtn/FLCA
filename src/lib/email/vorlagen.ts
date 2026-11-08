@@ -23,7 +23,7 @@ export function mail(
       case "absatz":
         return `<p style="margin:0 0 16px">${esc(b.text).replace(/\n/g, "<br>")}</p>`;
       case "hinweis":
-        return `<p style="margin:0 0 16px;padding:12px 14px;background:#f1efeb;border-left:3px solid #cc0605">${esc(b.text).replace(/\n/g, "<br>")}</p>`;
+        return `<p style="margin:0 0 16px;padding:12px 14px;background:#f1efeb;border-left:3px solid #9a968f">${esc(b.text).replace(/\n/g, "<br>")}</p>`;
       case "fakten":
         return `<table role="presentation" style="width:100%;border-collapse:collapse;margin:0 0 20px">${b.zeilen
           .map(
@@ -32,7 +32,7 @@ export function mail(
           )
           .join("")}</table>`;
       case "knopf":
-        return `<p style="margin:8px 0 24px"><a href="${esc(b.url)}" style="display:inline-block;background:#cc0605;color:#fff;text-decoration:none;font-weight:600;padding:12px 20px;border-radius:3px">${esc(b.text)}</a></p>`;
+        return `<p style="margin:8px 0 24px"><a href="${esc(b.url)}" style="display:inline-block;background:#2a2a2e;color:#f2f0eb;text-decoration:none;font-weight:600;padding:12px 20px;border-radius:6px">${esc(b.text)}</a></p>`;
     }
   });
 

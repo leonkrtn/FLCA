@@ -19,7 +19,7 @@ export default async function KarriereSeite() {
           <h1 className="schmal mb-4 text-4xl md:text-5xl">Arbeiten bei FLC</h1>
           <p className="text-lg">{e.texte.karriereText}</p>
         </div>
-        <ul className="border-t-2 border-tinte md:col-span-7">
+        <ul className="border-t border-grau-hell md:col-span-7">
           {liste.map((s) => (
             <li key={s.id} className="border-b border-linie">
               <Link href={`/karriere/${s.id}`} className="group flex items-center justify-between gap-4 py-5">

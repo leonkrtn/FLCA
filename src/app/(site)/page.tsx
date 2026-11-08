@@ -54,8 +54,8 @@ export default async function Startseite() {
         <div className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-t from-boden to-transparent" />
 
         <div className="rand w-full pb-14 pt-32 md:pb-24">
-          <p className="mb-6 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm text-hell/90 ring-1 ring-white/15 backdrop-blur-md">
-            <span className={`size-2 rounded-full ${status.offen ? "bg-[#3ccf6e] shadow-[0_0_10px_#3ccf6e]" : "bg-white/40"}`} aria-hidden />
+          <p className="mb-6 inline-flex items-center gap-2 rounded-md bg-white/10 px-4 py-1.5 text-sm text-hell/90 ring-1 ring-white/15 backdrop-blur-md">
+            <span className={`size-2 rounded-full ${status.offen ? "bg-tinte/80" : "bg-white/40"}`} aria-hidden />
             <span className="hidden sm:inline">Kfz-Meisterbetrieb in {f.ort} · </span>
             {status.text}
           </p>
@@ -67,7 +67,7 @@ export default async function Startseite() {
           <p className="mt-6 max-w-xl text-lg text-hell/80">{e.texte.heroUnterzeile}</p>
           {/* Auf dem Telefon übernimmt die feste Leiste unten Termin und Anruf. */}
           <div className="mt-9 hidden flex-wrap items-center gap-3 md:flex">
-            <Link href="/termin" className="knopf knopf-rot min-h-14 px-8 text-lg shadow-[0_10px_40px_-10px_rgb(204_6_5/0.8)]">
+            <Link href="/termin" className="knopf knopf-rot min-h-14 px-8 text-lg ">
               Termin anfragen
             </Link>
             <a href={telHref(f.telefon)} className="knopf min-h-14 bg-white/10 px-7 text-hell ring-1 ring-white/20 backdrop-blur-md hover:bg-white/20">
@@ -85,7 +85,7 @@ export default async function Startseite() {
 
       {/* Schnellwahl als Chips */}
       <section className="rand relative py-10 md:py-14">
-        <div className="rounded-3xl bg-papier p-6 ring-1 ring-linie md:p-10">
+        <div className="rounded-lg bg-papier p-6 ring-1 ring-linie md:p-10">
           <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
             <h2 className="schmal text-3xl md:text-4xl">Wofür brauchen Sie einen Termin?</h2>
             <Suspense fallback={null}>
@@ -97,13 +97,13 @@ export default async function Startseite() {
               <Link
                 key={l.id}
                 href={`/termin?leistung=${l.slug}`}
-                className="group inline-flex items-center gap-3 rounded-full bg-flaeche py-3 pl-5 pr-3 ring-1 ring-linie transition-colors hover:bg-tinte hover:text-boden"
+                className="group inline-flex items-center gap-3 rounded-md bg-flaeche py-3 pl-5 pr-3 ring-1 ring-linie transition-colors hover:bg-white/[0.06] hover:ring-grau-hell"
               >
                 <span className="font-semibold">{l.name}</span>
-                <span className="zahlen rounded-full bg-white/5 px-2.5 py-1 text-sm group-hover:bg-black/10">{preis(l.preis_cent, l.preis_ab)}</span>
+                <span className="zahlen rounded-md bg-white/5 px-2.5 py-1 text-sm ">{preis(l.preis_cent, l.preis_ab)}</span>
               </Link>
             ))}
-            <Link href="/termin" className="inline-flex items-center gap-2 rounded-full px-5 py-3 text-grau ring-1 ring-dashed ring-linie hover:text-tinte">
+            <Link href="/termin" className="inline-flex items-center gap-2 rounded-md px-5 py-3 text-grau ring-1 ring-dashed ring-linie hover:text-tinte">
               Andere Leistung <Pfeil className="size-4" />
             </Link>
           </div>
@@ -141,7 +141,7 @@ export default async function Startseite() {
 
       {/* Inhaber: Bild mit Text darüber */}
       <section className="rand pb-20 md:pb-28">
-        <div className="relative isolate overflow-hidden rounded-3xl">
+        <div className="relative isolate overflow-hidden rounded-lg">
           <div className="relative aspect-[4/5] md:aspect-[21/9]">
             <Image src={websiteDatei(e.medien.ueberBild) ?? handschuhe} alt="Arbeitshandschuhe und Schraubendreher auf dem Motor eines Autos" fill sizes="100vw" className="-z-10 object-cover" />
             <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black via-black/50 to-transparent md:bg-gradient-to-r md:from-black/90 md:via-black/60 md:to-transparent" />
@@ -165,7 +165,7 @@ export default async function Startseite() {
         <div className="rand mb-8 flex items-end justify-between gap-4">
           <h2 id="halle-titel" className="schmal text-5xl md:text-7xl">Aus der Halle</h2>
           {e.module.galerie ? (
-            <Link href="/galerie" className="inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ring-1 ring-linie hover:bg-flaeche">
+            <Link href="/galerie" className="inline-flex shrink-0 items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold ring-1 ring-linie hover:bg-flaeche">
               Vorher / nachher <Pfeil className="size-4" />
             </Link>
           ) : null}
@@ -176,7 +176,7 @@ export default async function Startseite() {
             { src: lanciaHeck, alt: "Roter Lancia Delta von hinten, daneben ein schwarzer BMW" },
             { src: halle, alt: "Werkstatthalle mit geöffneter Motorhaube" },
           ].map((b, i) => (
-            <div key={b.alt} className={`group relative aspect-[3/4] w-[78vw] shrink-0 snap-start overflow-hidden rounded-3xl sm:w-[45vw] md:w-auto ${i === 1 ? "md:mt-12" : ""}`}>
+            <div key={b.alt} className={`group relative aspect-[3/4] w-[78vw] shrink-0 snap-start overflow-hidden rounded-lg sm:w-[45vw] md:w-auto ${i === 1 ? "md:mt-12" : ""}`}>
               <Image src={b.src} alt={b.alt} fill sizes="(min-width: 768px) 30vw, 78vw" className="object-cover transition-transform duration-700 group-hover:scale-[1.04]" />
             </div>
           ))}
@@ -193,13 +193,13 @@ export default async function Startseite() {
                 <Sterne className="size-5" /> {f.googleAnzahl} Google-Bewertungen
               </div>
             </div>
-            <a href={f.googleBewertungLink} className="inline-flex items-center gap-2 rounded-full px-5 py-3 font-semibold ring-1 ring-linie hover:bg-flaeche" rel="noopener noreferrer">
+            <a href={f.googleBewertungLink} className="inline-flex items-center gap-2 rounded-md px-5 py-3 font-semibold ring-1 ring-linie hover:bg-flaeche" rel="noopener noreferrer">
               Alle bei Google lesen <Pfeil className="size-4" />
             </a>
           </div>
           <ul className="rand flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [scrollbar-width:none] md:grid md:grid-cols-3 md:overflow-visible">
             {stimmen.slice(0, 3).map((b) => (
-              <li key={b.id} className="flex w-[82vw] shrink-0 snap-start flex-col justify-between rounded-3xl bg-flaeche p-7 ring-1 ring-linie sm:w-[60vw] md:w-auto">
+              <li key={b.id} className="flex w-[82vw] shrink-0 snap-start flex-col justify-between rounded-lg bg-flaeche p-7 ring-1 ring-linie sm:w-[60vw] md:w-auto">
                 <div>
                   <Sterne anzahl={b.sterne} />
                   <blockquote className="mt-5 text-lg leading-relaxed">„{b.text}“</blockquote>
@@ -224,7 +224,7 @@ export default async function Startseite() {
 
       {/* Anfahrt */}
       <section id="anfahrt" className="rand scroll-mt-20 pb-20 md:pb-28">
-        <div className="grid gap-10 rounded-3xl bg-papier p-6 ring-1 ring-linie md:grid-cols-12 md:p-12">
+        <div className="grid gap-10 rounded-lg bg-papier p-6 ring-1 ring-linie md:grid-cols-12 md:p-12">
           <div className="md:col-span-5">
             <h2 className="schmal mb-6 text-5xl md:text-6xl">So finden Sie uns</h2>
             <address className="text-xl not-italic">
@@ -232,7 +232,7 @@ export default async function Startseite() {
               <br />
               {f.plz} {f.ort}
             </address>
-            <p className="mt-5 rounded-2xl bg-kreide/10 px-4 py-3 text-sm ring-1 ring-kreide/30">{f.hinweisAnfahrt}</p>
+            <p className="mt-5 rounded-md bg-white/[0.04] px-4 py-3 text-sm ring-1 ring-linie">{f.hinweisAnfahrt}</p>
             <div className="mt-8 flex flex-wrap gap-2">
               <a href={mapsHref(f.strasse, f.plz, f.ort)} className="knopf knopf-dunkel" rel="noopener noreferrer">
                 <Route /> Route planen
@@ -253,12 +253,12 @@ export default async function Startseite() {
 
       {e.module.karriere && offeneStellen.length ? (
         <section className="rand pb-20">
-          <Link href="/karriere" className="group flex flex-wrap items-center justify-between gap-6 rounded-3xl bg-flaeche px-6 py-8 ring-1 ring-linie md:px-12 md:py-10">
+          <Link href="/karriere" className="group flex flex-wrap items-center justify-between gap-6 rounded-lg bg-flaeche px-6 py-8 ring-1 ring-linie md:px-12 md:py-10">
             <span>
               <span className="block text-sm uppercase tracking-[0.16em] text-grau">Wir stellen ein</span>
               <span className="schmal mt-1 block text-3xl md:text-5xl">{offeneStellen.map((s) => s.titel).join(" · ")}</span>
             </span>
-            <span className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 font-semibold text-black transition-transform group-hover:translate-x-1">
+            <span className="inline-flex items-center gap-2 rounded-md bg-white/10 px-6 py-3 font-semibold text-tinte ring-1 ring-white/15 transition-transform group-hover:translate-x-1">
               Bewerben <Pfeil className="size-4" />
             </span>
           </Link>

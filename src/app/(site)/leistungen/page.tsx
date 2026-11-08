@@ -24,12 +24,12 @@ export default async function LeistungenSeite() {
                   <li key={l.id}>
                     <Link
                       href={`/leistungen/${l.slug}`}
-                      className="group flex h-full flex-col justify-between gap-6 rounded-3xl bg-flaeche p-6 ring-1 ring-linie transition-colors hover:ring-grau-hell"
+                      className="group flex h-full flex-col justify-between gap-6 rounded-lg bg-flaeche p-6 ring-1 ring-linie transition-colors hover:ring-grau-hell"
                     >
                       <span>
                         <span className="flex items-start justify-between gap-4">
                           <span className="text-xl font-semibold">{l.name}</span>
-                          <span className={`zahlen shrink-0 rounded-full px-3 py-1 text-sm ${l.preis_cent === null ? "text-grau ring-1 ring-linie" : "bg-tinte font-semibold text-boden"}`}>
+                          <span className={`zahlen shrink-0 rounded-md px-3 py-1 text-sm ${l.preis_cent === null ? "text-grau ring-1 ring-linie" : "bg-white/[0.07] text-tinte"}`}>
                             {preis(l.preis_cent, l.preis_ab)}
                           </span>
                         </span>

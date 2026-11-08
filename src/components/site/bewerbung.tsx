@@ -32,7 +32,7 @@ export function BewerbungsFormular({ stelle }: { stelle: string }) {
   if (zustand.status === "ok") {
     return (
       <div role="status" className="flex gap-4">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-tinte text-boden">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-tinte ring-1 ring-linie">
           <Haken />
         </span>
         <p className="text-lg">Danke! Ihre Bewerbung ist angekommen. Wir melden uns in den nächsten Tagen bei Ihnen.</p>
@@ -69,7 +69,7 @@ export function BewerbungsFormular({ stelle }: { stelle: string }) {
             {l}
           </label>
           <input id={`b-${n}`} name={n} type={t} autoComplete={a} defaultValue={w(n)} aria-invalid={f[n] ? true : undefined} className="feld" />
-          {f[n] ? <p className="mt-1 text-sm text-rot">{f[n]}</p> : null}
+          {f[n] ? <p className="mt-1 text-sm text-fehler">{f[n]}</p> : null}
         </div>
       ))}
       <div>
@@ -85,7 +85,7 @@ export function BewerbungsFormular({ stelle }: { stelle: string }) {
         <input id="b-datei" type="file" accept="application/pdf,image/jpeg,image/png" onChange={(e) => hochladen(e.target.files?.[0])} className="block w-full text-sm file:mr-3 file:rounded-sm file:border file:border-tinte file:bg-transparent file:px-3 file:py-2 file:font-semibold" />
         <p className="mt-1 text-sm text-grau">{upload === "laeuft" ? "Wird hochgeladen …" : upload || (datei ? `${datei.name} ist hochgeladen.` : "")}</p>
       </div>
-      {zustand.status === "fehler" && zustand.meldung ? <p className="font-semibold text-rot">{zustand.meldung}</p> : null}
+      {zustand.status === "fehler" && zustand.meldung ? <p className="font-semibold text-fehler">{zustand.meldung}</p> : null}
       <button type="submit" disabled={sendet || upload === "laeuft"} className="knopf knopf-rot">
         {sendet ? "Wird gesendet …" : "Bewerbung absenden"}
       </button>

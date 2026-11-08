@@ -53,7 +53,7 @@ export function Kopf({ module, telefon, oeffnungszeiten }: { module: { galerie: 
             <summary className="flex size-10 cursor-pointer list-none items-center justify-center rounded-sm [&::-webkit-details-marker]:hidden" aria-label="Menü">
               <Menue className="size-6" />
             </summary>
-            <nav aria-label="Menü" className="absolute right-0 top-12 w-56 overflow-hidden rounded-2xl bg-flaeche py-2 shadow-[0_20px_50px_rgb(0_0_0/0.5)] ring-1 ring-linie">
+            <nav aria-label="Menü" className="absolute right-0 top-12 w-56 overflow-hidden rounded-md bg-flaeche py-2 shadow-[0_20px_50px_rgb(0_0_0/0.5)] ring-1 ring-linie">
               {nav.map((n) => (
                 <Link key={n.href} href={n.href} className="block px-4 py-3 font-medium">
                   {n.label}

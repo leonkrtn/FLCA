@@ -25,7 +25,7 @@ export function AbsageKnopf({ token }: { token: string }) {
           Termin absagen
         </button>
       )}
-      {zustand.status === "fehler" ? <p className="w-full text-rot">{zustand.meldung}</p> : null}
+      {zustand.status === "fehler" ? <p className="w-full text-fehler">{zustand.meldung}</p> : null}
     </div>
   );
 }

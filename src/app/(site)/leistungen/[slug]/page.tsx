@@ -37,7 +37,7 @@ export default async function LeistungSeite({ params }: { params: Promise<{ slug
             <p key={a.slice(0, 24)}>{a}</p>
           ))}
         </div>
-        <dl className="mt-10 grid max-w-md grid-cols-2 border-t-2 border-tinte pt-4">
+        <dl className="mt-10 grid max-w-md grid-cols-2 border-t border-grau-hell pt-4">
           <div>
             <dt className="text-sm text-grau">Preis</dt>
             <dd className="zahlen text-2xl">{preis(l.preis_cent, l.preis_ab)}</dd>

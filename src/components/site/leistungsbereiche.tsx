@@ -56,7 +56,7 @@ export function Leistungsbereiche({ leistungen }: { leistungen: Leistung[] }) {
         if (!liste.length) return null;
         const ab = Math.min(...liste.map((l) => l.preis_cent ?? Infinity));
         return (
-          <article key={b.kategorie} className={`group relative isolate flex min-h-[480px] flex-col justify-end overflow-hidden rounded-3xl bg-flaeche ${b.flaeche}`}>
+          <article key={b.kategorie} className={`group relative isolate flex min-h-[480px] flex-col justify-end overflow-hidden rounded-lg bg-flaeche ${b.flaeche}`}>
             <Image
               src={b.bild}
               alt={b.alt}
@@ -76,7 +76,7 @@ export function Leistungsbereiche({ leistungen }: { leistungen: Leistung[] }) {
                   <li key={l.id}>
                     <Link
                       href={`/termin?leistung=${l.slug}`}
-                      className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-2 text-sm text-hell ring-1 ring-white/15 backdrop-blur-md transition-colors hover:bg-white hover:text-black"
+                      className="inline-flex items-center gap-2 rounded-md bg-white/10 px-3.5 py-2 text-sm text-hell ring-1 ring-white/15 backdrop-blur-md transition-colors hover:bg-white/20"
                     >
                       {l.name}
                       <span className="zahlen opacity-70">{preis(l.preis_cent, l.preis_ab)}</span>
