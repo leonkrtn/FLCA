@@ -89,6 +89,66 @@ export async function bezahltAktion(id: string, _v: Ergebnis, fd: FormData): Pro
   });
 }
 
+/**
+ * Sammelaktionen aus der Rechnungsliste. Jede Rechnung läuft einzeln durch dieselbe Funktion wie auf
+ * ihrer Detailseite (Verlauf, Ereignisse, Mail), Rechnungen, für die die Aktion nicht passt, werden
+ * übersprungen und in der Meldung gezählt statt die ganze Auswahl abzubrechen.
+ */
+export async function sammelAktion(
+  art: "bezahlt_ueberweisung" | "bezahlt_bar" | "senden" | "entwuerfe_loeschen",
+  ids: string[],
+): Promise<Ergebnis> {
+  const b = await benutzerMitRecht("rechnungen");
+  const auswahl = ids.filter((x) => typeof x === "string" && x.length <= 64).slice(0, 200);
+  if (!auswahl.length) return { status: "fehler", meldung: "Keine Rechnung ausgewählt." };
+  const { data } = await db().from("rechnungen").select("id, status, empfaenger").in("id", auswahl);
+  const liste = (data ?? []) as { id: string; status: string; empfaenger: Empfaenger }[];
+  let ok = 0;
+  const fehler: string[] = [];
+
+  if (art === "entwuerfe_loeschen") {
+    const entwuerfe = liste.filter((r) => r.status === "entwurf").map((r) => r.id);
+    if (entwuerfe.length) {
+      const { error } = await db().from("rechnungen").delete().in("id", entwuerfe).eq("status", "entwurf");
+      if (error) return { status: "fehler", meldung: error.message };
+    }
+    ok = entwuerfe.length;
+  } else {
+    for (const r of liste) {
+      try {
+        if (art === "senden") {
+          if (r.status === "entwurf") continue;
+          const an = String(r.empfaenger?.email ?? "").toLowerCase();
+          if (!istEmail(an)) {
+            fehler.push(`${r.empfaenger?.name || "ohne Namen"}: keine E-Mail-Adresse`);
+            continue;
+          }
+          await versenden(r.id, an, b.id);
+        } else {
+          if (r.status !== "gestellt") continue;
+          await alsBezahlt(r.id, art === "bezahlt_bar" ? "bar" : "ueberweisung", berlinDatum(), b.id);
+        }
+        ok++;
+      } catch (e) {
+        fehler.push(e instanceof Error ? e.message : String(e));
+      }
+    }
+  }
+  revalidatePath("/admin/rechnungen", "layout");
+  revalidatePath("/app", "layout");
+
+  const was = { bezahlt_ueberweisung: "als bezahlt markiert", bezahlt_bar: "als bar bezahlt markiert", senden: "per E-Mail gesendet", entwuerfe_loeschen: "gelöscht" }[art];
+  const uebrig = auswahl.length - ok - fehler.length;
+  const meldung = [
+    `${ok} ${ok === 1 ? "Rechnung" : "Rechnungen"} ${was}.`,
+    uebrig > 0 ? `${uebrig} übersprungen, weil die Aktion für sie nicht passt.` : "",
+    fehler.length ? `Nicht geklappt: ${fehler.slice(0, 3).join("; ")}${fehler.length > 3 ? " …" : ""}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return { status: fehler.length && !ok ? "fehler" : "ok", meldung };
+}
+
 export async function stornoAktion(id: string, basis: Basis): Promise<void> {
   const b = await benutzerMitRecht("rechnungen");
   const storno = await stornieren(id, b.id);
@@ -130,7 +190,7 @@ export async function artikelSpeichern(id: string | null, _v: Ergebnis, fd: Form
     };
     const { error } = id ? await db().from("artikel").update(daten).eq("id", id) : await db().from("artikel").insert(daten);
     if (error) throw new Error(error.message);
-    revalidatePath("/admin/artikel");
+    revalidatePath("/admin/angebot");
     return { status: "ok", meldung: "Gespeichert." };
   });
 }

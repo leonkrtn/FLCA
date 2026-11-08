@@ -102,7 +102,7 @@ export function RechnungEditor({ id, start, artikel, kompakt = false }: { id: st
               )}
             </div>
           ))}
-          {!d.positionen.length ? <p className="py-6 text-center text-grau">Noch keine Position. Artikel wählen oder eine freie Position anlegen.</p> : null}
+          {!d.positionen.length ? <p className="py-6 text-center text-grau">Noch keine Position. Aus dem Angebot wählen oder eine freie Position anlegen.</p> : null}
         </div>
         <div className={`mt-3 gap-2 ${kompakt ? "grid" : "flex flex-wrap items-center"}`}>
           <select
@@ -112,9 +112,9 @@ export function RechnungEditor({ id, start, artikel, kompakt = false }: { id: st
               if (a) neu(a);
             }}
             className={`feld min-h-10 ${kompakt ? "" : "w-auto"}`}
-            aria-label="Artikel hinzufügen"
+            aria-label="Position aus dem Angebot hinzufügen"
           >
-            <option value="">+ Artikel hinzufügen</option>
+            <option value="">+ Aus dem Angebot</option>
             {artikel.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name} · {euro(a.preis_brutto_cent)}
@@ -184,7 +184,7 @@ export function RechnungEditor({ id, start, artikel, kompakt = false }: { id: st
       </section>
 
       {/* In der Handy-App sitzt die Tab-Leiste unten, die Knopfleiste klebt deshalb darüber statt dahinter. */}
-      <div className={`sticky ${kompakt ? "bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))]" : "bottom-0"} -mx-4 flex flex-wrap items-center gap-3 border-t border-linie bg-weiss/95 px-4 py-3 backdrop-blur-sm md:static md:mx-0 md:border-0 md:bg-transparent md:p-0`}>
+      <div className={`sticky ${kompakt ? "bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom)-var(--luecke,0px))]" : "bottom-0"} -mx-4 flex flex-wrap items-center gap-3 border-t border-linie bg-weiss/95 px-4 py-3 backdrop-blur-sm md:static md:mx-0 md:border-0 md:bg-transparent md:p-0`}>
         <button type="submit" name="weiter" value="" disabled={laeuft} className="knopf knopf-rahmen">Speichern</button>
         <a href={`/admin/rechnungen/${id}/pdf`} target="_blank" className="knopf knopf-rahmen">Vorschau</a>
         <button

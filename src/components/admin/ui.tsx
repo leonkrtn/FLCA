@@ -1,6 +1,9 @@
 import Link from "next/link";
 
-/** Seitenkopf im Admin: Titel links, Aktionen rechts. */
+/**
+ * Seitenkopf im Admin: Titel links, Aktionen rechts. Der Titel steht immer in einer Zeile mit fester
+ * Höhe (zu lange Titel werden gekürzt) und so hoch wie ein Knopf daneben, damit der Inhalt darunter auf jeder Seite an derselben Stelle beginnt.
+ */
 export function Kopf({ titel, unter, children, zurueck }: { titel: string; unter?: React.ReactNode; children?: React.ReactNode; zurueck?: { href: string; text: string } }) {
   return (
     <div className="mb-6 md:mb-8">
@@ -9,24 +12,27 @@ export function Kopf({ titel, unter, children, zurueck }: { titel: string; unter
           ← {zurueck.text}
         </Link>
       ) : null}
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="schmal text-3xl md:text-4xl">{titel}</h1>
-          {unter ? <div className="mt-1 text-grau">{unter}</div> : null}
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+        <h1 className="schmal flex h-12 min-w-0 flex-1 items-center">
+          <span className="truncate text-3xl leading-none md:text-4xl" title={titel}>
+            {titel}
+          </span>
+        </h1>
         {children ? <div className="flex flex-wrap gap-2">{children}</div> : null}
       </div>
+      {unter ? <div className="mt-1 text-grau">{unter}</div> : null}
     </div>
   );
 }
 
+/** Kasten mit Überschrift. Die Kopfzeile ist immer gleich hoch, auch mit einem kleinen Knopf rechts. */
 export function Abschnitt({ titel, children, aktion, className = "" }: { titel?: string; children: React.ReactNode; aktion?: React.ReactNode; className?: string }) {
   return (
     <section className={`mb-8 bg-weiss p-4 md:p-6 ${className}`}>
       {titel || aktion ? (
-        <div className="mb-4 flex items-center justify-between gap-4">
-          {titel ? <h2 className="text-lg font-semibold">{titel}</h2> : <span />}
-          {aktion}
+        <div className="mb-4 flex h-9 items-center justify-between gap-4">
+          {titel ? <h2 className="min-w-0 truncate text-lg font-semibold">{titel}</h2> : <span />}
+          {aktion ? <div className="flex shrink-0 items-center gap-2">{aktion}</div> : null}
         </div>
       ) : null}
       {children}
@@ -74,7 +80,7 @@ export function Reiter({ eintraege, aktiv }: { eintraege: { href: string; text: 
 }
 
 /** Feld mit Beschriftung. Das Eingabefeld steckt im <label>, so braucht es keine id, und mehrere
- *  gleichartige Zeilen auf einer Seite (Artikel, Arbeitszeiten) kommen sich nicht in die Quere. */
+ *  gleichartige Zeilen auf einer Seite (Angebot, Arbeitszeiten) kommen sich nicht in die Quere. */
 export function Feld({
   label,
   name,

@@ -171,6 +171,7 @@
     display: block;
     width: 100%;
     min-height: 3rem;
+    line-height: 1.5;
     padding: 0.625rem 0.875rem;
     border: 1px solid var(--color-linie);
     border-radius: var(--radius);
@@ -188,6 +189,27 @@
   }
   .feld[aria-invalid="true"] {
     border-color: var(--color-rot);
+  }
+  /* Auswahllisten: eigener Pfeil statt der Systemoptik (am Rechner grau-gewölbt und niedriger als
+     die Eingabefelder). appearance:none lässt die Mindesthöhe greifen, so sind alle Felder gleich hoch. */
+  select.feld {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 2.5rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b6862' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1.125rem;
+    text-overflow: ellipsis;
+    cursor: pointer;
+  }
+  :where(.dunkel) select.feld {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239a968f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+  /* Datum und Uhrzeit auf dem iPhone: sonst schrumpft das Feld, wenn es leer ist. */
+  input.feld::-webkit-date-and-time-value {
+    min-height: 1.5em;
+    text-align: left;
   }
   textarea.feld {
     min-height: 6rem;

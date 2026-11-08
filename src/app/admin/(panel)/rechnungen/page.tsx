@@ -1,8 +1,8 @@
-import Link from "next/link";
-import { Kopf, Leer, Marke, Reiter, Tabelle } from "@/components/admin/ui";
+import { RechnungsAuswahl } from "@/components/admin/rechnungs-auswahl";
+import { Kopf, Leer, Reiter } from "@/components/admin/ui";
 import { neueRechnung } from "@/lib/aktionen/rechnungen";
 import { benutzerMitRecht } from "@/lib/auth";
-import { datum, euro } from "@/lib/format";
+import { datum } from "@/lib/format";
 import { RECHNUNG_STATUS, type Rechnung } from "@/lib/rechnung/rechnungen";
 import { db } from "@/lib/supabase/admin";
 import { berlinDatum } from "@/lib/zeit";
@@ -22,10 +22,10 @@ export default async function RechnungsListe({ searchParams }: { searchParams: P
   const summe = liste.filter((r) => r.status !== "entwurf").reduce((s, r) => s + Number(r.summe_brutto_cent), 0);
   return (
     <>
-      <Kopf titel="Rechnungen">
-        <a href={`/admin/rechnungen/export?monat=${vormonat}`} className="knopf knopf-rahmen knopf-klein">DATEV-Export {vormonat.slice(5)}/{vormonat.slice(0, 4)}</a>
+      <Kopf titel="Rechnungen" unter="Häkchen setzen, um mehrere Rechnungen auf einmal herunterzuladen, zu senden oder als bezahlt zu markieren.">
+        <a href={`/admin/rechnungen/export?monat=${vormonat}`} className="knopf knopf-rahmen">DATEV-Export {vormonat.slice(5)}/{vormonat.slice(0, 4)}</a>
         <form action={neueRechnung.bind(null, null)}>
-          <button className="knopf knopf-dunkel knopf-klein">Neue Rechnung</button>
+          <button className="knopf knopf-dunkel">Neue Rechnung</button>
         </form>
       </Kopf>
       <Reiter
@@ -33,33 +33,28 @@ export default async function RechnungsListe({ searchParams }: { searchParams: P
         eintraege={[["alle", "Alle"], ["entwurf", "Entwürfe"], ["gestellt", "Offen"], ["bezahlt", "Bezahlt"], ["storniert", "Storniert"]].map(([k, t]) => ({ href: `/admin/rechnungen?status=${k}`, text: t }))}
       />
       {liste.length ? (
-        <div className="bg-weiss p-4 md:p-6">
-          <Tabelle kopf={["Nummer", "Datum", "Empfänger", "Kennzeichen", "Status", { text: "Betrag", zahl: true }]}>
-            {liste.map((r) => {
-              const ueberfaellig = r.status === "gestellt" && r.faellig_am && r.faellig_am < heute;
-              return (
-                <tr key={r.id} className="hover:bg-papier">
-                  <td className="zahlen font-semibold"><Link href={`/admin/rechnungen/${r.id}`} className="hover:underline">{r.nummer ?? "Entwurf"}</Link></td>
-                  <td className="zahlen whitespace-nowrap">{datum(r.rechnungsdatum ?? r.erstellt_am)}</td>
-                  <td>{r.empfaenger?.firma || r.empfaenger?.name}</td>
-                  <td className="zahlen">{r.fahrzeug?.kennzeichen}</td>
-                  <td>
-                    <Marke ton={r.status === "bezahlt" ? "ok" : r.status === "gestellt" ? (ueberfaellig ? "rot" : "warnung") : "hell"}>
-                      {ueberfaellig ? "Überfällig" : r.storno_zu ? "Storno" : RECHNUNG_STATUS[r.status]}
-                    </Marke>
-                  </td>
-                  <td className="zahl">{euro(r.summe_brutto_cent)}</td>
-                </tr>
-              );
-            })}
-            <tr>
-              <td colSpan={5} className="text-right font-semibold">Summe (ohne Entwürfe)</td>
-              <td className="zahl font-semibold">{euro(summe)}</td>
-            </tr>
-          </Tabelle>
-        </div>
+        <RechnungsAuswahl
+          summe={summe}
+          zeilen={liste.map((r) => {
+            const ueberfaellig = r.status === "gestellt" && Boolean(r.faellig_am && r.faellig_am < heute);
+            return {
+              id: r.id,
+              nummer: r.nummer,
+              datum: datum(r.rechnungsdatum ?? r.erstellt_am),
+              empfaenger: r.empfaenger?.firma || r.empfaenger?.name || "",
+              kennzeichen: r.fahrzeug?.kennzeichen ?? "",
+              status: r.status,
+              statusText: ueberfaellig ? "Überfällig" : r.storno_zu ? "Storno" : RECHNUNG_STATUS[r.status],
+              ton: r.status === "bezahlt" ? "ok" : r.status === "gestellt" ? (ueberfaellig ? "rot" : "warnung") : "hell",
+              betrag: Number(r.summe_brutto_cent),
+              email: Boolean(r.empfaenger?.email),
+            };
+          })}
+        />
       ) : (
-        <Leer>Keine Rechnungen.</Leer>
+        <div className="bg-weiss">
+          <Leer>Keine Rechnungen.</Leer>
+        </div>
       )}
     </>
   );

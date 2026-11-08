@@ -19,12 +19,12 @@ export function Laedt({ children, className = "" }: { children: React.ReactNode;
 /** Seitenkopf im Admin (Titel, Unterzeile, Knopf rechts) in den Maßen von <Kopf>. */
 export function KopfSkelett({ knopf = true }: { knopf?: boolean }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4 md:mb-8">
-      <div>
-        <S className="h-9 w-56 md:h-10" />
-        <S className="mt-2 h-5 w-72 max-w-full" />
+    <div className="mb-6 md:mb-8">
+      <div className="flex h-12 items-center justify-between gap-4">
+        <S className="h-8 w-56 md:h-9" />
+        {knopf ? <S className="h-12 w-40" /> : null}
       </div>
-      {knopf ? <S className="h-11 w-40" /> : null}
+      <S className="mt-1 h-5 w-72 max-w-full" />
     </div>
   );
 }
@@ -50,7 +50,9 @@ export function TabelleSkelett({ zeilen = 8, spalten = 5 }: { zeilen?: number; s
 export function AbschnittSkelett({ zeilen = 3 }: { zeilen?: number }) {
   return (
     <div className="mb-8 bg-weiss p-4 md:p-6">
-      <S className="mb-5 h-6 w-48" />
+      <div className="mb-4 flex h-9 items-center">
+        <S className="h-5 w-48" />
+      </div>
       <div className="divide-y divide-linie">
         {Array.from({ length: zeilen }, (_, i) => (
           <div key={i} className="flex items-center gap-4 py-3.5">
@@ -71,8 +73,12 @@ export function MobilSkelett({ karten = 5 }: { karten?: number }) {
   return (
     <Laedt>
       <div className="border-b border-linie px-4 pb-3 pt-3">
-        <S className="h-7 w-40" />
-        <S className="mt-1.5 h-4 w-32" />
+        <div className="flex h-8 items-center">
+          <S className="h-6 w-40" />
+        </div>
+        <div className="flex h-5 items-center">
+          <S className="h-3.5 w-32" />
+        </div>
       </div>
       <div className="grid gap-px bg-linie">
         {Array.from({ length: karten }, (_, i) => (

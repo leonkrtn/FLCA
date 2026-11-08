@@ -35,6 +35,10 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/**": ["./src/fonts/*.ttf", "./src/assets/logo-schwarz.png"],
   },
+  // „Artikel“ heißt jetzt „Angebot“. Alte Lesezeichen landen weiter auf der richtigen Seite.
+  async redirects() {
+    return [{ source: "/admin/artikel", destination: "/admin/angebot", permanent: true }];
+  },
   async headers() {
     return [
       {

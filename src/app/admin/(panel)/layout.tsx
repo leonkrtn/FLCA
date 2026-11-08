@@ -30,7 +30,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: "/admin/kunden", text: "Kunden", recht: "kunden" },
     { href: "/admin/einlagerung", text: "Einlagerung", recht: "einlagerung", modul: "einlagerung" },
     { href: "/admin/rechnungen", text: "Rechnungen", recht: "rechnungen", gruppe: "Geld" },
-    { href: "/admin/artikel", text: "Artikel", recht: "rechnungen" },
+    { href: "/admin/angebot", text: "Angebot", recht: "rechnungen" },
     { href: "/admin/team", text: "Team", recht: "team", anzahl: abwesenheiten, gruppe: "Betrieb" },
     { href: "/admin/karriere", text: "Karriere", recht: "karriere", anzahl: bewerbungen, modul: "karriere" },
     { href: "/admin/website", text: "Website", recht: "website" },
