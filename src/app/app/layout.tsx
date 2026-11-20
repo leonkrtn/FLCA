@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Kalender, Liste, Mehr, Plus, Dokument } from "@/components/icons";
 import { TabLeiste } from "@/components/mobil/leiste";
+import { PushAbgleich } from "@/components/mobil/push-abgleich";
 import { benutzerMitRecht } from "@/lib/auth";
 import { db } from "@/lib/supabase/admin";
 
@@ -24,6 +25,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-dvh bg-boden pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)]">
       <div className="mx-auto max-w-xl">{children}</div>
+      <PushAbgleich />
       <TabLeiste
         dunkel
         tabs={[
