@@ -1,14 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { pushAbmelden, pushAbonnieren } from "@/lib/aktionen/push";
-
-const schluessel = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
-
-function alsBytes(base64: string) {
-  const roh = atob((base64 + "=".repeat((4 - (base64.length % 4)) % 4)).replace(/-/g, "+").replace(/_/g, "/"));
-  return Uint8Array.from(roh, (c) => c.charCodeAt(0));
-}
+import { pushAbmelden } from "@/lib/aktionen/push";
+import { abonnieren, istInstalliert, pushMoeglich, registrierung } from "@/lib/push-browser";
 
 /**
  * Push ein/aus. Auf dem iPhone geht Push nur, wenn die Web-App über „Teilen → Zum Home-Bildschirm“
@@ -21,10 +15,10 @@ export function PushSchalter() {
   useEffect(() => {
     (async () => {
       const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
-      const installiert = window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
-      if (!("serviceWorker" in navigator) || !("PushManager" in window) || !schluessel) return setZustand(ios && !installiert ? "installieren" : "nicht-moeglich");
+      if (ios && !istInstalliert()) return setZustand("installieren");
+      if (!pushMoeglich()) return setZustand("nicht-moeglich");
       if (Notification.permission === "denied") return setZustand("blockiert");
-      const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+      const reg = await registrierung();
       const abo = await reg.pushManager.getSubscription();
       setZustand(abo ? "an" : "aus");
     })().catch(() => setZustand("nicht-moeglich"));
@@ -33,7 +27,7 @@ export function PushSchalter() {
   async function umschalten() {
     setLaeuft(true);
     try {
-      const reg = await navigator.serviceWorker.ready;
+      const reg = await registrierung();
       const abo = await reg.pushManager.getSubscription();
       if (abo) {
         await pushAbmelden(abo.endpoint);
@@ -42,8 +36,7 @@ export function PushSchalter() {
       } else {
         const erlaubnis = await Notification.requestPermission();
         if (erlaubnis !== "granted") return setZustand("blockiert");
-        const neu = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: alsBytes(schluessel) });
-        await pushAbonnieren(neu.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } }, navigator.userAgent);
+        await abonnieren(true);
         setZustand("an");
       }
     } finally {

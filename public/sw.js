@@ -25,13 +25,14 @@ self.addEventListener("notificationclick", (event) => {
   const ziel = new URL(event.notification.data?.url || "/app", self.location.origin).href;
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((fenster) => {
-      for (const f of fenster) {
-        if ("focus" in f) {
-          f.navigate(ziel);
-          return f.focus();
-        }
-      }
-      return self.clients.openWindow(ziel);
+      // Offene App nach vorn holen und zur Anfrage springen. navigate() klappt nur bei Fenstern, die dieser
+      // Service Worker steuert; sonst (und ohne offenes Fenster) ein neues Fenster mit dem Ziel öffnen.
+      const f = fenster.find((x) => "focus" in x);
+      if (!f) return self.clients.openWindow(ziel);
+      return f
+        .focus()
+        .then((g) => (g || f).navigate(ziel))
+        .catch(() => self.clients.openWindow(ziel));
     }),
   );
 });

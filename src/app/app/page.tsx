@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Marke } from "@/components/admin/ui";
+import { PushHinweis } from "@/components/mobil/push-abgleich";
 import { Karte, MobilKopf } from "@/components/mobil/teile";
 import { benutzerMitRecht } from "@/lib/auth";
 import { datumLangText, zeit } from "@/lib/format";
@@ -36,6 +37,7 @@ export default async function Heute({ searchParams }: { searchParams: Promise<{ 
           </div>
         }
       />
+      <PushHinweis />
       <div className="grid grid-cols-1 gap-px bg-linie">
         {termine.map((x) => (
           <Karte key={x.id} href={`/app/termine/${x.id}`}>
