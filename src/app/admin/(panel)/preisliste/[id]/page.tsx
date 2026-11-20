@@ -2,23 +2,23 @@ import { notFound } from "next/navigation";
 import { DateiFeld } from "@/components/admin/datei-feld";
 import { Formular, Senden } from "@/components/admin/formular";
 import { Auswahl, Feld, Kopf, Schalter, Textfeld } from "@/components/admin/ui";
-import { angebotSpeichern } from "@/lib/aktionen/angebot";
+import { preislisteSpeichern } from "@/lib/aktionen/preisliste";
 import { benutzerMitRecht } from "@/lib/auth";
 import { KATEGORIEN } from "@/lib/inhalte";
 import { darf } from "@/lib/rollen";
 import { db, websiteDatei } from "@/lib/supabase/admin";
 import type { Leistung } from "@/lib/termine";
 
-export const metadata = { title: "Angebot bearbeiten" };
+export const metadata = { title: "Preisliste bearbeiten" };
 
 const EINHEITEN = ["Pauschal", "Stk", "Std", "l", "Satz", "km"];
 
 /**
- * Eine Position des Angebots, links das, was auf der Rechnung steht, rechts das, was Terminbuchung und
+ * Eine Position der Preisliste, links das, was auf der Rechnung steht, rechts das, was Terminbuchung und
  * Website brauchen. Bei Teilen und Material (Art „position“) blendet CSS die rechte Seite aus
  * (Klasse „nur-leistung“, Regel in globals.css), ganz ohne Skript.
  */
-export default async function AngebotBearbeiten({ params }: { params: Promise<{ id: string }> }) {
+export default async function PreislistePosition({ params }: { params: Promise<{ id: string }> }) {
   const b = await benutzerMitRecht("rechnungen");
   const { id } = await params;
   const neu = id === "neu";
@@ -29,14 +29,14 @@ export default async function AngebotBearbeiten({ params }: { params: Promise<{ 
 
   return (
     <>
-      <Kopf titel={neu ? "Neue Position" : l!.name} zurueck={{ href: "/admin/angebot", text: "Angebot" }}>
+      <Kopf titel={neu ? "Neue Position" : l!.name} zurueck={{ href: "/admin/preisliste", text: "Preisliste" }}>
         {l?.sichtbar ? (
           <a href={`/leistungen/${l.slug}`} target="_blank" className="knopf knopf-rahmen">
             Auf der Website ansehen
           </a>
         ) : null}
       </Kopf>
-      <Formular aktion={angebotSpeichern.bind(null, neu ? null : id)} className="angebot-formular grid items-start gap-x-8 lg:grid-cols-2">
+      <Formular aktion={preislisteSpeichern.bind(null, neu ? null : id)} className="preisliste-formular grid items-start gap-x-8 lg:grid-cols-2">
         <section className="mb-8 bg-weiss p-4 md:p-6">
           <div className="mb-4 flex h-9 items-center">
             <h2 className="text-lg font-semibold">Preis und Rechnung</h2>

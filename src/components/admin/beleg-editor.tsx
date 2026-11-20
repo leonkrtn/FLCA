@@ -10,7 +10,7 @@ import type { KundenTreffer } from "@/lib/kunden";
 import { berechne, type Position } from "@/lib/rechnung/berechnung";
 import { KundenSuche } from "./kunden-suche";
 
-/** Eine Position aus dem Angebot (Leistung oder Teil). */
+/** Eine Position aus der Preisliste (Leistung oder Teil). */
 type Artikel = { id: string; name: string; einheit: string; preis_brutto_cent: number; mwst_satz: number };
 
 export type BelegDaten = {
@@ -57,14 +57,14 @@ export function BelegEditor({
   art,
   id,
   start,
-  angebot,
+  preisliste,
   zuletzt,
   kompakt = false,
 }: {
   art: BelegArt;
   id: string;
   start: BelegDaten;
-  angebot: Artikel[];
+  preisliste: Artikel[];
   zuletzt: KundenTreffer[];
   kompakt?: boolean;
 }) {
@@ -210,21 +210,21 @@ export function BelegEditor({
               ) : null}
             </div>
           ))}
-          {!d.positionen.length ? <p className="py-6 text-center text-grau">Noch keine Position. Aus dem Angebot wählen oder eine freie Position anlegen.</p> : null}
+          {!d.positionen.length ? <p className="py-6 text-center text-grau">Noch keine Position. Aus der Preisliste wählen oder eine freie Position anlegen.</p> : null}
         </div>
         <div className={`mt-3 grid gap-2 ${tabelle ? "md:flex md:flex-wrap md:items-center" : ""}`}>
           <select
             value=""
             onChange={(ev) => {
-              const a = angebot.find((x) => x.id === ev.target.value);
+              const a = preisliste.find((x) => x.id === ev.target.value);
               if (a) neu(a);
             }}
             // Ohne max-w-full wird die Auswahl so breit wie der längste Eintrag und schiebt das Handy-Layout auf.
             className={`feld min-h-10 max-w-full ${tabelle ? "md:w-auto" : ""}`}
-            aria-label="Position aus dem Angebot hinzufügen"
+            aria-label="Position aus der Preisliste hinzufügen"
           >
-            <option value="">+ Aus dem Angebot</option>
-            {angebot.map((a) => (
+            <option value="">+ Aus der Preisliste</option>
+            {preisliste.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name} · {euro(a.preis_brutto_cent)}
               </option>

@@ -3,7 +3,7 @@ import { Logo } from "@/components/logo";
 
 export function LoginKarte({ titel, children }: { titel: string; children: React.ReactNode }) {
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center bg-graphit px-4 py-10">
+    <main className="flex min-h-dvh flex-col items-center justify-center bg-graphit px-4 pb-10 pt-[max(2.5rem,env(safe-area-inset-top))]">
       <Link href="/" aria-label="Zur Website" className="mb-8 text-boden">
         <Logo className="h-16 w-auto" />
       </Link>

@@ -57,10 +57,10 @@ export const RECHNUNG_STATUS: Record<Rechnung["status"], string> = {
   storniert: "Storniert",
 };
 
-export type AngebotsPosition = { id: string; name: string; einheit: string; preis_brutto_cent: number; mwst_satz: number };
+export type PreislistenPosition = { id: string; name: string; einheit: string; preis_brutto_cent: number; mwst_satz: number };
 
-/** Auswahl „Aus dem Angebot“ im Rechnungseditor: alles Aktive, Leistungen und Teile, in der Reihenfolge des Angebots. */
-export async function angebotFuerRechnung(): Promise<AngebotsPosition[]> {
+/** Auswahl „Aus der Preisliste“ im Rechnungseditor: alles Aktive, Leistungen und Teile, in der Reihenfolge der Preisliste. */
+export async function preislisteFuerBelege(): Promise<PreislistenPosition[]> {
   const { data } = await db().from("leistungen").select("*").order("sortierung");
   return (data ?? [])
     .filter((l) => l.aktiv !== false)
@@ -94,7 +94,7 @@ export async function entwurfAusTermin(terminId: string, vonBenutzer: string): P
 
   const positionen: Position[] = [];
   if (t.leistung_id) {
-    // Derselbe Preis wie auf der Website: Es gibt ihn nur einmal, im Angebot. Bei „ab“-Preisen steht der
+    // Derselbe Preis wie auf der Website: Es gibt ihn nur einmal, in der Preisliste. Bei „ab“-Preisen steht der
     // Startwert drin und wird in der Rechnung angepasst.
     const { data: leistung } = await db().from("leistungen").select("*").eq("id", t.leistung_id).maybeSingle();
     positionen.push({

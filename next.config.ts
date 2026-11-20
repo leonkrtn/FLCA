@@ -35,12 +35,14 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/**": ["./src/fonts/*.ttf", "./src/assets/logo-schwarz.png"],
   },
-  // „Artikel“ heißt jetzt „Angebot“. Alte Lesezeichen landen weiter auf der richtigen Seite.
+  // Erst „Artikel“, dann „Angebot“, jetzt „Preisliste“. Alte Lesezeichen landen weiter auf der richtigen Seite.
   async redirects() {
     return [
-      { source: "/admin/artikel", destination: "/admin/angebot", permanent: true },
-      // Leistungen und Preise standen früher unter Website, jetzt im Angebot.
-      { source: "/admin/website/leistung/:id", destination: "/admin/angebot/:id", permanent: true },
+      { source: "/admin/artikel", destination: "/admin/preisliste", permanent: true },
+      { source: "/admin/angebot", destination: "/admin/preisliste", permanent: true },
+      { source: "/admin/angebot/:id", destination: "/admin/preisliste/:id", permanent: true },
+      // Leistungen und Preise standen früher unter Website, jetzt in der Preisliste.
+      { source: "/admin/website/leistung/:id", destination: "/admin/preisliste/:id", permanent: true },
     ];
   },
   async headers() {

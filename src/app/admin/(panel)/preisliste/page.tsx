@@ -6,7 +6,7 @@ import { KATEGORIEN } from "@/lib/inhalte";
 import { db } from "@/lib/supabase/admin";
 import type { Leistung } from "@/lib/termine";
 
-export const metadata = { title: "Angebot" };
+export const metadata = { title: "Preisliste" };
 
 const ANSICHTEN = { aktiv: "Aktiv", inaktiv: "Ausgeblendet", alle: "Alle" } as const;
 
@@ -16,11 +16,11 @@ const SPALTEN = "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 md:gri
 const netto = (l: Leistung) => Math.round((l.preis_cent ?? 0) / (1 + Number(l.mwst_satz ?? 19) / 100));
 
 /**
- * Das Angebot: eine einzige Liste für Website, Terminbuchung und Rechnungen. Ein Preis steht nur an
+ * Die Preisliste: eine einzige Liste für Website, Terminbuchung und Rechnungen. Ein Preis steht nur an
  * einer Stelle, die Website und die Rechnung zum Termin nehmen denselben. Gruppiert nach dem, wo eine
  * Position auftaucht: online buchbar, nur auf der Website, nur intern, Teile und Material.
  */
-export default async function AngebotSeite({ searchParams }: { searchParams: Promise<{ ansicht?: string; q?: string }> }) {
+export default async function PreislisteSeite({ searchParams }: { searchParams: Promise<{ ansicht?: string; q?: string }> }) {
   await benutzerMitRecht("rechnungen");
   const sp = await searchParams;
   const ansicht = (sp.ansicht && sp.ansicht in ANSICHTEN ? sp.ansicht : "aktiv") as keyof typeof ANSICHTEN;
@@ -45,13 +45,13 @@ export default async function AngebotSeite({ searchParams }: { searchParams: Pro
     const p = new URLSearchParams();
     for (const [k, v] of Object.entries({ ansicht: ansicht === "aktiv" ? undefined : ansicht, q: sp.q || undefined, ...extra })) if (v) p.set(k, v);
     const s = p.toString();
-    return `/admin/angebot${s ? `?${s}` : ""}`;
+    return `/admin/preisliste${s ? `?${s}` : ""}`;
   };
 
   return (
     <>
-      <Kopf titel="Angebot" unter="Leistungen und Preise für Website, Terminbuchung und Rechnungen. Jeder Preis steht nur hier.">
-        <Link href="/admin/angebot/neu" className="knopf knopf-dunkel">
+      <Kopf titel="Preisliste" unter="Leistungen und Preise für Website, Terminbuchung und Rechnungen. Jeder Preis steht nur hier.">
+        <Link href="/admin/preisliste/neu" className="knopf knopf-dunkel">
           Neue Position
         </Link>
       </Kopf>
@@ -64,7 +64,7 @@ export default async function AngebotSeite({ searchParams }: { searchParams: Pro
 
       <Reiter aktiv={link({})} eintraege={Object.entries(ANSICHTEN).map(([k, t]) => ({ href: link({ ansicht: k === "aktiv" ? undefined : k }), text: t }))} />
 
-      <form className="mb-6 max-w-sm" action="/admin/angebot">
+      <form className="mb-6 max-w-sm" action="/admin/preisliste">
         {ansicht !== "aktiv" ? <input type="hidden" name="ansicht" value={ansicht} /> : null}
         <input name="q" defaultValue={sp.q} placeholder="Suche: Bezeichnung, Nummer, Kategorie" className="feld" aria-label="Suche" />
       </form>
@@ -88,7 +88,7 @@ export default async function AngebotSeite({ searchParams }: { searchParams: Pro
             <ul className="divide-y divide-linie">
               {g.eintraege.map((l) => (
                 <li key={l.id}>
-                  <Link href={`/admin/angebot/${l.id}`} className={`${SPALTEN} min-h-16 px-4 py-3 transition-colors hover:bg-papier md:px-6 ${l.aktiv === false ? "text-grau" : ""}`}>
+                  <Link href={`/admin/preisliste/${l.id}`} className={`${SPALTEN} min-h-16 px-4 py-3 transition-colors hover:bg-papier md:px-6 ${l.aktiv === false ? "text-grau" : ""}`}>
                     <span className="hidden truncate text-sm tabular-nums text-grau md:block">{l.nummer || "–"}</span>
                     <span className="min-w-0">
                       <span className="flex items-center gap-2">
