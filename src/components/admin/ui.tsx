@@ -13,7 +13,8 @@ export function Kopf({ titel, unter, children, zurueck }: { titel: string; unter
         </Link>
       ) : null}
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-        <h1 className="schmal flex h-12 min-w-0 flex-1 items-center">
+        {/* Mindestbreite: Wird es eng (Handy), rücken die Knöpfe in die nächste Zeile, statt den Titel abzuschneiden. */}
+        <h1 className="schmal flex h-12 min-w-[min(100%,16rem)] flex-1 items-center">
           <span className="truncate text-3xl leading-none md:text-4xl" title={titel}>
             {titel}
           </span>
@@ -25,14 +26,17 @@ export function Kopf({ titel, unter, children, zurueck }: { titel: string; unter
   );
 }
 
-/** Kasten mit Überschrift. Die Kopfzeile ist immer gleich hoch, auch mit einem kleinen Knopf rechts. */
+/**
+ * Kasten mit Überschrift. Die Kopfzeile ist immer gleich hoch, auch mit einem kleinen Knopf rechts.
+ * Passt ein Hinweis rechts nicht mehr daneben (Handy), rutscht er in eine zweite Zeile statt über den Rand.
+ */
 export function Abschnitt({ titel, children, aktion, className = "" }: { titel?: string; children: React.ReactNode; aktion?: React.ReactNode; className?: string }) {
   return (
     <section className={`mb-8 bg-weiss p-4 md:p-6 ${className}`}>
       {titel || aktion ? (
-        <div className="mb-4 flex h-9 items-center justify-between gap-4">
+        <div className="mb-4 flex min-h-9 flex-wrap items-center justify-between gap-x-4 gap-y-1">
           {titel ? <h2 className="min-w-0 truncate text-lg font-semibold">{titel}</h2> : <span />}
-          {aktion ? <div className="flex shrink-0 items-center gap-2">{aktion}</div> : null}
+          {aktion ? <div className="flex min-w-0 items-center gap-2">{aktion}</div> : null}
         </div>
       ) : null}
       {children}

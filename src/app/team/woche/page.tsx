@@ -20,7 +20,7 @@ export default async function Woche() {
   return (
     <>
       <MobilKopf titel="Deine Woche" />
-      <div className="grid gap-px bg-linie">
+      <div className="grid grid-cols-1 gap-px bg-linie">
         {tage.map((d) => {
           const z = (zeiten ?? []).filter((x) => x.wochentag === wochentag(d));
           const a = (abw ?? []).find((x) => x.von <= d && x.bis >= d);

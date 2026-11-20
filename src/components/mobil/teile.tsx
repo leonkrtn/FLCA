@@ -35,3 +35,22 @@ export function Karte({ children, href, className = "" }: { children: React.Reac
     <div className={k}>{children}</div>
   );
 }
+
+/** Umschalter zwischen verwandten Listen (Rechnungen und Kostenvoranschläge) unter dem Kopf. */
+export function MobilReiter({ eintraege, aktiv }: { eintraege: { href: string; text: string; anzahl?: number }[]; aktiv: string }) {
+  return (
+    <nav aria-label="Ansicht" className="grid gap-1 bg-boden px-4 py-2" style={{ gridTemplateColumns: `repeat(${eintraege.length}, minmax(0, 1fr))` }}>
+      {eintraege.map((e) => (
+        <Link
+          key={e.href}
+          href={e.href}
+          aria-current={e.href === aktiv ? "page" : undefined}
+          className={`flex min-h-9 items-center justify-center gap-1.5 truncate rounded-sm px-2 text-sm font-semibold ${e.href === aktiv ? "bg-weiss text-tinte shadow-sm" : "text-grau"}`}
+        >
+          {e.text}
+          {e.anzahl ? <span className="zahlen rounded-full bg-tinte px-1.5 text-xs leading-5 text-weiss">{e.anzahl}</span> : null}
+        </Link>
+      ))}
+    </nav>
+  );
+}

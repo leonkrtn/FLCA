@@ -74,13 +74,14 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
             {WOCHENTAGE.map((tag, i) => {
               const f = e.oeffnungszeiten[String(i + 1) as "1"];
               return (
-                <div key={tag} className="grid grid-cols-[6.5rem_1fr_1fr] items-center gap-2">
+                // Am Handy untereinander (Tag, Vormittag, Nachmittag), sonst passen vier Uhrzeitfelder nicht in eine Zeile.
+                <div key={tag} className="grid grid-cols-1 items-center gap-2 border-b border-linie pb-2 sm:grid-cols-[6.5rem_1fr_1fr] sm:border-0 sm:pb-0">
                   <span className="text-sm font-semibold">{tag}</span>
                   {[0, 1].map((n) => (
-                    <div key={n} className="flex items-center gap-1">
-                      <input type="time" step={900} name={`t${i + 1}_${n + 1}_von`} defaultValue={f[n]?.[0]} className="feld min-h-10 px-2" aria-label={`${tag} von`} />
+                    <div key={n} className="flex min-w-0 items-center gap-1">
+                      <input type="time" step={900} name={`t${i + 1}_${n + 1}_von`} defaultValue={f[n]?.[0]} className="feld min-h-10 min-w-0 flex-1 px-2" aria-label={`${tag} von`} />
                       <span className="text-grau">–</span>
-                      <input type="time" step={900} name={`t${i + 1}_${n + 1}_bis`} defaultValue={f[n]?.[1]} className="feld min-h-10 px-2" aria-label={`${tag} bis`} />
+                      <input type="time" step={900} name={`t${i + 1}_${n + 1}_bis`} defaultValue={f[n]?.[1]} className="feld min-h-10 min-w-0 flex-1 px-2" aria-label={`${tag} bis`} />
                     </div>
                   ))}
                 </div>
@@ -187,7 +188,7 @@ async function KalenderBereich({ fehler, verbunden }: { fehler?: string; verbund
     <Abschnitt titel="Google Kalender">
       {!KONFIGURIERT.google ? (
         <p className="border-l-2 border-kreide bg-papier px-4 py-3">
-          Es fehlen GOOGLE_CLIENT_ID und GOOGLE_CLIENT_SECRET in Vercel. Die Anleitung steht in der README unter „Google Kalender“. Weiterleitungs-URI: <code className="zahlen">{ENV.siteUrl}/api/google/rueckruf</code>
+          Es fehlen GOOGLE_CLIENT_ID und GOOGLE_CLIENT_SECRET in Vercel. Die Anleitung steht in der README unter „Google Kalender“. Weiterleitungs-URI: <code className="zahlen break-all">{ENV.siteUrl}/api/google/rueckruf</code>
         </p>
       ) : ist ? (
         <div className="grid gap-6">
@@ -259,6 +260,12 @@ async function RechnungBereich() {
         <Feld label="Zahlungsziel (Tage)" name="zahlungszielTage" wert={e.rechnung.zahlungszielTage} inputMode="numeric" className="max-w-xs" />
         <Textfeld label="Einleitungssatz" name="einleitung" wert={e.rechnung.einleitung} zeilen={2} />
         <Textfeld label="Fußtext" name="fusstext" wert={e.rechnung.fusstext} zeilen={2} />
+        <fieldset className="grid gap-4 border-t border-linie pt-6">
+          <legend className="mb-2 font-semibold">Kostenvoranschläge · Nummern mit eigenem Präfix KV-</legend>
+          <Feld label="Gültig (Tage)" name="kv_gueltigTage" wert={e.kostenvoranschlag.gueltigTage} inputMode="numeric" className="max-w-xs" />
+          <Textfeld label="Einleitungssatz" name="kv_einleitung" wert={e.kostenvoranschlag.einleitung} zeilen={2} />
+          <Textfeld label="Fußtext" name="kv_fusstext" wert={e.kostenvoranschlag.fusstext} zeilen={2} />
+        </fieldset>
         <div><Senden vorab="Gespeichert">Speichern</Senden></div>
       </Formular>
     </Abschnitt>
@@ -275,7 +282,7 @@ async function Schnittstellen() {
     <>
       <Abschnitt titel="Webhooks" aktion={<span className="text-sm text-grau">Für n8n, Make, Zapier oder eigene Dienste</span>}>
         <p className="mb-4 max-w-2xl text-sm">
-          Bei jedem Ereignis schickt das System einen POST mit JSON an die Adresse. Der Kopf <code className="zahlen">x-flc-signatur</code> enthält <code className="zahlen">t=Zeit,v1=HMAC-SHA256(geheimnis, &quot;t.body&quot;)</code>. Fehlgeschlagene Zustellungen werden bis zu sechsmal wiederholt.
+          Bei jedem Ereignis schickt das System einen POST mit JSON an die Adresse. Der Kopf <code className="zahlen break-all">x-flc-signatur</code> enthält <code className="zahlen break-all">t=Zeit,v1=HMAC-SHA256(geheimnis, &quot;t.body&quot;)</code>. Fehlgeschlagene Zustellungen werden bis zu sechsmal wiederholt.
         </p>
         <Formular aktion={webhookAnlegen} zuruecksetzen className="mb-6 grid gap-4 border-b border-linie pb-6">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -321,7 +328,7 @@ async function Schnittstellen() {
       </Abschnitt>
       <Abschnitt titel="API-Schlüssel">
         <p className="mb-4 max-w-2xl text-sm">
-          Lesender Zugriff über <code className="zahlen">GET {ENV.siteUrl}/api/v1/…</code> mit dem Kopf <code className="zahlen">Authorization: Bearer flc_…</code>. Endpunkte: <code className="zahlen">termine</code>, <code className="zahlen">kunden</code>, <code className="zahlen">rechnungen</code>, <code className="zahlen">ereignisse?nach=ID</code>, <code className="zahlen">frei?leistung=radwechsel&amp;von=JJJJ-MM-TT</code>.
+          Lesender Zugriff über <code className="zahlen break-all">GET {ENV.siteUrl}/api/v1/…</code> mit dem Kopf <code className="zahlen break-all">Authorization: Bearer flc_…</code>. Endpunkte: <code className="zahlen break-all">termine</code>, <code className="zahlen break-all">kunden</code>, <code className="zahlen break-all">rechnungen</code>, <code className="zahlen break-all">ereignisse?nach=ID</code>, <code className="zahlen break-all">frei?leistung=radwechsel&amp;von=JJJJ-MM-TT</code>.
         </p>
         <Formular aktion={apiSchluesselAnlegen} className="mb-6 grid items-end gap-3 sm:grid-cols-[1fr_auto_auto]">
           <Feld label="Wofür?" name="name" placeholder="z. B. n8n" />

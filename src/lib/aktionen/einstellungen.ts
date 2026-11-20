@@ -74,6 +74,11 @@ export async function rechnungEinstellungen(_v: Ergebnis, fd: FormData): Promise
       einleitung: text(fd, "einleitung", 500),
       fusstext: text(fd, "fusstext", 500),
     });
+    await einstellungenSpeichern("kostenvoranschlag", {
+      gueltigTage: zahlIn(fd, "kv_gueltigTage", 1, 365, 30),
+      einleitung: text(fd, "kv_einleitung", 500),
+      fusstext: text(fd, "kv_fusstext", 500),
+    });
     // Nummernkreis nur, solange noch keine Rechnung gestellt ist (die Datenbank prüft das selbst).
     if (fd.get("nummernkreis") === "1") {
       const { error } = await db().rpc("nummernkreis_einstellen", {

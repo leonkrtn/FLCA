@@ -73,6 +73,9 @@ const s = StyleSheet.create({
 const menge = (n: number) => new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 }).format(n);
 
 export type PdfDaten = RechnungsDaten & {
+  /** Dasselbe Layout dient auch dem Kostenvoranschlag: anderer Titel, Gültigkeit statt Zahlungsteil. */
+  art?: "rechnung" | "kostenvoranschlag";
+  gueltig_bis?: string | null;
   kundennummer: number | null;
   fahrzeug: { kennzeichen?: string; modell?: string; km?: number | null };
   einleitung: string;
@@ -81,19 +84,21 @@ export type PdfDaten = RechnungsDaten & {
 };
 
 /**
- * Das einzige Rechnungs-PDF. Admin, Kunden-Link und Mailversand rufen alle diese Funktion mit den
+ * Das einzige Rechnungs-PDF (und mit art „kostenvoranschlag“ das des Kostenvoranschlags). Admin, Kunden-Link und Mailversand rufen alle diese Funktion mit den
  * gespeicherten Daten der Rechnung auf, damit es nie zwei abweichende Fassungen derselben Rechnung gibt.
  */
 export async function rechnungPdf(r: PdfDaten): Promise<Buffer> {
   const summen = berechne(r.positionen);
   const f = r.firma;
+  const kv = r.art === "kostenvoranschlag";
+  const titel = kv ? `Kostenvoranschlag ${r.nummer}` : r.storno ? `Stornorechnung ${r.nummer}` : `Rechnung ${r.nummer}`;
   const qr =
-    !r.storno && !r.bezahlt
+    !kv && !r.storno && !r.bezahlt
       ? await girocode({ name: f.name, iban: f.iban, bic: f.bic, cent: summen.brutto, zweck: `Rechnung ${r.nummer}` })
       : null;
 
   const dokument = (
-    <Document title={`Rechnung ${r.nummer}`} author={f.name} language="de">
+    <Document title={titel} author={f.name} language="de">
       <Page size="A4" style={s.seite}>
         <View style={s.kopf}>
           {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf kennt kein alt */}
@@ -124,9 +129,17 @@ export async function rechnungPdf(r: PdfDaten): Promise<Buffer> {
           </View>
           <View style={s.info}>
             {[
-              ["Rechnungsnummer", r.nummer],
-              ["Rechnungsdatum", datum(r.rechnungsdatum)],
-              ["Leistungsdatum", r.leistungsdatum ? datum(r.leistungsdatum) : datum(r.rechnungsdatum)],
+              ...(kv
+                ? [
+                    ["Nummer", r.nummer],
+                    ["Datum", datum(r.rechnungsdatum)],
+                    ...(r.gueltig_bis ? [["Gültig bis", datum(r.gueltig_bis)]] : []),
+                  ]
+                : [
+                    ["Rechnungsnummer", r.nummer],
+                    ["Rechnungsdatum", datum(r.rechnungsdatum)],
+                    ["Leistungsdatum", r.leistungsdatum ? datum(r.leistungsdatum) : datum(r.rechnungsdatum)],
+                  ]),
               ...(r.kundennummer ? [["Kundennummer", String(r.kundennummer)]] : []),
               ...(r.fahrzeug.kennzeichen ? [["Kennzeichen", r.fahrzeug.kennzeichen]] : []),
               ...(r.fahrzeug.km ? [["Kilometerstand", menge(r.fahrzeug.km)]] : []),
@@ -140,7 +153,7 @@ export async function rechnungPdf(r: PdfDaten): Promise<Buffer> {
           </View>
         </View>
 
-        <Text style={s.titel}>{r.storno ? `Stornorechnung ${r.nummer}` : `Rechnung ${r.nummer}`}</Text>
+        <Text style={s.titel}>{titel}</Text>
         {r.storno && r.storno_zu_nummer ? <Text style={s.storno}>Storniert Rechnung {r.storno_zu_nummer} vollständig.</Text> : null}
         {r.fahrzeug.modell ? <Text style={s.absatz}>Fahrzeug: {r.fahrzeug.modell}</Text> : null}
         {!r.storno ? <Text style={s.absatz}>{r.einleitung}</Text> : null}
@@ -187,7 +200,11 @@ export async function rechnungPdf(r: PdfDaten): Promise<Buffer> {
           {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf kennt kein alt */}
           {qr ? <Image src={qr} style={s.qr} /> : null}
           <View style={s.zahlungText}>
-            {r.storno ? (
+            {kv ? (
+              <Text>
+                {`${r.gueltig_bis ? `Dieser Kostenvoranschlag gilt bis zum ${datum(r.gueltig_bis)}. ` : ""}Sie können ihn über den Link in unserer E-Mail annehmen oder uns einfach anrufen${f.telefon ? ` (${f.telefon})` : ""}.`}
+              </Text>
+            ) : r.storno ? (
               <Text>Der Betrag wird Ihnen erstattet bzw. mit offenen Forderungen verrechnet.</Text>
             ) : r.bezahlt ? (
               <Text>Der Betrag wurde bereits bezahlt. Vielen Dank.</Text>

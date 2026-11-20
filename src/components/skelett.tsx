@@ -80,7 +80,7 @@ export function MobilSkelett({ karten = 5 }: { karten?: number }) {
           <S className="h-3.5 w-32" />
         </div>
       </div>
-      <div className="grid gap-px bg-linie">
+      <div className="grid grid-cols-1 gap-px bg-linie">
         {Array.from({ length: karten }, (_, i) => (
           <div key={i} className="grid grid-cols-[3.5rem_1fr_auto] items-center gap-3 bg-weiss px-4 py-3">
             <S className="h-5 w-11" />

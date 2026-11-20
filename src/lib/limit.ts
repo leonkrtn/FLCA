@@ -14,6 +14,7 @@ const VIERTELSTUNDE = 15 * 60;
 const limits = {
   termin: { maximal: 6, fenster: STUNDE },
   storno: { maximal: 10, fenster: STUNDE },
+  kostenvoranschlag: { maximal: 10, fenster: STUNDE },
   bewerbung: { maximal: 5, fenster: STUNDE },
   upload: { maximal: 10, fenster: STUNDE },
   anmeldung: { maximal: 30, fenster: VIERTELSTUNDE },

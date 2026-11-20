@@ -8,7 +8,7 @@ Website, Terminvergabe, Werkstatt-Verwaltung, Rechnungen, Team und Karriere für
 | --- | --- | --- |
 | Website | `/`, `/leistungen`, `/galerie`, `/karriere`, `/impressum`, `/datenschutz`, `/agb` | Kunden |
 | Terminanfrage | `/termin` | Kunden: Leistung → freie Zeit → Name, Telefon, E-Mail, Kennzeichen |
-| Kundenlink | `/t/<token>` (Termin ansehen, absagen), `/r/<token>` (Rechnungs-PDF) | Kunden, ohne Login |
+| Kundenlink | `/t/<token>` (Termin ansehen, absagen), `/r/<token>` (Rechnungs-PDF), `/k/<token>` (Kostenvoranschlag ansehen, annehmen) | Kunden, ohne Login |
 | Verwaltung | `/admin` | Inhaber und Büro, am Rechner |
 | Werkstatt-App | `/app` | Inhaber und Büro, als Web-App auf dem Handy |
 | Team-App | `/team` | Mitarbeiter, als Web-App auf dem Handy |
@@ -19,6 +19,12 @@ Website, Terminvergabe, Werkstatt-Verwaltung, Rechnungen, Team und Karriere für
 **Angebot.** Eine Liste für alles mit Preis: Leistungen (mit Dauer, auf der Website, online buchbar oder nicht) und Teile, Material, Zuschläge (nur für Rechnungen). Jeder Preis steht nur dort; Website, Terminbuchung und die Rechnung zum Termin lesen ihn von da.
 
 **Rechnungen.** Entwurf aus dem Termin (Leistung mit Festpreis ist schon eingetragen), Positionen aus dem Angebot oder frei, Preise brutto. Beim Stellen bekommt die Rechnung eine lückenlose Nummer und ist danach unveränderlich (Datenbank-Trigger). Korrektur nur über eine Stornorechnung. Das PDF enthält einen GiroCode und die E-Rechnung als `factur-x.xml` (ZUGFeRD, Profil EN 16931). DATEV-Export als ZIP (Buchungsstapel + PDFs) unter Rechnungen oder automatisch am Monatsersten an den Steuerberater.
+
+**Kostenvoranschläge.** Wie eine Rechnung aufgebaut (Positionen aus dem Angebot oder frei, Preise brutto). Beim Abschließen gibt es eine eigene Nummer (`KV-`) und der Inhalt ist eingefroren; für Änderungen „Als neuen Entwurf kopieren“. Der Kunde bekommt PDF und Link per Mail und nimmt online an oder lehnt ab (Push an Inhaber und Büro), alternativ vermerkt man seine Antwort von Hand. „In Rechnung übernehmen“ legt einen Rechnungsentwurf mit denselben Positionen an. Gültigkeit, Einleitung und Fußtext unter *Einstellungen → Rechnungen*.
+
+**Kundenauswahl.** Neue Rechnungen und Kostenvoranschläge beginnen mit einer Suche (Name, Firma, Telefon, E-Mail, Kennzeichen, Kundennummer); ein Tipp übernimmt Empfänger und Fahrzeug. Im Entwurf geht das über „Kunden übernehmen“ jederzeit nachträglich.
+
+**Werkstatt-App.** Das „+“ in der Leiste öffnet eine kurze Auswahl: Termin, Kostenvoranschlag, Rechnung oder Kunde (mit erstem Fahrzeug) anlegen.
 
 **Team.** Arbeitszeiten je Person, Urlaub beantragen und genehmigen, krank melden, Zeiterfassung (pro Person einschaltbar), Aufträge zuweisen, Status und Fotos aus der Team-App.
 
@@ -33,6 +39,7 @@ Website, Terminvergabe, Werkstatt-Verwaltung, Rechnungen, Team und Karriere für
    - `supabase/migrations/20261108100000_grundsystem.sql`
    - `supabase/migrations/20261108100100_zeitsteuerung.sql`, **vorher** die Platzhalter `<<WEBSITE_URL>>` und `<<CRON_SECRET>>` ersetzen.
    - `supabase/migrations/20261109100000_angebot.sql` (Leistungen und Rechnungspositionen in einer Liste)
+   - `supabase/migrations/20261120100000_kostenvoranschlaege.sql` (Kostenvoranschläge mit eigenem Nummernkreis)
 3. *Authentication → Sign In / Providers*: „Allow new users to sign up“ **aus** (Konten legt nur der Inhaber an), Provider „Email“ an.
 4. *Authentication → Emails → SMTP Settings*: eigenen SMTP eintragen, sonst schickt Supabase nur 2 Mails pro Stunde. Mit Resend: Host `smtp.resend.com`, Port 465, Benutzer `resend`, Passwort = Resend-API-Key, Absender wie `MAIL_FROM`.
 5. *Authentication → Emails → Templates*: In „Invite user“ und „Reset password“ den Link ersetzen durch
