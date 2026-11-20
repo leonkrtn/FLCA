@@ -38,7 +38,7 @@ export default async function Woche() {
                   {t.map((x) => (
                     <li key={x.id} className="flex gap-3">
                       <span className="zahlen text-grau">{zeit(x.beginn)}</span>
-                      <span>{x.leistung_name} {x.fahrzeug ? <span className="text-grau">· {x.fahrzeug.kennzeichen}</span> : null}</span>
+                      <span className="min-w-0">{x.leistung_name} {x.fahrzeug ? <span className="text-grau">· {x.fahrzeug.kennzeichen}</span> : null}</span>
                     </li>
                   ))}
                 </ul>

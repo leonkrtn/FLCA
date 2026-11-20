@@ -46,7 +46,7 @@ export default async function Person({ params, searchParams }: { params: Promise
       {/* Arbeitszeiten als Raster mit Spaltenköpfen statt Paaren in einer engen Hälfte: Uhrzeitfelder brauchen Platz. */}
       <Abschnitt titel="Arbeitszeiten">
         <Formular aktion={arbeitszeitenSpeichern.bind(null, id)} className="max-w-3xl">
-          <div className="grid grid-cols-[5.5rem_repeat(4,minmax(0,1fr))] items-center gap-x-2 gap-y-2 overflow-x-auto">
+          <div className="grid grid-cols-[5.5rem_repeat(4,minmax(0,1fr))] items-center gap-x-2 gap-y-2 quer-scrollen">
             <span />
             {["Beginn", "Ende", "Beginn 2", "Ende 2"].map((k) => (
               <span key={k} className="label mb-0 text-grau">{k}</span>

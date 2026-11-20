@@ -50,7 +50,7 @@ export function PushHinweis() {
         </p>
       ) : (
         <div className="flex items-center justify-between gap-3">
-          <p>
+          <p className="min-w-0">
             <strong>Push ist aus.</strong> Neue Anfragen kommen nicht aufs Handy.
           </p>
           <button

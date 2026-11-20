@@ -26,7 +26,7 @@ export default async function Anfragen() {
               <p className="text-sm">{[t.kunde?.name, t.fahrzeug?.kennzeichen, t.fahrzeug?.marke_modell].filter(Boolean).join(" · ")}</p>
               {t.notiz_kunde ? <p className="mt-1 line-clamp-2 text-sm text-grau">„{t.notiz_kunde}“</p> : null}
             </Link>
-            <div className="mt-3 grid grid-cols-[1fr_auto_auto] gap-2">
+            <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2">
               <Formular aktion={bestaetigenAktion.bind(null, t.id)}>
                 <Senden className="w-full" vorab="Angenommen">Annehmen</Senden>
               </Formular>

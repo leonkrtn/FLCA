@@ -11,7 +11,7 @@ export function MobilLeiste({ telefon, whatsapp }: { telefon: string; whatsapp: 
   const aufTermin = usePathname() === "/termin";
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 border-t border-linie bg-papier/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm md:hidden">
-      <div className={`grid gap-2 p-2 ${aufTermin ? "grid-cols-2" : "grid-cols-[1fr_auto_auto]"}`}>
+      <div className={`grid gap-2 p-2 ${aufTermin ? "grid-cols-2" : "grid-cols-[minmax(0,1fr)_auto_auto]"}`}>
         {aufTermin ? null : (
           <Link href="/termin" className="knopf knopf-rot">
             Termin anfragen

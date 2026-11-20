@@ -75,7 +75,7 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
               const f = e.oeffnungszeiten[String(i + 1) as "1"];
               return (
                 // Am Handy untereinander (Tag, Vormittag, Nachmittag), sonst passen vier Uhrzeitfelder nicht in eine Zeile.
-                <div key={tag} className="grid grid-cols-1 items-center gap-2 border-b border-linie pb-2 sm:grid-cols-[6.5rem_1fr_1fr] sm:border-0 sm:pb-0">
+                <div key={tag} className="grid grid-cols-1 items-center gap-2 border-b border-linie pb-2 sm:grid-cols-[6.5rem_minmax(0,1fr)_minmax(0,1fr)] sm:border-0 sm:pb-0">
                   <span className="text-sm font-semibold">{tag}</span>
                   {[0, 1].map((n) => (
                     <div key={n} className="flex min-w-0 items-center gap-1">
@@ -116,11 +116,11 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
         <Abschnitt titel="Automatik">
           <Formular aktion={automatikSpeichern} className="grid gap-6">
             <Schalter label="Erinnerung 24 Stunden vor dem Termin" name="erinnerung" an={e.automatik.erinnerung.aktiv} hilfe="Mail an den Kunden mit Anfahrt und Absagelink" />
-            <div className="grid items-end gap-3 sm:grid-cols-[1fr_12rem]">
+            <div className="grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
               <Schalter label="Nach dem Termin um eine Google-Bewertung bitten" name="bewertung" an={e.automatik.bewertung.aktiv} hilfe="Einmal pro Kunde und Jahr, nur nach „Erledigt“. Link aus Firma → Google-Bewertungen." />
               <Feld label="Stunden nach dem Termin" name="stundenNach" wert={e.automatik.bewertung.stundenNach} inputMode="numeric" />
             </div>
-            <div className="grid items-end gap-3 sm:grid-cols-[1fr_8rem_8rem]">
+            <div className="grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_8rem_8rem]">
               <Schalter label="Reifen-Saison-Mail an Kunden mit eingelagerten Rädern" name="saison" an={e.automatik.saison.aktiv} hilfe="Mit Link zur Terminanfrage für den Radwechsel" />
               <Feld label="Frühjahr (MM-TT)" name="fruehjahr" wert={e.automatik.saison.fruehjahr} />
               <Feld label="Herbst (MM-TT)" name="herbst" wert={e.automatik.saison.herbst} />
@@ -192,7 +192,7 @@ async function KalenderBereich({ fehler, verbunden }: { fehler?: string; verbund
         </p>
       ) : ist ? (
         <div className="grid gap-6">
-          <dl className="grid gap-y-1 sm:grid-cols-[12rem_1fr]">
+          <dl className="grid gap-y-1 sm:grid-cols-[12rem_minmax(0,1fr)]">
             <dt className="text-grau">Verbunden mit</dt>
             <dd className="font-semibold">{k!.konto_email || "Google-Konto"}</dd>
             <dt className="text-grau">Letzter Abgleich</dt>
@@ -303,7 +303,7 @@ async function Schnittstellen() {
         <ul className="divide-y divide-linie">
           {(hooks ?? []).map((h) => (
             <li key={h.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-              <span>
+              <span className="min-w-0">
                 <span className="font-semibold">{h.name}</span>
                 <span className="zahlen block text-sm text-grau">{h.url}</span>
                 <span className="zahlen block text-xs text-grau">{(h.typen as string[]).join(", ")}</span>
@@ -330,7 +330,7 @@ async function Schnittstellen() {
         <p className="mb-4 max-w-2xl text-sm">
           Lesender Zugriff über <code className="zahlen break-all">GET {ENV.siteUrl}/api/v1/…</code> mit dem Kopf <code className="zahlen break-all">Authorization: Bearer flc_…</code>. Endpunkte: <code className="zahlen break-all">termine</code>, <code className="zahlen break-all">kunden</code>, <code className="zahlen break-all">rechnungen</code>, <code className="zahlen break-all">ereignisse?nach=ID</code>, <code className="zahlen break-all">frei?leistung=radwechsel&amp;von=JJJJ-MM-TT</code>.
         </p>
-        <Formular aktion={apiSchluesselAnlegen} className="mb-6 grid items-end gap-3 sm:grid-cols-[1fr_auto_auto]">
+        <Formular aktion={apiSchluesselAnlegen} className="mb-6 grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
           <Feld label="Wofür?" name="name" placeholder="z. B. n8n" />
           <div className="pb-3"><Schalter label="darf auch schreiben" name="schreiben" an={false} /></div>
           <Senden>Schlüssel erzeugen</Senden>

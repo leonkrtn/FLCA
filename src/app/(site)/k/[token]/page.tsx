@@ -36,7 +36,7 @@ export default async function KundenKostenvoranschlag({ params }: { params: Prom
         {erklaerung}
       </p>
 
-      <dl className="grid gap-y-4 border-t border-grau-hell pt-5 sm:grid-cols-[10rem_1fr]">
+      <dl className="grid gap-y-4 border-t border-grau-hell pt-5 sm:grid-cols-[10rem_minmax(0,1fr)]">
         <dt className="text-grau">Für</dt>
         <dd className="font-semibold">{[k.empfaenger.firma, k.empfaenger.name].filter(Boolean).join(", ")}</dd>
         {k.fahrzeug?.kennzeichen ? (
@@ -64,7 +64,7 @@ export default async function KundenKostenvoranschlag({ params }: { params: Prom
             </li>
           ))}
         </ul>
-        <dl className="zahlen ml-auto mt-3 grid max-w-xs grid-cols-[1fr_auto] gap-x-6 gap-y-1 text-right">
+        <dl className="zahlen ml-auto mt-3 grid max-w-xs grid-cols-[minmax(0,1fr)_auto] gap-x-6 gap-y-1 text-right">
           <dt className="font-sans text-grau">Netto</dt>
           <dd>{euro(s.netto)}</dd>
           <dt className="font-sans text-grau">MwSt.</dt>

@@ -79,7 +79,7 @@ export default async function KalenderSeite({ searchParams }: { searchParams: Pr
         <Link href={`/admin/kalender?woche=${plusTage(montag, 7)}`} className="knopf knopf-rahmen knopf-klein">Nächste →</Link>
         <Link href="/admin/termine/neu" className="knopf knopf-dunkel knopf-klein">Termin eintragen</Link>
       </Kopf>
-      <div className="-mx-4 overflow-x-auto bg-weiss md:mx-0">
+      <div className="-mx-4 quer-scrollen bg-weiss md:mx-0">
         <div className="grid min-w-[880px] grid-cols-[3.5rem_repeat(6,minmax(0,1fr))]">
           <div />
           {proTag.map((t) => (

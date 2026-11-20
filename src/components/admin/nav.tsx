@@ -9,7 +9,7 @@ export function AdminNav({ eintraege }: { eintraege: NavEintrag[] }) {
   const [pfad, merken] = useZielPfad();
   const neueGruppe = eintraege.map((e, i) => Boolean(e.gruppe) && e.gruppe !== eintraege[i - 1]?.gruppe);
   return (
-    <nav aria-label="Verwaltung" className="flex gap-1 overflow-x-auto px-3 pb-1 lg:flex-col lg:overflow-visible">
+    <nav aria-label="Verwaltung" className="flex gap-1 quer-scrollen px-3 pb-1 lg:flex-col lg:overflow-visible">
       {eintraege.map((e, i) => {
         const aktiv = e.href === "/admin" ? pfad === e.href : pfad.startsWith(e.href);
         return (

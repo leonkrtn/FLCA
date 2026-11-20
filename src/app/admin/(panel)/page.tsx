@@ -42,7 +42,7 @@ export default async function Uebersicht() {
               <ul className="divide-y divide-linie">
                 {heuteTermine.map((t) => (
                   <li key={t.id}>
-                    <Link href={`/admin/termine/${t.id}`} className="grid grid-cols-[4.5rem_1fr_auto] items-center gap-4 py-3 hover:bg-papier">
+                    <Link href={`/admin/termine/${t.id}`} className="grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-4 py-3 hover:bg-papier">
                       <span className="zahlen text-lg">{zeit(t.beginn)}</span>
                       <span>
                         <span className="font-semibold">{t.leistung_name}</span>
@@ -65,7 +65,7 @@ export default async function Uebersicht() {
                 {anfragen.map((t) => (
                   <li key={t.id}>
                     <Link href={`/admin/termine/${t.id}`} className="flex items-center justify-between gap-4 py-3 hover:bg-papier">
-                      <span>
+                      <span className="min-w-0">
                         <span className="font-semibold">{t.kunde?.name}</span> <span className="text-grau">· {t.leistung_name}</span>
                       </span>
                       <span className="zahlen whitespace-nowrap text-sm">

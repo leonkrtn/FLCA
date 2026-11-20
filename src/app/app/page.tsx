@@ -41,7 +41,7 @@ export default async function Heute({ searchParams }: { searchParams: Promise<{ 
       <div className="grid grid-cols-1 gap-px bg-linie">
         {termine.map((x) => (
           <Karte key={x.id} href={`/app/termine/${x.id}`}>
-            <div className="grid grid-cols-[3.5rem_1fr_auto] items-center gap-3">
+            <div className="grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3">
               <span className="zahlen text-lg">{zeit(x.beginn)}</span>
               <span className="min-w-0">
                 <span className="block truncate font-semibold">{x.leistung_name}</span>

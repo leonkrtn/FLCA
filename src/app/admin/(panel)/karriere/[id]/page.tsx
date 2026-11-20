@@ -18,7 +18,7 @@ export default async function Bewerbung({ params }: { params: Promise<{ id: stri
       </Kopf>
       <div className="grid gap-x-8 lg:grid-cols-2">
         <Abschnitt titel="Angaben">
-          <dl className="grid gap-y-2 sm:grid-cols-[8rem_1fr]">
+          <dl className="grid gap-y-2 sm:grid-cols-[8rem_minmax(0,1fr)]">
             <dt className="text-grau">Telefon</dt>
             <dd>{b.telefon}</dd>
             <dt className="text-grau">E-Mail</dt>

@@ -64,7 +64,7 @@ export function Leer({ children }: { children: React.ReactNode }) {
 /** Reiter als Links, Zustand steht in der URL (Zurück-Taste und Deep-Links funktionieren). */
 export function Reiter({ eintraege, aktiv }: { eintraege: { href: string; text: string; anzahl?: number }[]; aktiv: string }) {
   return (
-    <nav className="-mx-4 mb-6 flex gap-1 overflow-x-auto border-b border-linie px-4 md:mx-0 md:px-0" aria-label="Ansicht">
+    <nav className="-mx-4 mb-6 flex gap-1 quer-scrollen border-b border-linie px-4 md:mx-0 md:px-0" aria-label="Ansicht">
       {eintraege.map((e) => {
         const ist = e.href === aktiv;
         return (
@@ -158,7 +158,7 @@ export function Schalter({ label, name, an, hilfe, zeile = false }: { label: str
 /** Tabelle: Zahlenspalten rechtsbündig mit gleich breiten Ziffern (Klasse „zahl“ an th und td). */
 export function Tabelle({ kopf, children }: { kopf: (string | { text: string; zahl?: boolean })[]; children: React.ReactNode }) {
   return (
-    <div className="-mx-4 overflow-x-auto md:mx-0">
+    <div className="-mx-4 quer-scrollen md:mx-0">
       <table className="w-full min-w-[640px] border-collapse text-sm">
         <thead>
           <tr className="border-b-2 border-tinte text-left">

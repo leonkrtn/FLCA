@@ -52,9 +52,9 @@ export default async function AppTermin({ params }: { params: Promise<{ id: stri
         </Karte>
         <Karte>
           {offene ? (
-            <Link href={`/app/rechnungen/${offene.id}`} className="flex items-center justify-between">
-              <span className="font-semibold">{offene.nummer ? `Rechnung ${offene.nummer}` : "Rechnungsentwurf"}</span>
-              <span className="zahlen">{euro(offene.summe_brutto_cent)}</span>
+            <Link href={`/app/rechnungen/${offene.id}`} className="flex items-center justify-between gap-3">
+              <span className="min-w-0 font-semibold">{offene.nummer ? `Rechnung ${offene.nummer}` : "Rechnungsentwurf"}</span>
+              <span className="zahlen shrink-0">{euro(offene.summe_brutto_cent)}</span>
             </Link>
           ) : (
             <form action={rechnungAusTermin.bind(null, t.id, "/app/rechnungen")}>

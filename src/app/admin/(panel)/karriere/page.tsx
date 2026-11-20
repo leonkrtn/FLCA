@@ -41,7 +41,7 @@ export default async function Karriere() {
           {(st ?? []).map((s) => (
             <li key={s.id}>
               <Link href={`/admin/karriere/stelle/${s.id}`} className="flex justify-between gap-3 py-3 hover:bg-papier">
-                <span className="font-semibold">{s.titel} <span className="font-normal text-grau">· {s.umfang}</span></span>
+                <span className="min-w-0 font-semibold">{s.titel} <span className="font-normal text-grau">· {s.umfang}</span></span>
                 {s.aktiv ? <Marke ton="ok">online</Marke> : <Marke ton="hell">offline</Marke>}
               </Link>
             </li>

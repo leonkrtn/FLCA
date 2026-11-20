@@ -94,7 +94,7 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
             {termine.map((t) => (
               <li key={t.id}>
                 <Link href={`/admin/termine/${t.id}`} className="flex items-center justify-between gap-3 py-2 hover:bg-papier">
-                  <span>
+                  <span className="min-w-0">
                     <span className="zahlen">{datumZeit(t.beginn)}</span> · {t.leistung_name} <span className="text-grau">{t.fahrzeug?.kennzeichen}</span>
                   </span>
                   <Marke ton={TERMIN_TON[t.status]}>{STATUS_TEXT[t.status]}</Marke>
@@ -108,7 +108,7 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
           <ul className="divide-y divide-linie text-sm">
             {(re.data ?? []).map((r) => (
               <li key={r.id}>
-                <Link href={`/admin/rechnungen/${r.id}`} className="grid grid-cols-[1fr_auto_auto] gap-3 py-2 hover:bg-papier">
+                <Link href={`/admin/rechnungen/${r.id}`} className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-3 py-2 hover:bg-papier">
                   <span>{r.nummer ?? "Entwurf"} <span className="text-grau">{datum(r.rechnungsdatum)}</span></span>
                   <span className="text-grau">{RECHNUNG_STATUS[r.status as keyof typeof RECHNUNG_STATUS]}</span>
                   <span className="zahlen text-right">{euro(r.summe_brutto_cent)}</span>
@@ -123,7 +123,7 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
               <ul className="divide-y divide-linie text-sm">
                 {(kv.data as Pick<Kostenvoranschlag, "id" | "nummer" | "status" | "gueltig_bis" | "summe_brutto_cent" | "datum">[]).map((v) => (
                   <li key={v.id}>
-                    <Link href={`/admin/kostenvoranschlaege/${v.id}`} className="grid grid-cols-[1fr_auto_auto] gap-3 py-2 hover:bg-papier">
+                    <Link href={`/admin/kostenvoranschlaege/${v.id}`} className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-3 py-2 hover:bg-papier">
                       <span>{v.nummer ?? "Entwurf"} <span className="text-grau">{datum(v.datum)}</span></span>
                       <span className="text-grau">{kvStatusText(v)}</span>
                       <span className="zahlen text-right">{euro(v.summe_brutto_cent)}</span>

@@ -31,7 +31,7 @@ export default async function Team() {
           <ul className="divide-y divide-linie">
             {(offen as unknown as Abw[]).map((a) => (
               <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                <span>
+                <span className="min-w-0">
                   <span className="font-semibold">{a.profil?.name}</span> · {artText(a.art)} {datum(a.von)} bis {datum(a.bis)}
                   {a.notiz ? <span className="block text-sm text-grau">{a.notiz}</span> : null}
                 </span>

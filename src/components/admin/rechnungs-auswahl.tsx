@@ -88,7 +88,7 @@ export function RechnungsAuswahl({ zeilen, summe }: { zeilen: Zeile[]; summe: nu
   return (
     <>
       <div className="bg-weiss p-4 md:p-6">
-        <div className="-mx-4 overflow-x-auto md:mx-0">
+        <div className="-mx-4 quer-scrollen md:mx-0">
           <table className="w-full min-w-[720px] border-collapse text-sm">
             <thead>
               <tr className="border-b-2 border-tinte text-left">

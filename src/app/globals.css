@@ -71,17 +71,40 @@
   }
 }
 
+/* Waagerechter Scrollbereich für Tabellen, Reiter und Kartenreihen: Nur der Bereich selbst scrollt quer.
+   Senkrecht gesperrt, sonst wackelt er schon bei einem Pixel Überstand (Unterstrich der Reiter, Fokusrahmen);
+   am Rand wird die Wischbewegung nicht an die Seite weitergereicht (kein Nachfedern, kein Zurück-Wischen). */
+@utility quer-scrollen {
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+}
+
 @layer base {
+  /* Am Telefon ist die Seite nie breiter als der Bildschirm. Ragt doch etwas hinaus, verbreitert iOS sonst die
+     ganze Seite: Sie lässt sich seitlich verschieben und schwimmt beim Scrollen. „hidden“ am html gilt für das
+     Fenster, „clip“ am body schneidet ab, ohne einen eigenen Scrollbereich zu bilden (sticky bleibt intakt).
+     Was breiter sein muss, steckt in einem eigenen Bereich mit „quer-scrollen“. */
   html {
     -webkit-text-size-adjust: 100%;
     scroll-padding-top: 5rem;
+    overflow-x: hidden;
   }
   body {
+    overflow-x: clip;
+    /* Lange Wörter, E-Mail-Adressen und Links brechen um, statt über den Rand zu laufen. */
+    overflow-wrap: break-word;
     background: var(--color-boden);
     color: var(--color-tinte);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+  }
+  /* Ein Raster ohne eigene Spalten hat eine Spalte, die so breit ist wie ihr längster Inhalt und damit breiter
+     als der Bildschirm werden kann. Als minmax(0, 1fr) bleibt sie in der Breite des Rasters; jede
+     grid-cols-Klasse und jedes style überschreibt das (Ebene base, Spezifität null). */
+  :where(.grid) {
+    grid-template-columns: minmax(0, 1fr);
   }
   /* iOS zoomt in Eingabefelder unter 16 px. */
   input,

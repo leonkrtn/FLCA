@@ -42,7 +42,7 @@ export default async function KundenTermin({ params }: { params: Promise<{ token
         <span className={`mr-3 inline-block px-2 py-0.5 text-sm font-semibold ${t.status === "bestaetigt" ? "bg-white/10 text-tinte" : "bg-linie"}`}>{status}</span>
         {erklaerung}
       </p>
-      <dl className="grid gap-y-4 border-t border-grau-hell pt-5 sm:grid-cols-[10rem_1fr]">
+      <dl className="grid gap-y-4 border-t border-grau-hell pt-5 sm:grid-cols-[10rem_minmax(0,1fr)]">
         <dt className="text-grau">Wann</dt>
         <dd className="font-semibold">
           {datumLangText(t.beginn)}, {zeit(t.beginn)} Uhr
@@ -66,8 +66,8 @@ export default async function KundenTermin({ params }: { params: Promise<{ token
           <h2 className="mb-3 font-semibold">Rechnung</h2>
           <ul className="border-t border-linie">
             {rechnungen.map((r) => (
-              <li key={r.token} className="flex items-center justify-between border-b border-linie py-3">
-                <span>
+              <li key={r.token} className="flex items-center justify-between gap-3 border-b border-linie py-3">
+                <span className="min-w-0">
                   {r.storno_zu ? "Stornorechnung" : "Rechnung"} {r.nummer} <span className="zahlen ml-2 text-grau">{euro(r.summe_brutto_cent)}</span>
                 </span>
                 <a href={`/r/${r.token}`} className="font-semibold underline">
