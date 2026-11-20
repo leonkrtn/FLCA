@@ -54,7 +54,7 @@ export default async function TeamHeute() {
         {((auftraege ?? []) as Termin[]).map((t) => (
           <Karte key={t.id}>
             <div className="flex items-start justify-between gap-3">
-              <div>
+              <div className="min-w-0">
                 <p className="zahlen text-sm text-grau">{zeit(t.beginn)}–{zeit(t.ende)} Uhr</p>
                 <p className="text-lg font-semibold">{t.leistung_name}</p>
                 <p>{[t.fahrzeug?.kennzeichen, t.fahrzeug?.marke_modell].filter(Boolean).join(" · ")}</p>

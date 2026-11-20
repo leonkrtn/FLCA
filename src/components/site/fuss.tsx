@@ -23,7 +23,7 @@ export function Fuss({ e }: { e: Einstellungen }) {
   const f = e.firma;
   return (
     <footer className="bg-graphit pb-28 pt-14 text-tinte md:pb-14">
-      <div className="rand grid gap-10 md:grid-cols-[1.2fr_1fr_1fr_1fr]">
+      <div className="rand grid gap-10 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <div>
           <Logo className="h-10 w-auto text-tinte md:h-14" />
         </div>

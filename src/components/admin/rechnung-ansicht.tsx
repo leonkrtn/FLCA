@@ -24,7 +24,7 @@ export function RechnungAnsicht({ r, basis, pdfHref }: { r: Rechnung; basis: "/a
 
       <PositionenUebersicht positionen={r.positionen} />
 
-      <dl className="grid gap-y-1 text-sm sm:grid-cols-[10rem_1fr]">
+      <dl className="grid gap-y-1 text-sm sm:grid-cols-[10rem_minmax(0,1fr)]">
         <dt className="text-grau">Empfänger</dt>
         <dd>{[r.empfaenger.firma, r.empfaenger.name].filter(Boolean).join(", ")}</dd>
         <dt className="text-grau">Rechnungsdatum</dt>

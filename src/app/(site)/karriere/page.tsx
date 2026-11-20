@@ -23,7 +23,7 @@ export default async function KarriereSeite() {
           {liste.map((s) => (
             <li key={s.id} className="border-b border-linie">
               <Link href={`/karriere/${s.id}`} className="group flex items-center justify-between gap-4 py-5">
-                <span>
+                <span className="min-w-0">
                   <span className="block text-lg font-semibold group-hover:underline">{s.titel}</span>
                   <span className="text-grau">{s.umfang} · Dietzenbach</span>
                 </span>

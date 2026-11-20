@@ -58,7 +58,7 @@ export function Leistungsbereiche({ leistungen }: { leistungen: Leistung[] }) {
             <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black via-black/75 to-black/10" />
             <div className="p-5 md:p-7">
               <div className="mb-1 flex items-baseline justify-between gap-4">
-                <h3 className="schmal text-3xl text-hell md:text-4xl">{b.titel}</h3>
+                <h3 className="schmal min-w-0 text-3xl text-hell md:text-4xl">{b.titel}</h3>
                 {Number.isFinite(ab) ? <span className="zahlen shrink-0 text-sm text-hell/70">ab {preis(ab)}</span> : null}
               </div>
               <p className="mb-4 max-w-md text-hell/75">{b.text}</p>

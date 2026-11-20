@@ -37,8 +37,8 @@ export default async function Abwesenheit() {
         {(data ?? []).map((a) => (
           <Karte key={a.id}>
             <div className="flex justify-between gap-3">
-              <span>{a.art === "krank" ? "Krank" : a.art === "urlaub" ? "Urlaub" : "Frei"} · {datum(a.von)} bis {datum(a.bis)}</span>
-              <span className={a.status === "genehmigt" ? "text-ok" : a.status === "abgelehnt" ? "text-rot" : "text-grau"}>{a.status}</span>
+              <span className="min-w-0">{a.art === "krank" ? "Krank" : a.art === "urlaub" ? "Urlaub" : "Frei"} · {datum(a.von)} bis {datum(a.bis)}</span>
+              <span className={`shrink-0 ${a.status === "genehmigt" ? "text-ok" : a.status === "abgelehnt" ? "text-rot" : "text-grau"}`}>{a.status}</span>
             </div>
           </Karte>
         ))}

@@ -28,7 +28,7 @@ export default async function LeistungenSeite() {
                     >
                       <span>
                         <span className="flex items-start justify-between gap-4">
-                          <span className="text-xl font-semibold">{l.name}</span>
+                          <span className="min-w-0 text-xl font-semibold">{l.name}</span>
                           <span className={`zahlen shrink-0 rounded-md px-3 py-1 text-sm ${l.preis_cent === null ? "text-grau ring-1 ring-linie" : "bg-white/[0.07] text-tinte"}`}>
                             {preis(l.preis_cent, l.preis_ab)}
                           </span>

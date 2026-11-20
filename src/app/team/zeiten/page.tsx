@@ -33,7 +33,7 @@ export default async function Zeiten({ searchParams }: { searchParams: Promise<{
       <div className="grid grid-cols-1 gap-px bg-linie">
         {eintraege.map((z) => (
           <Karte key={z.id}>
-            <div className="zahlen grid grid-cols-[6rem_1fr_auto] gap-3">
+            <div className="zahlen grid grid-cols-[6rem_minmax(0,1fr)_auto] gap-3">
               <span className="font-sans">{datumKurzText(z.beginn)}</span>
               <span>{zeit(z.beginn)}–{z.ende ? zeit(z.ende) : "läuft"}</span>
               <span className="text-right">{stunden(Math.round(((z.ende ? new Date(z.ende).getTime() : jetztMs()) - new Date(z.beginn).getTime()) / 60000))}</span>

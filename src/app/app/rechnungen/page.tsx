@@ -27,7 +27,7 @@ export default async function AppRechnungen() {
                 <span className="block truncate font-semibold">{r.empfaenger?.name || "ohne Empfänger"}</span>
                 <span className="zahlen block text-sm text-grau">{r.nummer ?? "Entwurf"} · {r.fahrzeug?.kennzeichen ?? ""} {r.faellig_am ? `· fällig ${datum(r.faellig_am)}` : ""}</span>
               </span>
-              <span className="text-right">
+              <span className="shrink-0 text-right">
                 <span className="zahlen block">{euro(r.summe_brutto_cent)}</span>
                 {r.status === "entwurf" ? <Marke ton="hell">Entwurf</Marke> : r.faellig_am && r.faellig_am < heute ? <Marke ton="rot">überfällig</Marke> : <Marke ton="warnung">offen</Marke>}
               </span>

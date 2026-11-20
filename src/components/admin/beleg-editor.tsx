@@ -232,7 +232,7 @@ export function BelegEditor({
           </select>
           <button type="button" onClick={() => neu()} className="knopf knopf-rahmen min-h-10">+ freie Position</button>
         </div>
-        <dl className="zahlen ml-auto mt-4 grid max-w-xs grid-cols-[1fr_auto] gap-y-1 text-right [&_dd]:pl-6">
+        <dl className="zahlen ml-auto mt-4 grid max-w-xs grid-cols-[minmax(0,1fr)_auto] gap-y-1 text-right [&_dd]:pl-6">
           <dt className="font-sans text-grau">Netto</dt>
           <dd>{euro(summen.netto)}</dd>
           {summen.gruppen.map((g) => (
@@ -280,7 +280,7 @@ export function BelegEditor({
       </section>
 
       {/* In der Handy-App sitzt die Tab-Leiste unten, die Knopfleiste klebt deshalb darüber statt dahinter. */}
-      <div className={`sticky ${kompakt ? "bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom)-var(--luecke,0px))]" : "bottom-0"} z-10 -mx-4 grid grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2 border-t border-linie bg-weiss/95 px-4 py-3 backdrop-blur-sm md:static md:mx-0 md:flex md:flex-wrap md:gap-3 md:border-0 md:bg-transparent md:p-0`}>
+      <div className={`sticky ${kompakt ? "bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom)-var(--luecke,0px))]" : "bottom-0"} z-10 -mx-4 grid grid-cols-[auto_auto_minmax(0,1fr)] items-center max-[359px]:grid-cols-2 gap-2 border-t border-linie bg-weiss/95 px-4 py-3 backdrop-blur-sm md:static md:mx-0 md:flex md:flex-wrap md:gap-3 md:border-0 md:bg-transparent md:p-0`}>
         <button type="submit" name="weiter" value="" disabled={laeuft} className="knopf knopf-rahmen px-3 md:px-5">Speichern</button>
         <a href={t.pdf(id)} target="_blank" className="knopf knopf-rahmen px-3 md:px-5">Vorschau</a>
         <button
@@ -288,17 +288,19 @@ export function BelegEditor({
           name="weiter"
           value="stellen"
           disabled={laeuft || !d.positionen.length}
-          className="knopf knopf-dunkel px-3 md:px-5"
+          // Wird es eng, bricht „Rechnung stellen“ um; unter 360 px (iPhone SE) steht der Knopf in einer eigenen Zeile,
+          // weil „Abschließen“ sonst nicht neben die anderen beiden Knöpfe passt.
+          className="knopf knopf-dunkel min-w-0 whitespace-normal px-3 text-center leading-tight max-[359px]:col-span-full md:whitespace-nowrap md:px-5"
           onClick={(ev) => {
             if (!window.confirm(t.frage)) ev.preventDefault();
           }}
         >
           {t.stellen}
         </button>
-        <label className="col-span-3 flex items-center gap-2 text-sm">
+        <label className="col-span-full flex items-center gap-2 text-sm">
           <input type="checkbox" name="senden" defaultChecked className="size-4 accent-tinte" /> und per E-Mail senden
         </label>
-        {zustand.meldung ? <p className={`col-span-3 w-full text-sm font-semibold ${zustand.status === "fehler" ? "text-rot" : "text-ok"}`}>{zustand.meldung}</p> : null}
+        {zustand.meldung ? <p className={`col-span-full w-full text-sm font-semibold ${zustand.status === "fehler" ? "text-rot" : "text-ok"}`}>{zustand.meldung}</p> : null}
       </div>
     </form>
   );

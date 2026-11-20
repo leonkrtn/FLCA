@@ -37,7 +37,7 @@ export default async function TerminDetail({ params }: { params: Promise<{ id: s
       <div className="grid gap-x-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div>
           <Abschnitt titel="Kunde">
-            <dl className="grid gap-y-2 sm:grid-cols-[9rem_1fr]">
+            <dl className="grid gap-y-2 sm:grid-cols-[9rem_minmax(0,1fr)]">
               <dt className="text-grau">Name</dt>
               <dd>
                 {t.kunde ? (
@@ -124,7 +124,7 @@ export default async function TerminDetail({ params }: { params: Promise<{ id: s
                 {z.rechnungen.map((r) => (
                   <li key={r.id}>
                     <Link href={`/admin/rechnungen/${r.id}`} className="flex justify-between gap-2 hover:underline">
-                      <span>{r.nummer ? <>{r.nummer} <span className="text-grau">· {RECHNUNG_STATUS[r.status as keyof typeof RECHNUNG_STATUS]}</span></> : "Entwurf"}</span>
+                      <span className="min-w-0">{r.nummer ? <>{r.nummer} <span className="text-grau">· {RECHNUNG_STATUS[r.status as keyof typeof RECHNUNG_STATUS]}</span></> : "Entwurf"}</span>
                       <span className="zahlen">{euro(r.summe_brutto_cent)}</span>
                     </Link>
                   </li>

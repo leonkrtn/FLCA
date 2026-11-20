@@ -19,7 +19,7 @@ export function PositionenUebersicht({ positionen }: { positionen: Position[] })
           </li>
         ))}
       </ul>
-      <dl className="zahlen mt-3 grid grid-cols-[1fr_auto] gap-x-6 border-t-2 border-tinte pt-2 text-right">
+      <dl className="zahlen mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-x-6 border-t-2 border-tinte pt-2 text-right">
         <dt className="font-sans text-grau">Netto</dt>
         <dd>{euro(s.netto)}</dd>
         <dt className="font-sans text-grau">MwSt.</dt>

@@ -39,7 +39,7 @@ export default async function StellenSeite({ params }: { params: Promise<{ id: s
               {zeilen(t).map((z) => (
                 <li key={z} className="flex gap-3">
                   <span className="mt-2.5 h-px w-3 shrink-0 bg-tinte" aria-hidden />
-                  {z}
+                  <span className="min-w-0">{z}</span>
                 </li>
               ))}
             </ul>

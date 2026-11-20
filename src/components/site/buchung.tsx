@@ -136,13 +136,13 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
         <Schritt nummer={1} titel="Leistung" aktiv={!leistung} id="schritt-leistung">
           {leistung && !listeOffen ? (
             <div className="flex min-h-16 items-center justify-between gap-4 rounded-md bg-flaeche px-4 py-3 ring-1 ring-tinte/40">
-              <span>
+              <span className="min-w-0">
                 <span className="font-semibold">{leistung.name}</span>
                 <span className="block text-sm text-grau">
                   {dauerText(leistung.dauer_min)} · <span className="zahlen">{preisText(leistung.preis_cent, leistung.preis_ab)}</span>
                 </span>
               </span>
-              <button type="button" onClick={() => setListeOffen(true)} className="knopf knopf-rahmen knopf-klein">
+              <button type="button" onClick={() => setListeOffen(true)} className="knopf knopf-rahmen knopf-klein shrink-0">
                 ändern
               </button>
             </div>
@@ -172,11 +172,11 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
                           }}
                           className="sr-only"
                         />
-                        <span>
+                        <span className="min-w-0">
                           <span className="font-semibold">{l.name}</span>
                           <span className={`block text-sm ${gewaehlt ? "opacity-70" : "text-grau"}`}>{dauerText(l.dauer_min)}</span>
                         </span>
-                        <span className={`zahlen text-right ${l.preis_cent === null ? `text-sm ${gewaehlt ? "opacity-70" : "text-grau"}` : "font-semibold"}`}>{preisText(l.preis_cent, l.preis_ab)}</span>
+                        <span className={`zahlen shrink-0 text-right ${l.preis_cent === null ? `text-sm ${gewaehlt ? "opacity-70" : "text-grau"}` : "font-semibold"}`}>{preisText(l.preis_cent, l.preis_ab)}</span>
                       </label>
                     );
                   })}
@@ -193,7 +193,7 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
           ) : (
             <div aria-busy={laedt}>
               {ladeFehler ? <p className="mb-4 text-fehler">{ladeFehler}</p> : null}
-              <div className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-3 [scrollbar-width:thin] md:mx-0 md:px-0" role="listbox" aria-label="Tag wählen">
+              <div className="-mx-4 flex snap-x gap-2 quer-scrollen px-4 pb-3 [scrollbar-width:thin] md:mx-0 md:px-0" role="listbox" aria-label="Tag wählen">
                 {tage.map((t) => {
                   const frei = t.slots.length;
                   const gewaehlt = t.datum === datum;

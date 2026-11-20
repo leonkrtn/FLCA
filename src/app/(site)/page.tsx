@@ -134,7 +134,7 @@ export default async function Startseite() {
             </Link>
           ) : null}
         </div>
-        <div className="rand flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [scrollbar-width:none] md:grid md:grid-cols-3 md:overflow-visible">
+        <div className="rand flex snap-x snap-mandatory gap-4 quer-scrollen pb-2 [scrollbar-width:none] md:grid md:grid-cols-3 md:overflow-visible">
           {[
             { src: porsche, alt: "Porsche 911 mit schwarzen Felgen und gelben Bremssätteln in der Halle" },
             { src: lanciaHeck, alt: "Roter Lancia Delta von hinten, daneben ein schwarzer BMW" },
@@ -161,7 +161,7 @@ export default async function Startseite() {
               Alle bei Google lesen <Pfeil className="size-4" />
             </a>
           </div>
-          <ul className="rand flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [scrollbar-width:none] md:grid md:grid-cols-3 md:overflow-visible">
+          <ul className="rand flex snap-x snap-mandatory gap-4 quer-scrollen pb-2 [scrollbar-width:none] md:grid md:grid-cols-3 md:overflow-visible">
             {stimmen.slice(0, 3).map((b) => (
               <li key={b.id} className="flex w-[82vw] shrink-0 snap-start flex-col justify-between rounded-lg bg-flaeche p-7 ring-1 ring-linie sm:w-[60vw] md:w-auto">
                 <div>

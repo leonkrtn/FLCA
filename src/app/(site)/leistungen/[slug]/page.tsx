@@ -48,7 +48,7 @@ export default async function LeistungSeite({ params }: { params: Promise<{ slug
           </div>
         </dl>
         {l.online_anfragbar ? (
-          <Link href={`/termin?leistung=${l.slug}`} className="knopf knopf-rot mt-10">
+          <Link href={`/termin?leistung=${l.slug}`} className="knopf knopf-rot mt-10 max-w-full whitespace-normal py-3 text-center leading-tight">
             Termin für {l.name} anfragen
           </Link>
         ) : null}

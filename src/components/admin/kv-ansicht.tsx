@@ -39,7 +39,7 @@ export function KvAnsicht({ k, ort }: { k: Kostenvoranschlag; ort: Ort }) {
 
       <PositionenUebersicht positionen={k.positionen} />
 
-      <dl className="grid gap-y-1 text-sm sm:grid-cols-[10rem_1fr]">
+      <dl className="grid gap-y-1 text-sm sm:grid-cols-[10rem_minmax(0,1fr)]">
         <dt className="text-grau">Empfänger</dt>
         <dd>{[k.empfaenger.firma, k.empfaenger.name].filter(Boolean).join(", ")}</dd>
         {k.fahrzeug?.kennzeichen ? (
