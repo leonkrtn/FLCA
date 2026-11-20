@@ -48,7 +48,7 @@ export function KundeNeuFormular() {
           <input name="km_stand" inputMode="numeric" autoComplete="off" defaultValue={w("km_stand")} className="feld" />
         </label>
       </fieldset>
-      <div className="sticky bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))] -mx-4 grid gap-2 border-t border-linie bg-weiss/95 px-4 py-3 backdrop-blur-sm">
+      <div className="sticky bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))] -mx-4 grid gap-2 border-t border-linie bg-weiss px-4 py-3">
         {zustand.status === "fehler" ? <p role="alert" className="text-sm font-semibold text-rot">{zustand.meldung}</p> : null}
         <Anlegen />
       </div>
