@@ -15,8 +15,9 @@ export function manifest(art: "app" | "team") {
       scope: "/",
       display: "standalone",
       orientation: "portrait",
-      background_color: app ? "#1f1e1c" : "#ecebe7",
-      theme_color: app ? "#1f1e1c" : "#ecebe7",
+      // Hell wie der Seitengrund und der Kopf der Apps, damit Statusleiste und Startbild nahtlos anschließen.
+      background_color: "#ecebe7",
+      theme_color: "#ecebe7",
       lang: "de",
       icons: [
         { src: `/icons/${art}-192.png`, sizes: "192x192", type: "image/png" },
