@@ -1,15 +1,14 @@
 import Link from "next/link";
 import { Formular, Senden } from "./formular";
+import { PositionenUebersicht } from "./positionen-uebersicht";
 import { Feld } from "./ui";
 import { bezahltAktion, stornoAktion, versendenAktion } from "@/lib/aktionen/rechnungen";
-import { datum, datumZeit, euro } from "@/lib/format";
-import { berechne } from "@/lib/rechnung/berechnung";
+import { datum, datumZeit } from "@/lib/format";
 import type { Rechnung } from "@/lib/rechnung/rechnungen";
 import { berlinDatum } from "@/lib/zeit";
 
 /** Gestellte Rechnung: nur noch ansehen, senden, Zahlung vermerken, stornieren. */
 export function RechnungAnsicht({ r, basis, pdfHref }: { r: Rechnung; basis: "/admin/rechnungen" | "/app/rechnungen"; pdfHref: string }) {
-  const s = berechne(r.positionen);
   return (
     <div className="grid gap-6">
       <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
@@ -23,29 +22,7 @@ export function RechnungAnsicht({ r, basis, pdfHref }: { r: Rechnung; basis: "/a
         ) : null}
       </div>
 
-      <div className="bg-papier p-4">
-        <ul className="divide-y divide-linie">
-          {r.positionen.map((p, i) => (
-            <li key={i} className="grid grid-cols-[1fr_auto] gap-3 py-2">
-              <span>
-                {p.text}
-                <span className="block text-sm text-grau">
-                  {String(p.menge).replace(".", ",")} {p.einheit} × {euro(p.einzel_brutto_cent)}
-                </span>
-              </span>
-              <span className="zahlen text-right">{euro(s.zeilenBrutto[i])}</span>
-            </li>
-          ))}
-        </ul>
-        <dl className="zahlen mt-3 grid grid-cols-[1fr_auto] gap-x-6 border-t-2 border-tinte pt-2 text-right">
-          <dt className="font-sans text-grau">Netto</dt>
-          <dd>{euro(s.netto)}</dd>
-          <dt className="font-sans text-grau">MwSt.</dt>
-          <dd>{euro(s.steuer)}</dd>
-          <dt className="font-sans font-semibold">Gesamt</dt>
-          <dd className="text-lg">{euro(s.brutto)}</dd>
-        </dl>
-      </div>
+      <PositionenUebersicht positionen={r.positionen} />
 
       <dl className="grid gap-y-1 text-sm sm:grid-cols-[10rem_1fr]">
         <dt className="text-grau">Empfänger</dt>

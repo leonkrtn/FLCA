@@ -54,6 +54,12 @@ export type Einstellungen = {
     fusstext: string;
     einleitung: string;
   };
+  kostenvoranschlag: {
+    /** So lange gilt ein Kostenvoranschlag ab dem Abschließen */
+    gueltigTage: number;
+    einleitung: string;
+    fusstext: string;
+  };
   benachrichtigung: {
     /** Empfänger für „Neue Anfrage“, „Neue Bewerbung“; leer = Firmen-E-Mail */
     emails: string[];
@@ -147,6 +153,11 @@ export const STANDARD: Einstellungen = {
     zahlungszielTage: 14,
     einleitung: "vielen Dank für Ihren Auftrag. Wir berechnen Ihnen folgende Leistungen:",
     fusstext: "Alle Arbeiten unter Meisterverantwortung. Gewährleistung nach unseren AGB.",
+  },
+  kostenvoranschlag: {
+    gueltigTage: 30,
+    einleitung: "vielen Dank für Ihre Anfrage. Für die gewünschten Arbeiten bieten wir Ihnen an:",
+    fusstext: "Zeigt sich bei der Arbeit, dass mehr zu tun ist, melden wir uns vorher bei Ihnen. Ohne Ihre Zustimmung wird nichts zusätzlich berechnet.",
   },
   benachrichtigung: { emails: [] },
   automatik: {

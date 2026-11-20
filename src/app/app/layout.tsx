@@ -15,8 +15,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { themeColor: "#1f1e1c", viewportFit: "cover" };
 
 /**
- * Handy-App für Inhaber und Büro: nur das, was unterwegs zählt (heute, Anfragen, Termin eintragen,
- * Rechnung aus Termin). Alles andere steht im großen Admin am Rechner.
+ * Handy-App für Inhaber und Büro: nur das, was unterwegs zählt (heute, Anfragen, über das „+“ Termin,
+ * Kostenvoranschlag, Rechnung oder Kunde anlegen). Alles andere steht im großen Admin am Rechner.
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   await benutzerMitRecht("termine");
@@ -29,8 +29,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         tabs={[
           { href: "/app", text: "Heute", icon: <Kalender /> },
           { href: "/app/anfragen", text: "Anfragen", icon: <Liste />, anzahl: count ?? 0 },
-          { href: "/app/neu", text: "Neu", icon: <Plus className="size-5" />, hervorgehoben: true },
-          { href: "/app/rechnungen", text: "Rechnungen", icon: <Dokument /> },
+          {
+            href: "/app/neu",
+            text: "Neu",
+            icon: <Plus className="size-5" />,
+            hervorgehoben: true,
+            menue: [
+              { href: "/app/neu", text: "Termin" },
+              { href: "/app/kostenvoranschlaege/neu", text: "Kostenvoranschlag" },
+              { href: "/app/rechnungen/neu", text: "Rechnung" },
+              { href: "/app/kunden/neu", text: "Kunde" },
+            ],
+          },
+          { href: "/app/rechnungen", text: "Rechnungen", icon: <Dokument />, auch: ["/app/kostenvoranschlaege"] },
           { href: "/app/mehr", text: "Mehr", icon: <Mehr /> },
         ]}
       />

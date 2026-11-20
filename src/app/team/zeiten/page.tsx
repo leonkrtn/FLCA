@@ -30,7 +30,7 @@ export default async function Zeiten({ searchParams }: { searchParams: Promise<{
           </div>
         }
       />
-      <div className="grid gap-px bg-linie">
+      <div className="grid grid-cols-1 gap-px bg-linie">
         {eintraege.map((z) => (
           <Karte key={z.id}>
             <div className="zahlen grid grid-cols-[6rem_1fr_auto] gap-3">

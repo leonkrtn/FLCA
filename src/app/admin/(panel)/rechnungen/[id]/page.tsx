@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
 import { RechnungAnsicht } from "@/components/admin/rechnung-ansicht";
-import { RechnungEditor } from "@/components/admin/rechnung-editor";
+import { BelegEditor } from "@/components/admin/beleg-editor";
 import { Abschnitt, Kopf, Marke } from "@/components/admin/ui";
 import { entwurfLoeschen } from "@/lib/aktionen/rechnungen";
 import { benutzerMitRecht } from "@/lib/auth";
 import { datumZeit } from "@/lib/format";
 import { angebotFuerRechnung, RECHNUNG_STATUS, rechnungLaden } from "@/lib/rechnung/rechnungen";
+import { kundenSuchen } from "@/lib/kunden";
 import { db } from "@/lib/supabase/admin";
 
 export default async function RechnungSeite({ params }: { params: Promise<{ id: string }> }) {
@@ -13,8 +14,9 @@ export default async function RechnungSeite({ params }: { params: Promise<{ id: 
   const { id } = await params;
   const r = await rechnungLaden(id);
   if (!r) notFound();
-  const [angebot, { data: verlauf }] = await Promise.all([
+  const [angebot, zuletzt, { data: verlauf }] = await Promise.all([
     angebotFuerRechnung(),
+    r.status === "entwurf" ? kundenSuchen("", 6) : [],
     db().from("verlauf").select("text, erstellt_am").eq("bezug_typ", "rechnung").eq("bezug_id", id).order("erstellt_am", { ascending: false }),
   ]);
   return (
@@ -31,12 +33,15 @@ export default async function RechnungSeite({ params }: { params: Promise<{ id: 
         ) : null}
       </Kopf>
       <div className="grid gap-x-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
-        <Abschnitt>
+        <Abschnitt className="min-w-0">
           {r.status === "entwurf" ? (
-            <RechnungEditor
+            <BelegEditor
+              art="rechnung"
               id={r.id}
               angebot={angebot}
+              zuletzt={zuletzt}
               start={{
+                kunde_id: r.kunde_id,
                 empfaenger: r.empfaenger as Record<string, string>,
                 fahrzeug: r.fahrzeug ?? {},
                 positionen: r.positionen,

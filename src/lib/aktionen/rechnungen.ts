@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { benutzerMitRecht } from "../auth";
 import { type Ergebnis, istEmail, ja, sicher, text } from "../forms";
-import type { Position } from "../rechnung/berechnung";
-import { alsBezahlt, entwurfAnlegen, entwurfSpeichern, type Empfaenger, rechnungLaden, stellen, stornieren, versenden } from "../rechnung/rechnungen";
+import { belegAus } from "../rechnung/eingabe";
+import { alsBezahlt, type Empfaenger, entwurfSpeichern, rechnungLaden, stellen, stornieren, versenden } from "../rechnung/rechnungen";
 import { db } from "../supabase/admin";
 import { berlinDatum, istDatum } from "../zeit";
 
@@ -17,40 +17,12 @@ function neuLaden(id: string) {
   revalidatePath(`/admin/rechnungen/${id}`);
 }
 
-function positionenAus(roh: unknown): Position[] {
-  if (!Array.isArray(roh)) throw new Error("Positionen fehlen.");
-  return roh.slice(0, 100).map((p) => {
-    const menge = Number(p.menge);
-    const preis = Math.round(Number(p.einzel_brutto_cent));
-    if (!String(p.text ?? "").trim()) throw new Error("Jede Position braucht eine Bezeichnung.");
-    if (!Number.isFinite(menge) || menge <= 0) throw new Error(`Menge bei „${p.text}“ prüfen.`);
-    if (!Number.isFinite(preis)) throw new Error(`Preis bei „${p.text}“ prüfen.`);
-    return {
-      text: String(p.text).slice(0, 300),
-      menge: Math.round(menge * 1000) / 1000,
-      einheit: String(p.einheit ?? "Stk").slice(0, 20),
-      einzel_brutto_cent: preis,
-      mwst_satz: [0, 7, 19].includes(Number(p.mwst_satz)) ? Number(p.mwst_satz) : 19,
-      artikel_id: typeof p.artikel_id === "string" ? p.artikel_id : null,
-    };
-  });
-}
-
 export async function entwurfSpeichernAktion(id: string, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
   return sicher(null, async () => {
     await benutzerMitRecht("rechnungen");
-    const roh = JSON.parse(String(fd.get("daten") ?? "{}"));
-    const e = roh.empfaenger ?? {};
-    const empfaenger: Empfaenger = Object.fromEntries(
-      ["name", "firma", "strasse", "plz", "ort", "email", "ust_id", "leitweg_id"].map((k) => [k, String(e[k] ?? "").trim().slice(0, 200)]),
-    ) as Empfaenger;
-    await entwurfSpeichern(id, {
-      empfaenger,
-      fahrzeug: { kennzeichen: String(roh.fahrzeug?.kennzeichen ?? "").slice(0, 20), modell: String(roh.fahrzeug?.modell ?? "").slice(0, 120), km: roh.fahrzeug?.km ? Math.round(Number(roh.fahrzeug.km)) || null : null },
-      positionen: positionenAus(roh.positionen),
-      leistungsdatum: istDatum(roh.leistungsdatum) ? roh.leistungsdatum : null,
-      hinweis: String(roh.hinweis ?? "").slice(0, 1000),
-    });
+    const { datumOderNull, ...beleg } = belegAus(JSON.parse(String(fd.get("daten") ?? "{}")));
+    const empfaenger = beleg.empfaenger;
+    await entwurfSpeichern(id, { ...beleg, leistungsdatum: datumOderNull("leistungsdatum") });
     neuLaden(id);
     if (fd.get("weiter") === "stellen") {
       const b = await benutzerMitRecht("rechnungen");
@@ -161,17 +133,6 @@ export async function entwurfLoeschen(id: string, basis: Basis): Promise<void> {
   await db().from("rechnungen").delete().eq("id", id).eq("status", "entwurf");
   revalidatePath("/admin/rechnungen", "layout");
   redirect(basis);
-}
-
-export async function neueRechnung(kundeId: string | null): Promise<void> {
-  const b = await benutzerMitRecht("rechnungen");
-  let empfaenger: Empfaenger = { name: "" };
-  if (kundeId) {
-    const { data: k } = await db().from("kunden").select("*").eq("id", kundeId).maybeSingle();
-    if (k) empfaenger = { name: k.name, firma: k.firma, strasse: k.strasse, plz: k.plz, ort: k.ort, email: k.email, ust_id: k.ust_id, leitweg_id: k.leitweg_id };
-  }
-  const id = await entwurfAnlegen({ kunde_id: kundeId, empfaenger, positionen: [], leistungsdatum: berlinDatum() }, b.id);
-  redirect(`/admin/rechnungen/${id}`);
 }
 
 export async function rechnungFuerEditor(id: string) {

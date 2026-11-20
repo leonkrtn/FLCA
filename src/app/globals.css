@@ -321,6 +321,25 @@ body:has(.dunkel) {
   }
 }
 
+/* Menü am „+“ der Handy-App: fährt kurz von unten hoch, die Abdunklung blendet mit. */
+.hochfahren {
+  animation: hochfahren 170ms var(--ease-ruhig) both;
+}
+@keyframes hochfahren {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+}
+.abdunkeln {
+  animation: abdunkeln 170ms ease-out both;
+}
+@keyframes abdunkeln {
+  from {
+    opacity: 0;
+  }
+}
+
 /* Platzhalter beim Laden: ruhiges Pulsieren in der Linienfarbe, passt hell wie dunkel. */
 .skelett {
   background: var(--color-linie);

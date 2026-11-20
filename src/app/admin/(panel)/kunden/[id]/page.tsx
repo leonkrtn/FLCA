@@ -3,9 +3,10 @@ import { notFound } from "next/navigation";
 import { Formular, Senden } from "@/components/admin/formular";
 import { Abschnitt, Feld, Kopf, Marke, Textfeld } from "@/components/admin/ui";
 import { fahrzeugSpeichern, kundeSpeichern } from "@/lib/aktionen/kunden";
-import { neueRechnung } from "@/lib/aktionen/rechnungen";
+import { belegAnlegen } from "@/lib/aktionen/belege";
 import { benutzerMitRecht } from "@/lib/auth";
 import { datum, datumZeit, euro } from "@/lib/format";
+import { kvStatusText, type Kostenvoranschlag } from "@/lib/rechnung/kostenvoranschlaege";
 import { RECHNUNG_STATUS } from "@/lib/rechnung/rechnungen";
 import { TERMIN_TON } from "@/lib/status";
 import { db } from "@/lib/supabase/admin";
@@ -16,18 +17,24 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const { data: k } = await db().from("kunden").select("*").eq("id", id).maybeSingle();
   if (!k) notFound();
-  const [fz, tm, re, ei] = await Promise.all([
+  const [fz, tm, re, ei, kv] = await Promise.all([
     db().from("fahrzeuge").select("*").eq("kunde_id", id).order("erstellt_am"),
     db().from("termine").select("id, beginn, leistung_name, status, km_stand, fahrzeug:fahrzeuge(kennzeichen)").eq("kunde_id", id).order("beginn", { ascending: false }).limit(50),
     db().from("rechnungen").select("id, nummer, status, summe_brutto_cent, rechnungsdatum").eq("kunde_id", id).order("erstellt_am", { ascending: false }),
     db().from("einlagerungen").select("id, lagerplatz, saison, reifengroesse, eingelagert_am, ausgelagert_am, fahrzeug:fahrzeuge(kennzeichen)").eq("kunde_id", id).order("eingelagert_am", { ascending: false }),
+    db().from("kostenvoranschlaege").select("id, nummer, status, gueltig_bis, summe_brutto_cent, datum").eq("kunde_id", id).order("erstellt_am", { ascending: false }),
   ]);
+  // Bei genau einem Fahrzeug kommt es gleich mit auf den neuen Beleg.
+  const einziges = fz.data?.length === 1 ? (fz.data[0].id as string) : null;
   const termine = (tm.data ?? []) as unknown as (Pick<Termin, "id" | "beginn" | "leistung_name" | "status" | "km_stand"> & { fahrzeug: { kennzeichen: string } | null })[];
 
   return (
     <>
       <Kopf titel={k.name} unter={`Kunde Nr. ${k.nummer}${k.firma ? ` · ${k.firma}` : ""}`} zurueck={{ href: "/admin/kunden", text: "Kunden" }}>
-        <form action={neueRechnung.bind(null, k.id)}>
+        <form action={belegAnlegen.bind(null, "kostenvoranschlag", "admin", k.id, einziges)}>
+          <button className="knopf knopf-rahmen knopf-klein">Kostenvoranschlag</button>
+        </form>
+        <form action={belegAnlegen.bind(null, "rechnung", "admin", k.id, einziges)}>
           <button className="knopf knopf-rahmen knopf-klein">Rechnung ohne Termin</button>
         </form>
       </Kopf>
@@ -110,6 +117,22 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
             ))}
             {!re.data?.length ? <li className="py-2 text-grau">Keine Rechnungen.</li> : null}
           </ul>
+          {kv.data?.length ? (
+            <>
+              <h3 className="mb-1 mt-6 font-semibold">Kostenvoranschläge</h3>
+              <ul className="divide-y divide-linie text-sm">
+                {(kv.data as Pick<Kostenvoranschlag, "id" | "nummer" | "status" | "gueltig_bis" | "summe_brutto_cent" | "datum">[]).map((v) => (
+                  <li key={v.id}>
+                    <Link href={`/admin/kostenvoranschlaege/${v.id}`} className="grid grid-cols-[1fr_auto_auto] gap-3 py-2 hover:bg-papier">
+                      <span>{v.nummer ?? "Entwurf"} <span className="text-grau">{datum(v.datum)}</span></span>
+                      <span className="text-grau">{kvStatusText(v)}</span>
+                      <span className="zahlen text-right">{euro(v.summe_brutto_cent)}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
         </Abschnitt>
       </div>
     </>

@@ -36,7 +36,7 @@ export default async function Heute({ searchParams }: { searchParams: Promise<{ 
           </div>
         }
       />
-      <div className="grid gap-px bg-linie">
+      <div className="grid grid-cols-1 gap-px bg-linie">
         {termine.map((x) => (
           <Karte key={x.id} href={`/app/termine/${x.id}`}>
             <div className="grid grid-cols-[3.5rem_1fr_auto] items-center gap-3">

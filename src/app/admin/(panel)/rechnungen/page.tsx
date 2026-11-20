@@ -1,6 +1,6 @@
+import Link from "next/link";
 import { RechnungsAuswahl } from "@/components/admin/rechnungs-auswahl";
 import { Kopf, Leer, Reiter } from "@/components/admin/ui";
-import { neueRechnung } from "@/lib/aktionen/rechnungen";
 import { benutzerMitRecht } from "@/lib/auth";
 import { datum } from "@/lib/format";
 import { RECHNUNG_STATUS, type Rechnung } from "@/lib/rechnung/rechnungen";
@@ -24,9 +24,7 @@ export default async function RechnungsListe({ searchParams }: { searchParams: P
     <>
       <Kopf titel="Rechnungen" unter="Häkchen setzen, um mehrere Rechnungen auf einmal herunterzuladen, zu senden oder als bezahlt zu markieren.">
         <a href={`/admin/rechnungen/export?monat=${vormonat}`} className="knopf knopf-rahmen">DATEV-Export {vormonat.slice(5)}/{vormonat.slice(0, 4)}</a>
-        <form action={neueRechnung.bind(null, null)}>
-          <button className="knopf knopf-dunkel">Neue Rechnung</button>
-        </form>
+        <Link href="/admin/rechnungen/neu" className="knopf knopf-dunkel">Neue Rechnung</Link>
       </Kopf>
       <Reiter
         aktiv={`/admin/rechnungen?status=${status}`}

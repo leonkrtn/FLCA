@@ -18,7 +18,7 @@ export default async function MehrSeite() {
           <p className="text-sm text-grau">Push bei neuen Anfragen, Absagen und Bewerbungen.</p>
           <PushSchalter />
         </section>
-        <nav className="grid gap-px bg-linie">
+        <nav className="grid grid-cols-1 gap-px bg-linie">
           {[
             ["/app/anfragen", "Alle Anfragen"],
             ["/admin/kalender", "Wochenkalender"],
