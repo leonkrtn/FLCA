@@ -8,7 +8,11 @@ export function manifest(art: "app" | "team") {
       description: app ? "Termine, Anfragen und Rechnungen von FLC Automotive" : "Arbeitszeiten, Aufträge und Urlaub bei FLC Automotive",
       id: `/${art}`,
       start_url: `/${art}`,
-      scope: `/${art}`,
+      // Bereich ist die ganze Seite, nicht nur /app bzw. /team: Führt ein Link aus dem Bereich heraus
+      // (Verwaltung, Login nach abgelaufener Sitzung, Push-Ziel unter /admin), blendet iOS sonst ein
+      // Safari-Fenster mit Adressleiste und „Fertig“ ein, und man kommt nicht mehr in die App zurück.
+      // Die beiden Apps bleiben über id und start_url getrennt.
+      scope: "/",
       display: "standalone",
       orientation: "portrait",
       background_color: app ? "#1f1e1c" : "#ecebe7",
