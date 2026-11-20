@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(ENV.siteUrl),
   title: { default: "FLC Automotive | Reifen & Kfz-Service in Dietzenbach", template: "%s | FLC Automotive" },
   description:
-    "Meisterbetrieb in Dietzenbach: Radwechsel ab 40 €, Reifenmontage, Ölwechsel, Fahrzeugaufbereitung zu Festpreisen. Termin online anfragen.",
+    "Meisterbetrieb in Dietzenbach: Radwechsel ab 40 €, Reifenmontage, Ölwechsel und Reparatur zu Festpreisen. Termin online anfragen.",
   openGraph: { type: "website", locale: "de_DE", siteName: "FLC Automotive" },
 };
 

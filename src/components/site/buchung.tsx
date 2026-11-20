@@ -18,7 +18,7 @@ type LeistungKurz = {
 };
 type Tag = { datum: string; slots: string[] };
 
-const KATEGORIEN: Record<string, string> = { reifen: "Reifen", service: "Service und Reparatur", aufbereitung: "Aufbereitung", schutz: "Rostschutz" };
+const KATEGORIEN: Record<string, string> = { reifen: "Reifen", service: "Service und Reparatur", schutz: "Rostschutz" };
 
 const preisText = (cent: number | null, ab: boolean) =>
   cent === null ? "auf Anfrage" : `${ab ? "ab " : ""}${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(cent / 100)} €`;

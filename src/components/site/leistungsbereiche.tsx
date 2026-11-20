@@ -1,7 +1,6 @@
 import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
 import oelstand from "@/assets/oelstand.jpg";
-import porsche from "@/assets/porsche-felge.jpg";
 import reifenmaschine from "@/assets/reifenmaschine.jpg";
 import schweissen from "@/assets/schweissen.jpg";
 import { Pfeil } from "@/components/icons";
@@ -23,15 +22,7 @@ const BEREICHE: { kategorie: string; titel: string; text: string; bild: StaticIm
     text: "Ölwechsel, Inspektion, Bremsen, Klima. Preis vorher.",
     bild: oelstand,
     alt: "Ölstand wird mit dem Messstab und einem Tuch geprüft",
-    flaeche: "md:col-span-6",
-  },
-  {
-    kategorie: "aufbereitung",
-    titel: "Aufbereitung",
-    text: "Innenraum, Politur, Versiegelung.",
-    bild: porsche,
-    alt: "Porsche 911 in Blau mit schwarzen Felgen in der Halle",
-    flaeche: "md:col-span-6",
+    flaeche: "md:col-span-6 md:row-span-2",
   },
   {
     kategorie: "schutz",

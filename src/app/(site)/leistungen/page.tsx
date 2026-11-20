@@ -5,7 +5,7 @@ import { preis } from "@/lib/format";
 import { KATEGORIEN, oeffentlicheLeistungen } from "@/lib/inhalte";
 
 export const revalidate = 300;
-export const metadata: Metadata = { title: "Leistungen", description: "Reifenservice, Ölwechsel, Inspektion, Reparatur und Fahrzeugaufbereitung in Dietzenbach." };
+export const metadata: Metadata = { title: "Leistungen", description: "Reifenservice, Ölwechsel, Inspektion, Reparatur und Rostschutz in Dietzenbach." };
 
 export default async function LeistungenSeite() {
   const leistungen = await oeffentlicheLeistungen();

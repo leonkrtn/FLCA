@@ -18,9 +18,6 @@ const START_LEISTUNGEN: Omit<Leistung, "id">[] = [
   ["reparatur", "Reparatur", "Bremsen, Fahrwerk, Auspuff und mehr", "service", null, false, 120],
   ["klimaservice", "Klimaservice", "Klimaanlage prüfen und befüllen", "service", null, false, 60],
   ["hu-vorbereitung", "HU/AU-Vorbereitung", "Ihr Auto fit für die Prüfung", "service", null, false, 90],
-  ["innenraumaufbereitung", "Innenraumaufbereitung", "Tiefenreinigung innen, inkl. Polster und Leder", "aufbereitung", 17500, false, 180],
-  ["aufbereitung-basis", "Fahrzeugaufbereitung Basis", "Innen und außen, Handwäsche, Felgen", "aufbereitung", 25000, false, 240],
-  ["aufbereitung-premium", "Fahrzeugaufbereitung Premium", "Politur, Versiegelung, Ozonbehandlung", "aufbereitung", 50000, false, 480],
   ["hohlraumversiegelung", "Hohlraumversiegelung", "Langzeit-Rostschutz für Türen und Schweller", "schutz", 20000, true, 480],
   ["unterbodenschutz", "Unterbodenschutz", "Unterboden reinigen und versiegeln", "schutz", 9000, true, 180],
 ].map(([slug, name, kurz, kategorie, preis, ab, dauer], i) => ({
