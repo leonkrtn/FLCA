@@ -84,7 +84,7 @@ export function Reiter({ eintraege, aktiv }: { eintraege: { href: string; text: 
 }
 
 /** Feld mit Beschriftung. Das Eingabefeld steckt im <label>, so braucht es keine id, und mehrere
- *  gleichartige Zeilen auf einer Seite (Angebot, Arbeitszeiten) kommen sich nicht in die Quere. */
+ *  gleichartige Zeilen auf einer Seite (Preisliste, Arbeitszeiten) kommen sich nicht in die Quere. */
 export function Feld({
   label,
   name,

@@ -25,7 +25,7 @@ export default async function Website({ searchParams }: { searchParams: Promise<
       </Kopf>
       <Reiter eintraege={reiter} aktiv={`/admin/website?bereich=${bereich}`} />
       <p className="mb-6 text-sm text-grau">
-        Leistungen und Preise stehen im <Link href="/admin/angebot" className="font-semibold text-tinte underline">Angebot</Link>, zusammen mit den Positionen für Rechnungen.
+        Leistungen und Preise stehen in der <Link href="/admin/preisliste" className="font-semibold text-tinte underline">Preisliste</Link>, zusammen mit den Positionen für Rechnungen.
       </p>
       {bereich === "galerie" ? <Galerie /> : bereich === "bewertungen" ? <Bewertungen /> : <Texte />}
     </>

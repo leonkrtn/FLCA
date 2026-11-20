@@ -18,14 +18,14 @@ function adresse(roh: string): string {
 }
 
 /**
- * Speichert eine Position des Angebots (Tabelle leistungen). Preis, Nummer, Einheit und MwSt. darf, wer
+ * Speichert eine Position der Preisliste (Tabelle leistungen). Preis, Nummer, Einheit und MwSt. darf, wer
  * Rechnungen schreibt. Was die Website zeigt (Texte, Bild, sichtbar, buchbar), nur, wer die Website
  * pflegen darf; für alle anderen bleiben diese Felder wie sie sind.
  *
  * Regeln, damit nichts Widersprüchliches gespeichert wird: Eine Position (Teil, Material) ist nie auf der
  * Website. Ausgeblendet heißt überall weg. Online buchbar geht nur, was auch auf der Website steht.
  */
-export async function angebotSpeichern(id: string | null, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
+export async function preislisteSpeichern(id: string | null, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
   let ziel = "";
   const e = await sicher(fd, async () => {
     const b = await benutzerMitRecht("rechnungen");
@@ -75,7 +75,7 @@ export async function angebotSpeichern(id: string | null, _v: Ergebnis, fd: Form
       antwort = id ? await db().from("leistungen").update(daten).eq("id", id).select("id").single() : await db().from("leistungen").insert(daten).select("id").single();
     }
     if (antwort.error) return { status: "fehler", meldung: antwort.error.code === "23505" ? "Diese Webadresse (Slug) gibt es schon." : antwort.error.message };
-    if (!id) ziel = `/admin/angebot/${antwort.data.id}`;
+    if (!id) ziel = `/admin/preisliste/${antwort.data.id}`;
     revalidatePath("/", "layout");
     return { status: "ok", meldung: website ? "Gespeichert. Die Website zeigt es in wenigen Minuten." : "Gespeichert." };
   });

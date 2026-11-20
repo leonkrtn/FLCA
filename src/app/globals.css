@@ -305,8 +305,8 @@ body:has(.dunkel) {
   }
 }
 
-/* Angebot: Teile und Material haben keine Termin- und Website-Felder. Folgt der Auswahl „Art“ ohne Skript. */
-.angebot-formular:has(select[name="art"] option[value="position"]:checked) .nur-leistung {
+/* Preisliste: Teile und Material haben keine Termin- und Website-Felder. Folgt der Auswahl „Art“ ohne Skript. */
+.preisliste-formular:has(select[name="art"] option[value="position"]:checked) .nur-leistung {
   display: none;
 }
 
