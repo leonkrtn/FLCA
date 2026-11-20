@@ -20,35 +20,6 @@ export type Tab = {
   menue?: MenueEintrag[];
 };
 
-/**
- * iOS 26 rechnet bei Web-Apps auf dem Home-Bildschirm (Statusleiste „black-translucent“) die Höhe
- * des sichtbaren Bereichs um die Statusleiste zu klein. Alles, was mit `bottom: 0` unten klebt,
- * schwebt dann über einem leeren Streifen. Wir messen die Lücke (Bildschirmhöhe minus Fensterhöhe,
- * nur wenn die Seite unter die Statusleiste reicht) und legen sie als --luecke ab. Die Leiste rutscht
- * um genau so viel nach unten. Ohne Fehler im System ist die Lücke 0 und es ändert sich nichts.
- */
-function useLueckeUnten() {
-  useEffect(() => {
-    const standalone = (navigator as Navigator & { standalone?: boolean }).standalone || matchMedia("(display-mode: standalone)").matches;
-    if (!standalone) return;
-    const probe = document.createElement("div");
-    probe.style.cssText = "position:fixed;top:0;height:0;padding-top:env(safe-area-inset-top);visibility:hidden;pointer-events:none";
-    document.body.appendChild(probe);
-    const messen = () => {
-      const hoch = innerHeight >= innerWidth;
-      const oben = probe.offsetHeight;
-      const luecke = hoch && oben > 0 ? Math.max(0, Math.min(screen.height - innerHeight, 120)) : 0;
-      document.documentElement.style.setProperty("--luecke", `${luecke}px`);
-    };
-    messen();
-    addEventListener("resize", messen);
-    return () => {
-      removeEventListener("resize", messen);
-      probe.remove();
-    };
-  }, []);
-}
-
 /** Untere Tab-Leiste der Handy-Apps, mit Abstand für den Home-Balken des iPhones. */
 export function TabLeiste({ tabs, dunkel }: { tabs: Tab[]; dunkel?: boolean }) {
   const [pfad, merken] = useZielPfad();
@@ -57,7 +28,6 @@ export function TabLeiste({ tabs, dunkel }: { tabs: Tab[]; dunkel?: boolean }) {
   const [offenAuf, setOffenAuf] = useState<string | null>(null);
   const offen = offenAuf === echterPfad;
   const setOffen = (o: boolean) => setOffenAuf(o ? echterPfad : null);
-  useLueckeUnten();
   const istAktiv = (t: Tab) => [t.href, ...(t.auch ?? [])].some((h) => h === pfad || (h.split("/").length > 2 && pfad.startsWith(h)));
   return (
     <>
@@ -67,8 +37,8 @@ export function TabLeiste({ tabs, dunkel }: { tabs: Tab[]; dunkel?: boolean }) {
       ) : null}
       <nav
         aria-label="Bereiche"
-        // Unter der Leiste läuft ihre Farbe weiter (after:), damit auch eine falsch berechnete Lücke nie hell durchscheint.
-        className={`fixed inset-x-0 bottom-[calc(0px-var(--luecke,0px))] z-40 border-t pb-[env(safe-area-inset-bottom)] after:absolute after:inset-x-0 after:top-full after:h-32 after:bg-inherit ${dunkel ? "border-white/10 bg-graphit text-boden" : "border-linie bg-papier text-tinte"}`}
+        // Unter der Leiste läuft ihre Farbe weiter (after:), damit beim Nachfedern am Seitenende nichts hell durchscheint.
+        className={`fixed inset-x-0 bottom-0 z-40 border-t pb-[env(safe-area-inset-bottom)] after:absolute after:inset-x-0 after:top-full after:h-32 after:bg-inherit ${dunkel ? "border-white/10 bg-graphit text-boden" : "border-linie bg-papier text-tinte"}`}
       >
         <div className="mx-auto grid max-w-xl" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
           {tabs.map((t) => {

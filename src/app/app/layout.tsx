@@ -8,12 +8,15 @@ import { db } from "@/lib/supabase/admin";
 export const metadata: Metadata = {
   title: { default: "Werkstatt", template: "%s · Werkstatt" },
   manifest: "/app/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "Werkstatt", statusBarStyle: "black-translucent" },
+  // Statusleiste „default“ wie in der Team-App: Mit „black-translucent“ läuft die Seite unter die Uhr, iOS 26
+  // legt dort eine Unschärfe über Titel und Knöpfe und meldet die Fensterhöhe um die Statusleiste zu klein,
+  // sodass die Tab-Leiste unten abgeschnitten über einem hellen Streifen hing.
+  appleWebApp: { capable: true, title: "Werkstatt", statusBarStyle: "default" },
   icons: { apple: "/icons/app-apple.png" },
   robots: { index: false },
 };
 
-export const viewport: Viewport = { themeColor: "#1f1e1c", viewportFit: "cover" };
+export const viewport: Viewport = { themeColor: "#ecebe7", viewportFit: "cover" };
 
 /**
  * Handy-App für Inhaber und Büro: nur das, was unterwegs zählt (heute, Anfragen, über das „+“ Termin,

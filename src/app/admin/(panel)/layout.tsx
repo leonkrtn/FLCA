@@ -41,8 +41,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="min-h-dvh bg-boden lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
-      {/* Aus der Werkstatt-App heraus läuft die Verwaltung im Vollbild unter der Statusleiste (black-translucent):
-          oben so viel Abstand wie die Statusleiste hoch ist, im Browser bleibt es beim normalen Abstand. */}
+      {/* Reicht die Seite einmal unter die Statusleiste (Web-App mit viewport-fit=cover), hält der Kopf so viel
+          Abstand, wie die Statusleiste hoch ist; im Browser bleibt es beim normalen Abstand. */}
       <aside className="sticky top-0 z-30 flex flex-col gap-3 bg-graphit pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] text-boden lg:h-dvh lg:pb-5 lg:pt-[max(1.25rem,env(safe-area-inset-top))]">
         <div className="flex items-center justify-between px-6">
           <Link href="/admin" aria-label="Übersicht">
