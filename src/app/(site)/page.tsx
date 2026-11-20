@@ -53,7 +53,7 @@ export default async function Startseite() {
           <h1 className="schmal max-w-4xl text-[3.4rem] leading-[0.9] sm:text-7xl md:text-8xl">
             Reifen, Service
             <br />
-            und Aufbereitung
+            und Reparatur
           </h1>
           <p className="mt-6 max-w-xl text-lg text-hell/80">{e.texte.heroUnterzeile}</p>
           {/* Auf dem Telefon übernimmt die feste Leiste unten Termin und Anruf. */}
