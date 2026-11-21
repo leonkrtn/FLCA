@@ -33,7 +33,7 @@ const nextConfig: NextConfig = {
   },
   // Schriften und Logo für die Rechnungs-PDFs werden zur Laufzeit vom Dateisystem gelesen.
   outputFileTracingIncludes: {
-    "/**": ["./src/fonts/*.ttf", "./src/assets/logo-schwarz.png"],
+    "/**": ["./src/fonts/*.ttf"],
   },
   // Erst „Artikel“, dann „Angebot“, jetzt „Preisliste“. Alte Lesezeichen landen weiter auf der richtigen Seite.
   async redirects() {

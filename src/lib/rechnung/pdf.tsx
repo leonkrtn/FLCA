@@ -1,7 +1,7 @@
 import "server-only";
-import { readFileSync } from "node:fs";
 import path from "node:path";
-import { Document, Font, Image, Page, renderToBuffer, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Font, Image, Page, Path, renderToBuffer, StyleSheet, Svg, Text, View } from "@react-pdf/renderer";
+import logo from "@/assets/logo-pfade.json";
 import { datum, euro, euroGenau } from "../format";
 import { fahrzeugText } from "./aehnlich";
 import { berechne, einzelpreisAnzeige, rabattText, zeilenbetrag } from "./berechnung";
@@ -19,7 +19,8 @@ Font.register({
 });
 Font.registerHyphenationCallback((wort) => [wort]);
 
-const logo = readFileSync(path.join(wurzel, "src/assets/logo-schwarz.png"));
+// Logo als Vektor aus derselben Quelle wie auf der Website: bleibt beim Druck und Zoomen scharf.
+const logoBreite = 130;
 
 const tinte = "#141414";
 const grau = "#6b6862";
@@ -29,7 +30,7 @@ const rot = "#cc0605";
 const s = StyleSheet.create({
   seite: { paddingTop: 40, paddingBottom: 96, paddingHorizontal: 56, fontFamily: "Barlow", fontSize: 9.5, color: tinte, lineHeight: 1.45 },
   kopf: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 36 },
-  logo: { width: 130 },
+  logo: { width: logoBreite, height: (logoBreite * logo.hoehe) / logo.breite },
   firma: { fontSize: 8.5, color: grau, textAlign: "right", lineHeight: 1.5 },
   absender: { fontSize: 7, color: grau, borderBottom: `0.5pt solid ${linie}`, paddingBottom: 2, marginBottom: 6, width: 240 },
   adressblock: { flexDirection: "row", justifyContent: "space-between", marginBottom: 32 },
@@ -109,8 +110,9 @@ export async function rechnungPdf(r: PdfDaten): Promise<Buffer> {
     <Document title={titel} author={f.name} language="de">
       <Page size="A4" style={s.seite}>
         <View style={s.kopf}>
-          {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf kennt kein alt */}
-          <Image src={logo} style={s.logo} />
+          <Svg viewBox={logo.viewbox} style={s.logo}>
+            <Path d={logo.pfad} fill="#000000" fillRule="evenodd" />
+          </Svg>
           <Text style={s.firma}>
             {f.name}
             {"\n"}
