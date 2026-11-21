@@ -120,6 +120,8 @@ const STOP = new Set(
     "montag", "dienstag", "mittwoch", "donnerstag", "freitag", "samstag", "sonntag", "januar", "februar", "maerz", "april", "mai", "juni",
     "juli", "august", "september", "oktober", "november", "dezember", "herr", "herrn", "frau", "kunde", "kundin", "seinen", "seinem", "ihren",
     "ihrem", "sein", "ihr", "zu", "zusammen", "je", "pro", "einkauf", "ek", "mwst", "bescheid", "erledigt", "machen", "eintragen",
+    // Aufforderungen gehören nie zum Namen („für Müller erstellen“, „an Weber über …“)
+    "erstellen", "erstelle", "anlegen", "schreiben", "schreib", "mir", "uns", "mich", "du", "ueber", "danke", "bitte", "kannst", "aus", "hinzu",
   ].map(klein),
 );
 export const istStop = (w: string) => STOP.has(klein(w));

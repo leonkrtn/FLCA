@@ -115,7 +115,42 @@ export function artErkennen(satz: string, k: { heute: string; jetzt: Date; leist
 }
 
 /** Eingang für alle drei: Trennzeichen aus dem Text, Zahlwörter als Ziffern. */
-const vorbereiten = (satz: string) => new Rest(zahlenEinsetzen(satz.replace(/[|]/g, " ").replace(/\s+/g, " ").trim()));
+const vorbereiten = (satz: string, auchVerben = true) => {
+  const rest = new Rest(zahlenEinsetzen(satz.replace(/[|]/g, " ").replace(/\s+/g, " ").trim()));
+  aufforderungEntfernen(rest, auchVerben);
+  return rest;
+};
+
+const NACHSATZ = "(?:\\s+(?:bitte|mal|schnell|kurz|noch|doch|eben|gleich))*";
+const FUER_MICH = "(?:\\s+(?:mir|uns|mich))?";
+const BEFEHL =
+  "erstell|erstelle|mach|mache|schreib|schreibe|leg|lege|trag|trage|notier|notiere|buch|buche|stell|stelle|setz|setze|plan|plane|füg|füge|fueg|fuege|nimm|bereite";
+
+/**
+ * Die Aufforderung um den eigentlichen Inhalt herum: „Erstelle mir bitte …“, „Kannst du mir …“,
+ * „Ich brauche …“, „… eintragen“. Ohne das landete sie als Rechnungsposition, Terminnotiz, Notiztitel oder
+ * im Kundennamen („Müller Erstellen“). Abtrennbare Reste („Trag … ein“, „Leg … an“) fängt `saeubern` ab.
+ * `auchVerben`: Infinitive wie „schreiben“ oder „buchen“ nur bei Termin und Rechnung entfernen; in einer
+ * Notiz können sie Inhalt sein („Mail an den Lieferanten schreiben“).
+ */
+function aufforderungEntfernen(rest: Rest, auchVerben: boolean) {
+  // „Kannst du mir bitte“, „Könnten Sie“
+  rest.nimm(wort(`(?:kannst|könntest|koenntest|würdest|wuerdest|kann|könnte|koennte|könnten|koennten|würden|wuerden)\\s+(?:du|sie|man)${FUER_MICH}${NACHSATZ}`));
+  // „Ich brauche“, „Wir hätten gern“
+  rest.nimm(
+    wort(
+      `(?:ich|wir)\\s+(?:brauche|brauchen|bräuchte|braeuchte|bräuchten|braeuchten|hätte|haette|hätten|haetten|möchte|moechte|möchten|moechten|will|wollen|würde|wuerde|würden|wuerden)(?:\\s+gerne?)?${NACHSATZ}`,
+    ),
+  );
+  // „Erstelle mir bitte“ am Satzanfang, auch nach einem schon entfernten Rahmen
+  rest.nimm(new RegExp(`^[\\s|]*(?:bitte\\s+)?(?:${BEFEHL})(?![\\p{L}\\p{N}])${FUER_MICH}${NACHSATZ}`, "giu"));
+  // „… erstellen“, „… eintragen“ (am Ende oder mittendrin)
+  const verben = "erstellen|anlegen|eintragen|einbuchen|ausstellen|hinzufügen|hinzufuegen|erstellt|angelegt|eingetragen";
+  while (rest.nimm(wort(auchVerben ? `${verben}|aufschreiben|notieren|schreiben|buchen` : verben)));
+}
+
+/** Artikel und „neu“ vor dem Schlüsselwort: „eine neue Rechnung“, „einen weiteren Termin“. */
+const ARTIKEL = "(?:(?:eine[nrm]?|ein|die|den|der|das)\\s+)?(?:(?:neue[nrsm]?|weitere[nrsm]?)\\s+)?";
 
 // ---------------------------------------------------------------------------------------------------------
 // Notiz
@@ -137,7 +172,7 @@ export type NotizVerstanden = {
  * „Erinnere Marco jeden Montag an die Altölabholung“.
  */
 export function notizVerstehen(satz: string, k: { heute: string; jetzt: Date; team: Person[] }): NotizVerstanden {
-  const rest = vorbereiten(satz);
+  const rest = vorbereiten(satz, false);
 
   // „Erinnere Marco …“ / „Erinnerung für Marco“: an jemand anderen aus dem Team (vor dem Einleitungswort,
   // sonst wäre „Erinnerung“ schon weg)
@@ -145,7 +180,7 @@ export function notizVerstehen(satz: string, k: { heute: string; jetzt: Date; te
     rest.nimmErstes(wort("erinnere?\\s+(\\p{L}+)(?:\\s+daran)?"), (m) => teamFinden(m[1], k.team)) ??
     rest.nimmErstes(wort("erinnerung\\s+(?:für|fuer|an)\\s+(\\p{L}+)"), (m) => teamFinden(m[1], k.team)) ??
     rest.nimmErstes(wort("(?:sag|sage)\\s+(\\p{L}+)\\s+bescheid"), (m) => teamFinden(m[1], k.team));
-  rest.nimm(wort("^\\s*(?:(?:mach|mache|schreib|schreibe|leg|lege)\\s+)?(?:(?:eine?|neue)\\s+)?(?:notiz|erinnerung)(?:\\s+an)?\\s*:?"));
+  rest.nimm(wort(`${ARTIKEL}(?:notiz|erinnerung)(?:\\s+(?:an|machen|schreiben|aufschreiben))?\\s*:?`));
   rest.nimm(wort("(?:bitte\\s+)?(?:erinnere?|erinnern)\\s+(?:mich|uns)(?:\\s+daran)?|erinnerung|erinnern|merken|notieren"));
 
   const sichtbar = rest.nimm(wort("(?:(?:für|fuer|an|ans|ins|in)\\s+(?:das\\s+)?)?büro|fürs\\s+büro|buero"))
@@ -162,7 +197,8 @@ export function notizVerstehen(satz: string, k: { heute: string; jetzt: Date; te
   if (uhrzeit && !datum) datum = uhrzeit > berlinUhrzeit(k.jetzt) || wdh ? k.heute : plusTage(k.heute, 1);
   if (!datum && wdh) datum = k.heute;
 
-  const inhalt = grossAnfang(saeubern(rest.text.replace(/\s*\|\s*/g, " ").replace(/\s+,/g, ",")));
+  // Hinten nur Füllwörter wie „bitte“ abschneiden: „Kunde ruft an“ bleibt so
+  const inhalt = grossAnfang(saeubern(rest.text.replace(/\s*\|\s*/g, " ").replace(/\s+,/g, ","), true));
   // Kurz: alles in den Titel. Lang: der erste Satz als Titel, alles in den Text.
   let titel = inhalt;
   let text = "";
@@ -203,7 +239,7 @@ export function terminVerstehen(satz: string, k: { heute: string; leistungen: Le
   const keinName = (w: string[]) => istFachwort(w[0], k.leistungen);
   // „Termin Max Schulz …“: Name direkt nach dem Wort Termin, vor allem anderen
   const nameVorn = nameNehmen(rest, keinName, "termin\\s+(?:für|fuer)|termin", wissen);
-  rest.nimm(wort("(?:(?:einen?|neuen?)\\s+)?termin(?:\\s+(?:eintragen|anlegen|machen))?"));
+  rest.nimm(wort(`${ARTIKEL}termin(?:\\s+(?:eintragen|anlegen|machen))?`));
 
   // „Notiz: …“ am Ende gilt bis zum Schluss
   const notizTeile: string[] = [];
@@ -285,7 +321,7 @@ export function rechnungVerstehen(
   const wissen = fahrzeugWissen(k.typen);
   const keinName = (w: string[]) => istFachwort(w[0], k.preisliste);
   const nameVorn = nameNehmen(rest, keinName, "rechnung\\s+(?:für|fuer|an)|rechnung", wissen);
-  rest.nimm(wort("(?:(?:eine?|neue)\\s+)?rechnung(?:\\s+(?:schreiben|erstellen|anlegen|machen))?"));
+  rest.nimm(wort(`${ARTIKEL}rechnung(?:\\s+(?:schreiben|erstellen|anlegen|machen))?`));
   const alleBrutto = rest.nimm(
     wort("(?:alle|alles|die)\\s+(?:preise\\s+)?(?:sind\\s+)?brutto|preise\\s+(?:sind\\s+)?brutto|alles\\s+(?:inklusive|inkl\\.?|mit)\\s+(?:mehrwertsteuer|mwst)"),
   );
@@ -363,7 +399,7 @@ function segmente(text: string, preisliste: Eintrag[]): string[] {
 const EINHEIT: Record<string, string> = { x: "Stk", mal: "Stk", stueck: "Stk", stk: "Stk", liter: "l", ltr: "l", l: "l", satz: "Satz", saetze: "Satz", paar: "Paar", meter: "m", m: "m" };
 const EINHEITEN = "x|mal|stück|stueck|stk\\.?|liter|ltr\\.?|l|satz|sätze|saetze|paar|meter|m";
 const BETRAG = "(\\d{1,3}(?:\\.\\d{3})+(?:,\\d{1,2})?|\\d+(?:,\\d{1,2})?)";
-const NACH_EURO = "(?:\\s+(\\d{1,2})(?![\\d,.])(?!\\s*(?:stück|stueck|stk|liter|l|stunden?|std|x|mal|%|prozent)(?![\\p{L}])))?";
+const NACH_EURO = "(?:\\s+(\\d{1,2})(?!\\d|[,.]\\d)(?!\\s*(?:stück|stueck|stk|liter|l|stunden?|std|x|mal|%|prozent)(?![\\p{L}])))?";
 
 function positionAus(stueck: string, lohnarten: string[], alleBrutto: boolean): PositionsWunsch | null {
   const r = new Rest(stueck);
@@ -388,7 +424,7 @@ function positionAus(stueck: string, lohnarten: string[], alleBrutto: boolean): 
 
   leer.preisCent =
     r.nimmErstes(new RegExp(`(?<![\\d.,])${BETRAG}\\s*(?:euro|€|eur)(?![\\p{L}])${NACH_EURO}`, "giu"), (m) => centAusText(m[1], m[2]), " ") ??
-    r.nimmErstes(wort(`(?:für|fuer|zu|à|a|preis)\\s+${BETRAG}(?![\\d,.])(?!\\s*(?:stück|stueck|stk|liter|l|stunden?|std|x|mal|%|prozent|minuten?)(?![\\p{L}]))`), (m) => centAusText(m[1]), " ") ??
+    r.nimmErstes(wort(`(?:für|fuer|zu|à|a|preis)\\s+${BETRAG}(?!\\d|[,.]\\d)(?!\\s*(?:stück|stueck|stk|liter|l|stunden?|std|x|mal|%|prozent|minuten?)(?![\\p{L}]))`), (m) => centAusText(m[1]), " ") ??
     r.nimmErstes(new RegExp(`(?<![\\d.,])(\\d+,\\d{2})(?![\\d])`, "gu"), (m) => centAusText(m[1]), " ");
 
   // Arbeitszeit
