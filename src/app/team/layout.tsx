@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Kalender, Liste, Mehr, Uhr, Person } from "@/components/icons";
 import { TabLeiste } from "@/components/mobil/leiste";
 import { PushAbgleich } from "@/components/mobil/push-abgleich";
+import { StartAusrichtung } from "@/components/mobil/start-ausrichtung";
 import { benutzerMitRecht } from "@/lib/auth";
 import { einstellungen } from "@/lib/einstellungen";
 
@@ -23,6 +24,7 @@ export default async function TeamLayout({ children }: { children: React.ReactNo
     <div className="handy-app min-h-dvh bg-boden pb-[calc(4.5rem+env(safe-area-inset-bottom))]" data-leiste="hell">
       <div className="mx-auto max-w-xl">{children}</div>
       <PushAbgleich />
+      <StartAusrichtung />
       <TabLeiste
         tabs={[
           { href: "/team", text: "Heute", icon: <Liste /> },
