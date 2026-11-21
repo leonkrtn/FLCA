@@ -3,7 +3,7 @@ import { textNorm } from "../rechnung/aehnlich";
 import { nettoAusBruttoPreis } from "../rechnung/berechnung";
 import { berlin } from "../zeit";
 import { positionenBauen } from "./positionen";
-import { absichtErkennen, notizVerstehen, rechnungVerstehen, terminVerstehen } from "./verstehen";
+import { absichtErkennen, artErkennen, notizVerstehen, rechnungVerstehen, terminVerstehen } from "./verstehen";
 
 // Freitag, 20. November 2026, 10 Uhr
 const heute = "2026-11-20";
@@ -212,5 +212,44 @@ describe("Neue Angebote und Umbenennungen", () => {
     const e = rechnungVerstehen("Rechnung für Müller Ypsilon Ölwechsel", { heute, preisliste, lohnarten, typen });
     expect(e).toMatchObject({ name: "Müller", fahrzeug: { marke: "Lancia", modell: "Ypsilon" } });
     expect(e.positionen).toMatchObject([{ text: "Ölwechsel" }]);
+  });
+});
+
+describe("Art aus dem Inhalt", () => {
+  const a = (s: string) => artErkennen(s, { heute, jetzt, leistungen });
+
+  it("Schlüsselwort ist eindeutig", () => {
+    expect(a("Termin für Müller")).toMatchObject({ art: "termin", sicher: true });
+  });
+  it("Leistung mit Tag und Uhrzeit ist ein Termin", () => {
+    expect(a("Müller, Ölwechsel, nächsten Dienstag halb neun")).toMatchObject({ art: "termin", sicher: true });
+    expect(a("Herr Weber kommt morgen um 10")).toMatchObject({ art: "termin" });
+  });
+  it("Preise und Arbeitsstunden sind eine Rechnung", () => {
+    expect(a("Müller, Ölwechsel, zwei Stunden Arbeit, Bremsscheiben 180 Euro brutto")).toMatchObject({ art: "rechnung", sicher: true });
+    expect(a("Krause gestern Radwechsel gemacht, 40 Euro")).toMatchObject({ art: "rechnung" });
+  });
+  it("Aufgaben sind Notizen, auch mit Uhrzeit", () => {
+    expect(a("Morgen um 9 Bremsbeläge für den Golf von Müller bestellen")).toMatchObject({ art: "notiz", sicher: true });
+    expect(a("In zwei Stunden Schmidt zurückrufen")).toMatchObject({ art: "notiz" });
+    expect(a("Hebebühne 2 quietscht")).toMatchObject({ art: "notiz", sicher: false });
+  });
+});
+
+describe("Name vorn ohne „für“", () => {
+  it("Termin", () => {
+    const e = terminVerstehen("Müller, Ölwechsel, nächsten Dienstag halb neun", { heute, leistungen, team });
+    expect(e).toMatchObject({ name: "Müller", datum: "2026-11-24", uhrzeit: "08:30" });
+  });
+  it("Rechnung, Wort der Preisliste beendet den Namen", () => {
+    expect(rechnungVerstehen("Müller Ölwechsel 95 Euro", { heute, preisliste, lohnarten })).toMatchObject({ name: "Müller", positionen: [{ text: "Ölwechsel", preisCent: 9500 }] });
+  });
+  it("Position mit Preis ist kein Name", () => {
+    expect(rechnungVerstehen("Lackierung 300 Euro", { heute, preisliste, lohnarten })).toMatchObject({ name: "", positionen: [{ text: "Lackierung", preisCent: 30000 }] });
+  });
+  it("Namen, in denen ein Fachwort steckt", () => {
+    for (const n of ["Konrad", "Glaser", "Sachse", "Katharina Lackner"]) {
+      expect(terminVerstehen(`Termin für ${n} morgen um 9 Radwechsel`, { heute, leistungen, team }).name).toBe(n);
+    }
   });
 });

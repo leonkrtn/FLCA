@@ -84,10 +84,29 @@ const KFZ_TEILE = [
   "wechsel", "brems", "filter", "reifen", "rad", "oel", "service", "inspektion", "kerze", "batterie", "belag", "belaeg", "scheibe", "wischer",
   "kupplung", "riemen", "lampe", "birne", "auspuff", "klima", "motor", "getriebe", "achse", "lager", "daempfer", "feder", "kette", "pumpe",
   "sensor", "diagnose", "arbeit", "stunde", "reparatur", "tuev", "fluessigkeit", "kuehl", "licht", "spiegel", "tausch", "einbau", "montage",
+  "lack", "polier", "reinig", "schweiss", "karosserie", "beule", "delle", "glas", "tank", "abschlepp", "entsorg", "material", "kleinteil",
+  "zuschlag", "pauschal", "anfahrt", "ersatz", "teil", "schlauch", "dichtung", "schraube", "ventil", "zahnriemen", "katalysator", "dpf", "adblue",
 ];
+
+/** Was nach einem Fachwort noch kommen darf: Endung oder ein weiteres Wort („Brems-en“, „Brems-scheiben“). */
+const ENDUNG = /^(|e|en|n|s|es|ung|ungen)$/;
+
+/**
+ * Klingt das Wort nach Arbeit oder Ersatzteil? Fachwort am Anfang oder am Ende eines zusammengesetzten
+ * Worts, nicht irgendwo darin: „Bremsscheiben“ und „Zündkerzen“ ja, aber „Konrad“ (rad), „Glaser“ (glas)
+ * und „Sachse“ (achse) sind Namen.
+ */
 export const klingtNachArbeit = (w: string) => {
   const k = klein(w);
-  return KFZ_TEILE.some((t) => k.includes(t));
+  return KFZ_TEILE.some((t) => {
+    if (k.startsWith(t)) {
+      const danach = k.slice(t.length);
+      return ENDUNG.test(danach) || danach.length >= 4;
+    }
+    if (t.length <= 3) return false;
+    // Am Ende, mit oder ohne Mehrzahl, und davor ein eigenes Wort von mindestens drei Buchstaben
+    return ["", "n", "en", "s", "e"].some((e) => k.endsWith(t + e) && k.length - t.length - e.length >= 3);
+  });
 };
 
 /** Wörter, an denen ein Name oder ein Modell endet. */
@@ -221,6 +240,36 @@ export function nameNehmen(
     }
   }
   return null;
+}
+
+/**
+ * Ohne „für“ oder „Herr“: ein Name ganz vorn im Satz („Müller, Ölwechsel, Dienstag halb neun“). Nur Wörter
+ * mit großem Anfangsbuchstaben, die weder Arbeit noch Fahrzeug noch Eintrag der Preisliste sind. Folgt
+ * direkt eine Zahl, ist es eher eine Position („Lackierung 300 Euro“) und kein Name.
+ */
+export function nameAmAnfang(rest: Rest, keinName: (woerterAbHier: string[]) => boolean = () => false, wissen: Fahrzeugwissen = FESTES_WISSEN): string | null {
+  const w = woerter(rest.text);
+  const name: typeof w = [];
+  let i = 0;
+  for (; i < w.length && name.length < 3; i++) {
+    const x = w[i];
+    if (i > 0 && x.nachTrenner) break;
+    const namensartig =
+      /^\p{Lu}/u.test(x.text) &&
+      !/\d/.test(x.text) &&
+      !istStop(x.text) &&
+      !klingtNachArbeit(x.text) &&
+      !markeAus(x.text, wissen) &&
+      !wissen.modelle.has(klein(x.text)) &&
+      !keinName(w.slice(i).map((y) => y.text));
+    if (!namensartig) break;
+    name.push(x);
+  }
+  if (!name.length) return null;
+  const danach = w[i];
+  if (danach && !danach.nachTrenner && /^\d/.test(danach.text)) return null;
+  rest.entfernen(name[0].start, name[name.length - 1].ende);
+  return namensSchreibung(name.map((x) => x.text).join(" "));
 }
 
 /** Person aus dem Team zu einem gesprochenen Vornamen oder vollen Namen. */

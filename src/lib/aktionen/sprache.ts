@@ -13,7 +13,7 @@ import { leistungenFuerSprache } from "../sprache/daten";
 import type { Fahrzeug } from "../sprache/merkmale";
 import { positionenBauen } from "../sprache/positionen";
 import { klein } from "../sprache/text";
-import { absichtErkennen, type Art, notizVerstehen, rechnungVerstehen, terminVerstehen } from "../sprache/verstehen";
+import { type Art, artErkennen, notizVerstehen, rechnungVerstehen, terminVerstehen } from "../sprache/verstehen";
 import { notizAdresse, terminAdresse } from "../sprache/vorgabe";
 import { berlinDatum } from "../zeit";
 
@@ -28,10 +28,14 @@ export async function spracheUebernehmen(_v: Ergebnis, fd: FormData): Promise<Er
     // Begrenzt, weil Notiz und Termin über die Adresse des Formulars vorausgefüllt werden
     const satz = text(fd, "text", 1500);
     if (!satz) return { status: "fehler", meldung: "Bitte erst etwas sagen oder eintippen." };
-    const gewaehlt = text(fd, "art", 10);
-    const art: Art | null = gewaehlt === "notiz" || gewaehlt === "termin" || gewaehlt === "rechnung" ? gewaehlt : absichtErkennen(satz);
-    if (!art) return { status: "fehler", meldung: "Bitte oben wählen: Notiz, Termin oder Rechnung." };
     const heute = berlinDatum();
+    // Die Seite schickt, was sie anzeigt (fest gewählt oder erkannt); fehlt es, wird hier genauso erkannt
+    const gewaehlt = text(fd, "art", 10);
+    const art: Art | null =
+      gewaehlt === "notiz" || gewaehlt === "termin" || gewaehlt === "rechnung"
+        ? gewaehlt
+        : (artErkennen(satz, { heute, jetzt: new Date(), leistungen: await leistungenFuerSprache() })?.art ?? null);
+    if (!art) return { status: "fehler", meldung: "Bitte oben wählen: Notiz, Termin oder Rechnung." };
 
     if (art === "notiz") {
       const b = await benutzerMitRecht("notizen");

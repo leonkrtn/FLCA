@@ -9,6 +9,7 @@ import {
   fahrzeugWissen,
   kennzeichenNehmen,
   mitarbeiterNehmen,
+  nameAmAnfang,
   nameNehmen,
   teamFinden,
   telefonNehmen,
@@ -34,14 +35,83 @@ const ABSICHT: [Art, RegExp][] = [
 ];
 
 /** Worum geht es? Das erste passende Schlüsselwort entscheidet („Erinnere mich an den Termin“ ist eine Notiz). */
-export function absichtErkennen(satz: string): Art | null {
-  let beste: { art: Art; stelle: number } | null = null;
+function schluesselwort(satz: string): { art: Art; wort: string } | null {
+  let beste: { art: Art; stelle: number; wort: string } | null = null;
   for (const [art, muster] of ABSICHT) {
     muster.lastIndex = 0;
     const m = muster.exec(satz);
-    if (m && (!beste || m.index < beste.stelle)) beste = { art, stelle: m.index };
+    if (m && (!beste || m.index < beste.stelle)) beste = { art, stelle: m.index, wort: m[0] };
   }
-  return beste?.art ?? null;
+  return beste;
+}
+
+export const absichtErkennen = (satz: string): Art | null => schluesselwort(satz)?.art ?? null;
+
+export type ArtErkannt = {
+  art: Art;
+  /** Woran es erkannt wurde, für die Anzeige („Datum, Uhrzeit, Leistung“) */
+  grund: string;
+  /** Eindeutig: Schlüsselwort oder klarer Vorsprung. Sonst zeigt die Seite „bitte prüfen“. */
+  sicher: boolean;
+};
+
+/** Aufgaben, die man sich merkt: Das ist eine Notiz, auch mit Datum („morgen um 9 Reifen bestellen“). */
+const AUFGABE = "bestellen|bestelle|anrufen|zurückrufen|zurueckrufen|rückruf|rueckruf|besorgen|nachfragen|nachhaken|klären|klaeren|abklären|abklaeren|nachschauen|kümmern|kuemmern|schicken|mailen|erledigen|nicht\\s+vergessen|denk(?:e|t)?\\s+(?:dran|daran)|aufgabe|todo";
+
+/**
+ * Was ist gemeint, wenn kein Schlüsselwort fällt? Jede Spur zählt Punkte, die meisten gewinnen:
+ * Preis, brutto/netto, Rabatt, Arbeitsstunden oder ein vergangenes Datum → Rechnung. Leistung aus der
+ * Preisliste, Datum, Uhrzeit, „kommt“, Kennzeichen → Termin. Aufgabe („bestellen“, „anrufen“),
+ * „in zwei Stunden“, „jeden Montag“ → Notiz. Ohne Spur oder bei Gleichstand: Notiz, das ist das
+ * Harmloseste, und die Seite bittet ums Prüfen.
+ */
+export function artErkennen(satz: string, k: { heute: string; jetzt: Date; leistungen: Leistungswahl[] }): ArtErkannt | null {
+  if (!satz.trim()) return null;
+  const sw = schluesselwort(satz);
+  if (sw) return { art: sw.art, grund: `Wort „${sw.wort}“`, sicher: true };
+
+  const t = zahlenEinsetzen(satz);
+  const punkte: Record<Art, number> = { notiz: 0, termin: 0, rechnung: 0 };
+  const gruende: Record<Art, string[]> = { notiz: [], termin: [], rechnung: [] };
+  const plus = (a: Art, n: number, grund: string) => {
+    punkte[a] += n;
+    if (!gruende[a].includes(grund)) gruende[a].push(grund);
+  };
+  const hat = (quelle: string) => wort(quelle).test(t);
+
+  if (/\d\s*(?:euro|€|eur)(?![\p{L}])/iu.test(t)) plus("rechnung", 3, "Preis");
+  if (hat("brutto|netto|rabatt|nachlass|mwst|mehrwertsteuer")) plus("rechnung", 2, "brutto/netto/Rabatt");
+  if (hat("abrechnen|berechnen|kostet|kosten|bezahlt|einkauf|ek")) plus("rechnung", 2, "abrechnen");
+  if (hat("\\d+(?:,\\d+)?\\s*(?:arbeits)?(?:stunden?|std\\.?)\\s+(?:arbeit|lohn|mechanik|elektrik|diagnose)|arbeitszeit|arbeitsstunden?|\\d+\\s*(?:stück|stueck|stk|liter)")) {
+    plus("rechnung", 2, "Arbeitszeit/Menge");
+  }
+  if (hat(AUFGABE)) plus("notiz", 4, "Aufgabe");
+  if (hat("kommt|kommen|bringt|bringen|vorbei|vorbeikommen|buchen|einbuchen|einplanen|reservieren|dauert|abholen|holt")) plus("termin", 2, "kommt/bringt");
+
+  // Spuren, die etwas aus dem Satz nehmen, auf einer Kopie
+  const r = new Rest(t);
+  if (spaeterNehmen(r, k.jetzt)) plus("notiz", 3, "in … Minuten/Stunden");
+  if (wiederholungNehmen(r, k.heute)) plus("notiz", 3, "Wiederholung");
+  const vergangen = wort("gestern|vorgestern|letzte[nrs]?\\s+woche").test(t);
+  const datum = datumNehmen(r, k.heute);
+  if (vergangen) plus("rechnung", 2, "Datum vorbei");
+  else if (datum) plus("termin", 1, "Datum");
+  if (uhrzeitNehmen(r)) plus("termin", 1, "Uhrzeit");
+  if (eintraegeNehmen(r, k.leistungen).length) {
+    plus("termin", 3, "Leistung");
+    plus("rechnung", 1, "Leistung");
+  }
+  if (kennzeichenNehmen(r) || telefonNehmen(r)) plus("termin", 1, "Kennzeichen/Telefon");
+  // Ein Termin ohne Tag und Uhrzeit ist eher eine erledigte Arbeit (Rechnung) oder eine Notiz
+  if (!datum && !gruende.termin.includes("Uhrzeit")) punkte.termin -= 2;
+
+  const reihenfolge: Art[] = ["notiz", "termin", "rechnung"];
+  const beste = Math.max(...reihenfolge.map((a) => punkte[a]));
+  if (beste <= 0) return { art: "notiz", grund: "kein Hinweis auf Termin oder Rechnung", sicher: false };
+  const vorn = reihenfolge.filter((a) => punkte[a] === beste);
+  const art = vorn[0];
+  const zweite = Math.max(...reihenfolge.filter((a) => a !== art).map((a) => punkte[a]));
+  return { art, grund: gruende[art].join(", "), sicher: vorn.length === 1 && beste - zweite >= 2 };
 }
 
 /** Eingang für alle drei: Trennzeichen aus dem Text, Zahlwörter als Ziffern. */
@@ -150,7 +220,7 @@ export function terminVerstehen(satz: string, k: { heute: string; leistungen: Le
   const kennzeichen = kennzeichenMitWort ?? kennzeichenNehmen(rest) ?? "";
   const leistungen = eintraegeNehmen(rest, k.leistungen);
   const fahrzeug = fahrzeugNehmen(rest, undefined, wissen);
-  const name = nameVorn ?? nameNehmen(rest, keinName, undefined, wissen) ?? "";
+  const name = nameVorn ?? nameNehmen(rest, keinName, undefined, wissen) ?? nameAmAnfang(rest, keinName, wissen) ?? "";
 
   // Rest: ohne erkannte Leistung ist er die Leistung, sonst eine Notiz
   const uebrig = stuecke(rest.text).join(", ");
@@ -227,7 +297,7 @@ export function rechnungVerstehen(
   const leistungsdatum = rest.nimmErstes(wort("(?:leistungsdatum|datum)\\s*:?"), () => true) ? datumNehmen(rest, k.heute, "vergangenheit") : datumAmRand(rest, k.heute);
   // Das Fahrzeug steht oft mitten in einer Position („Bremsen für den Golf 180 Euro“): ohne Trenner herausnehmen
   const fahrzeug = fahrzeugNehmen(rest, " ", wissen);
-  const name = nameVorn ?? nameNehmen(rest, keinName, "für|fuer|kunde|kundin|an", wissen) ?? "";
+  const name = nameVorn ?? nameNehmen(rest, keinName, "für|fuer|kunde|kundin|an", wissen) ?? nameAmAnfang(rest, keinName, wissen) ?? "";
 
   const positionen: PositionsWunsch[] = [];
   for (const stueck of segmente(rest.text, k.preisliste)) {

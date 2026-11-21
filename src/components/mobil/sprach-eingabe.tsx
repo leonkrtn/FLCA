@@ -6,11 +6,13 @@ import { euro } from "@/lib/format";
 import type { Ergebnis } from "@/lib/forms";
 import type { FahrzeugTypen } from "@/lib/sprache/merkmale";
 import { type Grundlagen, positionenBauen } from "@/lib/sprache/positionen";
-import { absichtErkennen, type Art, ART_TEXT, type Leistungswahl, notizVerstehen, type Person, rechnungVerstehen, terminVerstehen } from "@/lib/sprache/verstehen";
+import { type Art, ART_TEXT, artErkennen, type Leistungswahl, notizVerstehen, type Person, rechnungVerstehen, terminVerstehen } from "@/lib/sprache/verstehen";
 import { berlinDatum } from "@/lib/zeit";
 
 /**
- * Sprechen statt Tippen (Werkstatt-App). Zwei Wege zum Text: der Knopf „Aufnahme“ (Spracherkennung des
+ * Sprechen statt Tippen (Werkstatt-App). Standard ist „Automatisch“: Ob Notiz, Termin oder Rechnung, wird
+ * aus dem Inhalt gelesen (`artErkennen`). Wer vorher fest wählt, bekommt genau das, egal was im Text steht.
+ * Zwei Wege zum Text: der Knopf „Aufnahme“ (Spracherkennung des
  * Browsers, auf dem iPhone die von Apple) oder die Mikrofon-Taste der iPhone-Tastatur im Textfeld. Der
  * zweite geht immer, auch wenn die Web-App vom Home-Bildschirm die Spracherkennung nicht bekommt.
  *
@@ -52,12 +54,21 @@ const kurzName = (n: string) => n.split(/\s+(?:inkl\.?|inklusive|mit)\s+|[(,/]/i
 function beispiele(leistungen: Leistungswahl[], preisliste: Grundlagen["preisliste"]): Record<Art, string> {
   const l = leistungen.slice(0, 2).map((x) => kurzName(x.name));
   const p = preisliste.find((x) => x.einheit !== "Std" && !leistungen.slice(0, 2).some((y) => y.id === x.id)) ?? preisliste[0];
+  // Ohne Schlüsselwort: Die Art wird am Inhalt erkannt
   return {
-    notiz: "Erinnere mich morgen um 9, Bremsbeläge für den Golf von Müller bestellen",
-    termin: `Termin für Herrn Müller, ${l.length ? l.join(" und ") : "Bremsen vorne"}, nächsten Dienstag halb neun, Kennzeichen OF AB 123, Telefon 0151 2345678`,
-    rechnung: `Rechnung für Müller, ${p ? `${kurzName(p.name)}, ` : ""}zwei Stunden Arbeit, Bremsscheiben vorne 180 Euro brutto`,
+    notiz: "Morgen um 9 Bremsbeläge für den Golf von Müller bestellen",
+    termin: `Herr Müller, ${l.length ? l.join(" und ") : "Bremsen vorne"}, nächsten Dienstag halb neun, Kennzeichen OF AB 123, Telefon 0151 2345678`,
+    rechnung: `Müller, ${p ? `${kurzName(p.name)}, ` : ""}zwei Stunden Arbeit, Bremsscheiben vorne 180 Euro brutto`,
   };
 }
+
+type Wahl = "auto" | Art;
+const WAHLEN: [Wahl, string][] = [
+  ["auto", "Automatisch"],
+  ["notiz", "Notiz"],
+  ["termin", "Termin"],
+  ["rechnung", "Rechnung"],
+];
 
 const KNOPF: Record<Art, string> = { notiz: "Weiter zur Notiz", termin: "Weiter zum Termin", rechnung: "Rechnungsentwurf anlegen" };
 const HINWEIS: Record<Art, string> = {
@@ -87,7 +98,7 @@ export function SprachEingabe({
 }) {
   const [text, setText] = useState("");
   const [zwischen, setZwischen] = useState("");
-  const [gewaehlt, setGewaehlt] = useState<Art | null>(null);
+  const [wahl, setWahl] = useState<Wahl>("auto");
   const [hoert, setHoert] = useState(false);
   const [fehler, setFehler] = useState("");
   const erkennung = useRef<Erkennung | null>(null);
@@ -100,9 +111,10 @@ export function SprachEingabe({
   );
   useEffect(() => () => erkennung.current?.stop(), []);
 
-  const erkannt = useMemo(() => absichtErkennen(text), [text]);
+  const erkannt = useMemo(() => artErkennen(text, { heute: berlinDatum(), jetzt: new Date(), leistungen }), [text, leistungen]);
   const vorlagen = useMemo(() => beispiele(leistungen, grundlagen.preisliste), [leistungen, grundlagen.preisliste]);
-  const art = gewaehlt ?? erkannt;
+  // Was die Seite zeigt, geht auch an den Server: Vorschau und Ergebnis passen immer zusammen
+  const art: Art | null = wahl === "auto" ? (erkannt?.art ?? null) : wahl;
 
   const starten = () => {
     const K = erkennungKlasse();
@@ -147,21 +159,35 @@ export function SprachEingabe({
         <Formular aktion={aktion} className="grid gap-4">
           <fieldset>
             <legend className="label">Was soll es werden?</legend>
-            <div className="grid grid-cols-3 gap-1 rounded-md bg-boden p-1">
-              {(["notiz", "termin", "rechnung"] as Art[]).map((a) => (
+            <div className="grid grid-cols-[1.35fr_1fr_1fr_1fr] gap-1 rounded-md bg-boden p-1">
+              {WAHLEN.map(([w, name]) => (
                 <button
-                  key={a}
+                  key={w}
                   type="button"
-                  aria-pressed={art === a}
-                  onClick={() => setGewaehlt(gewaehlt === a ? null : a)}
-                  className={`min-h-10 rounded-sm text-sm font-semibold ${art === a ? "bg-weiss text-tinte shadow-sm" : "text-grau"}`}
+                  aria-pressed={wahl === w}
+                  onClick={() => setWahl(w)}
+                  className={`min-h-10 truncate rounded-sm px-0.5 text-[12px] font-semibold min-[375px]:px-1 min-[375px]:text-[13px] ${wahl === w ? "bg-weiss text-tinte shadow-sm" : "text-grau"}`}
                 >
-                  {ART_TEXT[a]}
+                  {name}
                 </button>
               ))}
             </div>
-            <p className="mt-1.5 text-sm text-grau">
-              {gewaehlt ? "Von Hand gewählt. Nochmal tippen hebt die Wahl auf." : erkannt ? `Als ${ART_TEXT[erkannt]} erkannt.` : "Wird am ersten Wort erkannt, z. B. „Termin …“, „Erinnere mich …“, „Rechnung …“."}
+            <p className="mt-1.5 text-sm text-grau" aria-live="polite">
+              {wahl !== "auto" ? (
+                <>
+                  Fest gewählt: <strong className="text-tinte">{ART_TEXT[wahl]}</strong>. Der Text wird nur noch dafür gelesen.
+                </>
+              ) : !erkannt ? (
+                "Wird aus dem Inhalt erkannt: Preise sind eine Rechnung, Leistung mit Tag und Uhrzeit ein Termin, Aufgaben eine Notiz."
+              ) : erkannt.sicher ? (
+                <>
+                  Erkannt: <strong className="text-tinte">{ART_TEXT[erkannt.art]}</strong> ({erkannt.grund}).
+                </>
+              ) : (
+                <>
+                  <span className="font-semibold text-rot">Nicht eindeutig</span>, vorerst <strong className="text-tinte">{ART_TEXT[erkannt.art]}</strong> ({erkannt.grund}). Bitte prüfen oder fest wählen.
+                </>
+              )}
             </p>
           </fieldset>
 
