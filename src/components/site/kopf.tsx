@@ -26,7 +26,7 @@ export function Kopf({ module, telefon, oeffnungszeiten }: { module: { galerie: 
     <header className="sticky top-0 z-40 border-b border-white/5 bg-black/40 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
       <div className="rand flex h-16 items-center justify-between gap-4">
         <Link href="/" className="shrink-0 text-tinte" aria-label="FLC Automotive, zur Startseite">
-          <Logo className="h-9 w-auto md:h-10" />
+          <Logo className="h-11 w-auto md:h-12" />
         </Link>
         <nav aria-label="Hauptnavigation" className="hidden items-center gap-7 md:flex">
           {nav.map((n) => (

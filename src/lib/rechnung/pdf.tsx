@@ -29,7 +29,7 @@ const rot = "#cc0605";
 const s = StyleSheet.create({
   seite: { paddingTop: 40, paddingBottom: 96, paddingHorizontal: 56, fontFamily: "Barlow", fontSize: 9.5, color: tinte, lineHeight: 1.45 },
   kopf: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 36 },
-  logo: { width: 150 },
+  logo: { width: 130 },
   firma: { fontSize: 8.5, color: grau, textAlign: "right", lineHeight: 1.5 },
   absender: { fontSize: 7, color: grau, borderBottom: `0.5pt solid ${linie}`, paddingBottom: 2, marginBottom: 6, width: 240 },
   adressblock: { flexDirection: "row", justifyContent: "space-between", marginBottom: 32 },
