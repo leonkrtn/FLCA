@@ -39,7 +39,7 @@ Website, Terminvergabe, Werkstatt-Verwaltung, Rechnungen, Team und Karriere für
 1. Projekt anlegen, Region **Frankfurt (eu-central-1)**.
 2. Im SQL-Editor nacheinander ausführen:
    - `supabase/migrations/20261108100000_grundsystem.sql`
-   - `supabase/migrations/20261108100100_zeitsteuerung.sql`, **vorher** die Platzhalter `<<WEBSITE_URL>>` und `<<CRON_SECRET>>` ersetzen.
+   - Zeitsteuerung: `supabase/zeitsteuerung-einrichten.sql` (Adresse darin prüfen). Das Skript erzeugt ein neues `CRON_SECRET`, richtet den Takt jede Minute ein und zeigt das Geheimnis einmal an; diesen Wert in Vercel als `CRON_SECRET` eintragen und neu deployen. Jederzeit wiederholbar, etwa wenn das Geheimnis verloren ist. (Ersetzt `20261108100100_zeitsteuerung.sql` und `20261121130000_zeitsteuerung_minuetlich.sql`.)
    - `supabase/migrations/20261109100000_angebot.sql` (Leistungen und Rechnungspositionen in einer Liste)
    - `supabase/migrations/20261120100000_kostenvoranschlaege.sql` (Kostenvoranschläge mit eigenem Nummernkreis)
    - `supabase/migrations/20261121100000_termine_loeschen.sql` (Termine endgültig löschen, Auftragsnummern rücken nach)
