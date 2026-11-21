@@ -75,9 +75,9 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
                   <span className="text-sm font-semibold">{tag}</span>
                   {[0, 1].map((n) => (
                     <div key={n} className="flex min-w-0 items-center gap-1">
-                      <input type="time" step={900} name={`t${i + 1}_${n + 1}_von`} defaultValue={f[n]?.[0]} className="feld min-h-10 min-w-0 flex-1 px-2" aria-label={`${tag} von`} />
+                      <input type="time" name={`t${i + 1}_${n + 1}_von`} defaultValue={f[n]?.[0]} className="feld min-h-10 min-w-0 flex-1 px-2" aria-label={`${tag} von`} />
                       <span className="text-grau">–</span>
-                      <input type="time" step={900} name={`t${i + 1}_${n + 1}_bis`} defaultValue={f[n]?.[1]} className="feld min-h-10 min-w-0 flex-1 px-2" aria-label={`${tag} bis`} />
+                      <input type="time" name={`t${i + 1}_${n + 1}_bis`} defaultValue={f[n]?.[1]} className="feld min-h-10 min-w-0 flex-1 px-2" aria-label={`${tag} bis`} />
                     </div>
                   ))}
                 </div>

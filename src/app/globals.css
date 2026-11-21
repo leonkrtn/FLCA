@@ -100,6 +100,11 @@
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
+  /* Ein fieldset ist im Browser mindestens so breit wie sein Inhalt (min-inline-size: min-content) und
+     schiebt dann Felder über den Rand, statt sie schmaler zu machen. */
+  fieldset {
+    min-width: 0;
+  }
   /* Ein Raster ohne eigene Spalten hat eine Spalte, die so breit ist wie ihr längster Inhalt und damit breiter
      als der Bildschirm werden kann. Als minmax(0, 1fr) bleibt sie in der Breite des Rasters; jede
      grid-cols-Klasse und jedes style überschreibt das (Ebene base, Spezifität null). */
@@ -233,6 +238,15 @@
   input.feld::-webkit-date-and-time-value {
     min-height: 1.5em;
     text-align: left;
+  }
+  /* iOS gibt Datums- und Uhrzeitfeldern eine eigene Mindestbreite und ignoriert width: 100 %. Nebeneinander
+     (Datum | Uhrzeit) stoßen sie dann aneinander und ragen über den Rand. Ohne Systemoptik halten sie sich an
+     die Spalte; der Auswahldialog des iPhones bleibt. */
+  input.feld:is([type="date"], [type="time"], [type="datetime-local"]) {
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 0;
+    max-width: 100%;
   }
   textarea.feld {
     min-height: 6rem;

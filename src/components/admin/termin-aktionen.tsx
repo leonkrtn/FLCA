@@ -59,7 +59,7 @@ export function TerminAktionen({
       {offen === "verschieben" ? (
         <Formular aktion={aktionen.verschieben} className="grid grid-cols-2 gap-2">
           <input type="date" name="datum" defaultValue={datum} className="feld" aria-label="Neues Datum" />
-          <input type="time" name="uhrzeit" defaultValue={uhrzeit} step={900} className="feld" aria-label="Neue Uhrzeit" />
+          <input type="time" name="uhrzeit" defaultValue={uhrzeit} className="feld" aria-label="Neue Uhrzeit" />
           <label className="col-span-2 flex items-center gap-2 text-sm text-grau">
             <input type="checkbox" name="ueberbuchen" className="size-4 accent-tinte" /> auch wenn die Werkstatt voll ist
           </label>

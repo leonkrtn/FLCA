@@ -55,8 +55,8 @@ export default async function Person({ params, searchParams }: { params: Promise
               <div key={tag} className="contents">
                 <span className="text-sm font-semibold">{tag}</span>
                 {[1, 2].flatMap((n) => [
-                  <input key={`${n}v`} type="time" name={`t${i + 1}_${n}_von`} defaultValue={fenster(i + 1, n)?.beginn?.slice(0, 5)} step={900} className="feld min-w-[5.5rem] tabular-nums" aria-label={`${tag} ${n === 1 ? "Beginn" : "Beginn 2"}`} />,
-                  <input key={`${n}b`} type="time" name={`t${i + 1}_${n}_bis`} defaultValue={fenster(i + 1, n)?.ende?.slice(0, 5)} step={900} className="feld min-w-[5.5rem] tabular-nums" aria-label={`${tag} ${n === 1 ? "Ende" : "Ende 2"}`} />,
+                  <input key={`${n}v`} type="time" name={`t${i + 1}_${n}_von`} defaultValue={fenster(i + 1, n)?.beginn?.slice(0, 5)} className="feld min-w-[5.5rem] tabular-nums" aria-label={`${tag} ${n === 1 ? "Beginn" : "Beginn 2"}`} />,
+                  <input key={`${n}b`} type="time" name={`t${i + 1}_${n}_bis`} defaultValue={fenster(i + 1, n)?.ende?.slice(0, 5)} className="feld min-w-[5.5rem] tabular-nums" aria-label={`${tag} ${n === 1 ? "Ende" : "Ende 2"}`} />,
                 ])}
               </div>
             ))}
