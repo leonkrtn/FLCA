@@ -54,7 +54,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <aside className="sticky top-0 z-30 flex flex-col gap-3 bg-graphit pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] text-boden lg:h-dvh lg:pb-5 lg:pt-[max(1.25rem,env(safe-area-inset-top))]">
         <div className="flex items-center justify-between px-6">
           <Link href="/admin" aria-label="Übersicht">
-            <Logo className="h-8 w-auto lg:h-10" />
+            <Logo className="h-10 w-auto lg:h-16" />
           </Link>
           <Link href="/app" className="text-xs text-grau-hell underline lg:hidden">
             Handy-Ansicht
