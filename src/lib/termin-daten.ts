@@ -18,3 +18,14 @@ export async function terminZusatz(id: string) {
     team: (team.data ?? []) as { id: string; name: string }[],
   };
 }
+
+/**
+ * Rechnungen, die sich an einen Termin hängen lassen: noch ohne Termin, keine Stornorechnung, nicht
+ * storniert. Vom Kunden des Termins; hat der Termin keinen Kunden, die jüngsten.
+ */
+export async function freieRechnungen(kundeId: string | null) {
+  let q = db().from("rechnungen").select("id, nummer, status, summe_brutto_cent, erstellt_am, empfaenger").is("termin_id", null).is("storno_zu", null).neq("status", "storniert");
+  if (kundeId) q = q.eq("kunde_id", kundeId);
+  const { data } = await q.order("erstellt_am", { ascending: false }).limit(30);
+  return (data ?? []) as { id: string; nummer: string | null; status: string; summe_brutto_cent: number; erstellt_am: string; empfaenger: { name?: string; firma?: string } | null }[];
+}

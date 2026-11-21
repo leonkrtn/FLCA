@@ -36,6 +36,9 @@ export type TerminVorgabe = {
   fahrzeug: string;
   notiz: string;
   mitarbeiter: string;
+  /** In der Kartei gefunden: Kunde und Fahrzeug, an die der Termin direkt gehängt wird */
+  kundeId?: string;
+  fahrzeugId?: string;
 };
 
 export const terminAdresse = (v: Partial<TerminVorgabe>) =>
@@ -52,6 +55,8 @@ export const terminAdresse = (v: Partial<TerminVorgabe>) =>
     fahrzeug: v.fahrzeug,
     notiz: v.notiz,
     an: v.mitarbeiter,
+    kunde: v.kundeId,
+    fz: v.fahrzeugId,
   });
 
 /** Nur wenn die Seite vom Sprechen kommt (?sprache=1); sonst bleibt das Formular leer wie bisher. */

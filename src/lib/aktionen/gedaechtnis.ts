@@ -12,10 +12,16 @@ const PFAD = "/admin/gemerkte-preise";
 export async function gemerktAendern(id: string, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
   return sicher(fd, async () => {
     await benutzerMitRecht("rechnungen");
-    const preis = centAus(fd, "preis");
+    const eingabe = centAus(fd, "preis");
     const menge = zahl(fd, "menge");
-    if (preis === null || preis < 0) return { status: "fehler", meldung: "Bitte einen Preis angeben." };
+    if (eingabe === null || eingabe < 0) return { status: "fehler", meldung: "Bitte einen Preis angeben." };
     if (menge === null || menge <= 0) return { status: "fehler", meldung: "Bitte eine Menge angeben." };
+    // Das Feld zeigt den Preis auf ganze Cent; gespeichert ist er auf Hundertstel Cent (aus runden
+    // Bruttopreisen). Bleibt die Eingabe unverändert, gilt der genaue Wert weiter, sonst würde schon eine
+    // geänderte Menge aus 40,00 € brutto bei zwei Stück 79,99 € machen.
+    const { data: alt } = await db().from("preis_gedaechtnis").select("einzel_netto_cent").eq("id", id).maybeSingle();
+    const genau = alt ? Number(alt.einzel_netto_cent) : null;
+    const preis = genau !== null && Math.round(genau) === eingabe ? genau : eingabe;
     const ek = centAus(fd, "ek");
     const { error } = await db()
       .from("preis_gedaechtnis")

@@ -1,5 +1,5 @@
 import type { Rabatt } from "../rechnung/berechnung";
-import { berlinUhrzeit, plusTage, type Wiederholung } from "../zeit";
+import { berlinUhrzeit, plusMonate, plusTage, type Wiederholung } from "../zeit";
 import { besterEintrag, type Eintrag, eintraegeNehmen, istFachwort, SCHWELLE_SPRACHE } from "./abgleich";
 import {
   emailNehmen,
@@ -19,19 +19,30 @@ import { centAusText, dezimal, zahlenEinsetzen } from "./zahlen";
 import { datumNehmen, spaeterNehmen, uhrzeitNehmen, wiederholungNehmen } from "./zeitangaben";
 
 /**
- * Aus einem gesprochenen Satz eine Notiz, einen Termin oder eine Rechnung machen. Feste Regeln, kein
- * Sprachmodell: Was nicht erkannt wird, bleibt als Text stehen und wird im Formular von Hand verteilt.
+ * Aus einem gesprochenen Satz eine Notiz, einen Termin, eine Rechnung oder einen Kostenvoranschlag machen.
+ * Feste Regeln, kein Sprachmodell: Was nicht erkannt wird, bleibt als Text stehen und wird im Formular von
+ * Hand verteilt.
  * Gespeichert wird hier nichts, das Ergebnis füllt nur ein Formular bzw. einen Entwurf vor.
  */
 
-export type Art = "notiz" | "termin" | "rechnung";
+export type Art = "notiz" | "termin" | "rechnung" | "kostenvoranschlag";
 
-export const ART_TEXT: Record<Art, string> = { notiz: "Notiz", termin: "Termin", rechnung: "Rechnung" };
+export const ARTEN: Art[] = ["notiz", "termin", "rechnung", "kostenvoranschlag"];
+
+export const ART_TEXT: Record<Art, string> = { notiz: "Notiz", termin: "Termin", rechnung: "Rechnung", kostenvoranschlag: "Kostenvoranschlag" };
+
+/**
+ * Wie man einen Kostenvoranschlag nennt. „Angebot“ nur mit „für“ oder „über“ danach: „ruft wegen Angebot an“
+ * ist eine Notiz, „Angebot für Müller“ ein Kostenvoranschlag.
+ */
+const KV_WORT =
+  "kostenvoranschlag|kostenvoranschlags|kostenvoranschlages|kostenvoranschläge|kostenvoranschlaege|voranschlag|kv|angebot(?=\\s+(?:für|fuer|über|ueber)(?![\\p{L}\\p{N}]))";
 
 const ABSICHT: [Art, RegExp][] = [
   ["notiz", wort("notiz|notizen|erinnere|erinner|erinnerung|erinnern|merke|merken|aufschreiben|notieren")],
   ["termin", wort("termin|termine|terminanfrage")],
   ["rechnung", wort("rechnung|rechnungen|abrechnen|abrechnung")],
+  ["kostenvoranschlag", wort(KV_WORT)],
 ];
 
 /** Worum geht es? Das erste passende Schlüsselwort entscheidet („Erinnere mich an den Termin“ ist eine Notiz). */
@@ -55,12 +66,17 @@ export type ArtErkannt = {
   sicher: boolean;
 };
 
+/** Die Frage nach dem Preis vorab: Das wird ein Kostenvoranschlag, keine Rechnung. */
+const KOSTENFRAGE =
+  "was\\s+(?:würde|wuerde|wird|kostet|kosten)|(?:würde|wuerde)\\s+(?:das\\s+|es\\s+)?(?:ungefähr\\s+|ungefaehr\\s+|etwa\\s+)?kosten|kosten\\s+(?:würde|wuerde)|voraussichtlich|schätzung|schaetzung|schätzen|schaetzen|kostenschätzung|kostenschaetzung";
+
 /** Aufgaben, die man sich merkt: Das ist eine Notiz, auch mit Datum („morgen um 9 Reifen bestellen“). */
 const AUFGABE = "bestellen|bestelle|anrufen|zurückrufen|zurueckrufen|rückruf|rueckruf|besorgen|nachfragen|nachhaken|klären|klaeren|abklären|abklaeren|nachschauen|kümmern|kuemmern|schicken|mailen|erledigen|nicht\\s+vergessen|denk(?:e|t)?\\s+(?:dran|daran)|aufgabe|todo";
 
 /**
  * Was ist gemeint, wenn kein Schlüsselwort fällt? Jede Spur zählt Punkte, die meisten gewinnen:
- * Preis, brutto/netto, Rabatt, Arbeitsstunden oder ein vergangenes Datum → Rechnung. Leistung aus der
+ * Preis, brutto/netto, Rabatt, Arbeitsstunden oder ein vergangenes Datum → Rechnung; dieselben Spuren mit
+ * einer Frage nach den Kosten („was würde … kosten“, „voraussichtlich“) → Kostenvoranschlag. Leistung aus der
  * Preisliste, Datum, Uhrzeit, „kommt“, Kennzeichen → Termin. Aufgabe („bestellen“, „anrufen“),
  * „in zwei Stunden“, „jeden Montag“ → Notiz. Ohne Spur oder bei Gleichstand: Notiz, das ist das
  * Harmloseste, und die Seite bittet ums Prüfen.
@@ -71,8 +87,8 @@ export function artErkennen(satz: string, k: { heute: string; jetzt: Date; leist
   if (sw) return { art: sw.art, grund: `Wort „${sw.wort}“`, sicher: true };
 
   const t = zahlenEinsetzen(satz);
-  const punkte: Record<Art, number> = { notiz: 0, termin: 0, rechnung: 0 };
-  const gruende: Record<Art, string[]> = { notiz: [], termin: [], rechnung: [] };
+  const punkte: Record<Art, number> = { notiz: 0, termin: 0, rechnung: 0, kostenvoranschlag: 0 };
+  const gruende: Record<Art, string[]> = { notiz: [], termin: [], rechnung: [], kostenvoranschlag: [] };
   const plus = (a: Art, n: number, grund: string) => {
     punkte[a] += n;
     if (!gruende[a].includes(grund)) gruende[a].push(grund);
@@ -104,8 +120,14 @@ export function artErkennen(satz: string, k: { heute: string; jetzt: Date; leist
   if (kennzeichenNehmen(r) || telefonNehmen(r)) plus("termin", 1, "Kennzeichen/Telefon");
   // Ein Termin ohne Tag und Uhrzeit ist eher eine erledigte Arbeit (Rechnung) oder eine Notiz
   if (!datum && !gruende.termin.includes("Uhrzeit")) punkte.termin -= 2;
+  // Gefragt, was es kosten würde: Alles, was für eine Rechnung spricht, spricht dann für einen Kostenvoranschlag
+  if (hat(KOSTENFRAGE)) {
+    punkte.kostenvoranschlag = Math.max(punkte.rechnung, 0) + 2;
+    gruende.kostenvoranschlag.push("Frage nach den Kosten", ...gruende.rechnung.filter((g) => g !== "Datum vorbei" && g !== "abrechnen"));
+  }
 
-  const reihenfolge: Art[] = ["notiz", "termin", "rechnung"];
+  // Bei Gleichstand gewinnt, was vorn steht
+  const reihenfolge = ARTEN;
   const beste = Math.max(...reihenfolge.map((a) => punkte[a]));
   if (beste <= 0) return { art: "notiz", grund: "kein Hinweis auf Termin oder Rechnung", sicher: false };
   const vorn = reihenfolge.filter((a) => punkte[a] === beste);
@@ -114,7 +136,7 @@ export function artErkennen(satz: string, k: { heute: string; jetzt: Date; leist
   return { art, grund: gruende[art].join(", "), sicher: vorn.length === 1 && beste - zweite >= 2 };
 }
 
-/** Eingang für alle drei: Trennzeichen aus dem Text, Zahlwörter als Ziffern. */
+/** Eingang für alle: Trennzeichen aus dem Text, Zahlwörter als Ziffern. */
 const vorbereiten = (satz: string, auchVerben = true) => {
   const rest = new Rest(zahlenEinsetzen(satz.replace(/[|]/g, " ").replace(/\s+/g, " ").trim()));
   aufforderungEntfernen(rest, auchVerben);
@@ -309,19 +331,71 @@ export type RechnungVerstanden = {
   positionen: PositionsWunsch[];
 };
 
+export type KostenvoranschlagVerstanden = Omit<RechnungVerstanden, "leistungsdatum"> & {
+  /** „gültig bis 15.12.“, „gültig vier Wochen“; sonst gilt die Frist aus den Einstellungen */
+  gueltigBis: string | null;
+};
+
+type BelegGrundlagen = { heute: string; preisliste: Eintrag[]; lohnarten: string[]; typen?: FahrzeugTypen | null };
+
 /**
  * „Rechnung für Müller, Golf, Ölwechsel, zwei Stunden Arbeit, Bremsscheiben vorne 180 Euro brutto,
  * 10 Prozent Rabatt“. Preise ohne Angabe sind netto (wie im Editor).
  */
-export function rechnungVerstehen(
+export function rechnungVerstehen(satz: string, k: BelegGrundlagen): RechnungVerstanden {
+  const { datum, ...beleg } = belegVerstehen(satz, k, "rechnung", (rest) =>
+    rest.nimmErstes(wort("(?:leistungsdatum|datum)\\s*:?"), () => true) ? datumNehmen(rest, k.heute, "vergangenheit") : datumAmRand(rest, k.heute),
+  );
+  return { ...beleg, leistungsdatum: datum };
+}
+
+/**
+ * „Kostenvoranschlag für Müller, Golf, Zahnriemen mit Wasserpumpe 450 Euro brutto, drei Stunden Arbeit“,
+ * „Was würde beim Golf ein Zahnriemen kosten“. Dieselben Regeln wie bei der Rechnung, nur ohne
+ * Leistungsdatum; ein genanntes „gültig bis“ wird übernommen.
+ */
+export function kostenvoranschlagVerstehen(satz: string, k: BelegGrundlagen): KostenvoranschlagVerstanden {
+  const { datum, ...beleg } = belegVerstehen(satz, k, KV_WORT, (rest) => gueltigNehmen(rest, k.heute), kostenfrageEntfernen);
+  return { ...beleg, gueltigBis: datum };
+}
+
+/** „Was würde … kosten“, „ungefähr“: Rahmen der Frage, gehört in keine Position und in keinen Namen. */
+function kostenfrageEntfernen(rest: Rest) {
+  while (rest.nimm(wort(KOSTENFRAGE)));
+  while (rest.nimm(wort("kostet|kosten")));
+  // Ohne Trenner: „Zahnriemen ungefähr 450 Euro“ bleibt eine Position
+  while (rest.nimm(wort("ungefähr|ungefaehr|etwa|circa|ca\\.?"), " "));
+}
+
+/** „gültig bis 15.12.“, „gültig bis nächsten Freitag“, „gültig vier Wochen“, „gültig für 30 Tage“. */
+function gueltigNehmen(rest: Rest, heute: string): string | null {
+  const frist = rest.nimmErstes(wort("(?:gültig|gueltig)\\s+(?:für\\s+|fuer\\s+)?(\\d+)\\s+(tage?n?|wochen?|monate?n?)"), (m) => {
+    const n = Number(m[1]);
+    const einheit = klein(m[2]);
+    return n > 0 ? (einheit.startsWith("monat") ? plusMonate(heute, n) : plusTage(heute, einheit.startsWith("woche") ? 7 * n : n)) : null;
+  });
+  if (frist) return frist;
+  return rest.nimmErstes(wort("(?:gültig|gueltig)(?:\\s+bis)?\\s*:?"), () => true) ? datumNehmen(rest, heute, "zukunft") : null;
+}
+
+/**
+ * Gemeinsam für Rechnung und Kostenvoranschlag: Kunde, Kontakt, Fahrzeug und Positionen. `schluessel` ist das
+ * Wort für den Beleg (davor steht oft der Name), `datum` nimmt das passende Datum, `vorher` entfernt
+ * Wendungen, die nur einleiten („was würde … kosten“).
+ */
+function belegVerstehen<D>(
   satz: string,
-  k: { heute: string; preisliste: Eintrag[]; lohnarten: string[]; typen?: FahrzeugTypen | null },
-): RechnungVerstanden {
+  k: BelegGrundlagen,
+  schluessel: string,
+  datum: (rest: Rest) => D,
+  vorher?: (rest: Rest) => void,
+): Omit<RechnungVerstanden, "leistungsdatum"> & { datum: D } {
   const rest = vorbereiten(satz);
+  vorher?.(rest);
   const wissen = fahrzeugWissen(k.typen);
   const keinName = (w: string[]) => istFachwort(w[0], k.preisliste);
-  const nameVorn = nameNehmen(rest, keinName, "rechnung\\s+(?:für|fuer|an)|rechnung", wissen);
-  rest.nimm(wort(`${ARTIKEL}rechnung(?:\\s+(?:schreiben|erstellen|anlegen|machen))?`));
+  const nameVorn = nameNehmen(rest, keinName, `(?:${schluessel})\\s+(?:für|fuer|an)|(?:${schluessel})`, wissen);
+  rest.nimm(wort(`${ARTIKEL}(?:${schluessel})(?:\\s+(?:schreiben|erstellen|anlegen|machen))?`));
   const alleBrutto = rest.nimm(
     wort("(?:alle|alles|die)\\s+(?:preise\\s+)?(?:sind\\s+)?brutto|preise\\s+(?:sind\\s+)?brutto|alles\\s+(?:inklusive|inkl\\.?|mit)\\s+(?:mehrwertsteuer|mwst)"),
   );
@@ -330,7 +404,7 @@ export function rechnungVerstehen(
   const email = emailNehmen(rest) ?? "";
   const telefon = telefonNehmen(rest, false) ?? "";
   const kennzeichen = kennzeichenNehmen(rest) ?? "";
-  const leistungsdatum = rest.nimmErstes(wort("(?:leistungsdatum|datum)\\s*:?"), () => true) ? datumNehmen(rest, k.heute, "vergangenheit") : datumAmRand(rest, k.heute);
+  const d = datum(rest);
   // Das Fahrzeug steht oft mitten in einer Position („Bremsen für den Golf 180 Euro“): ohne Trenner herausnehmen
   const fahrzeug = fahrzeugNehmen(rest, " ", wissen);
   const name = nameVorn ?? nameNehmen(rest, keinName, "für|fuer|kunde|kundin|an", wissen) ?? nameAmAnfang(rest, keinName, wissen) ?? "";
@@ -357,7 +431,7 @@ export function rechnungVerstehen(
     }
     positionen.push(p);
   }
-  return { name, telefon, email, kennzeichen, fahrzeug, leistungsdatum, positionen };
+  return { name, telefon, email, kennzeichen, fahrzeug, datum: d, positionen };
 }
 
 /** Ein Datum für die Rechnung nur am Anfang oder Ende des Satzes („…, Leistung vom 12.11.“), nicht mitten in einer Position. */

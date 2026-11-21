@@ -1,4 +1,5 @@
 import { unstable_rethrow } from "next/navigation";
+import { zahlAusText } from "./format";
 
 /** Ergebnis einer Server Action für Formulare mit useActionState. */
 export type Ergebnis = {
@@ -21,10 +22,7 @@ export function text(formData: FormData, name: string, max = 500): string {
 }
 
 export function zahl(formData: FormData, name: string): number | null {
-  const wert = text(formData, name, 40).replace(/\./g, "").replace(",", ".");
-  if (!wert) return null;
-  const n = Number(wert);
-  return Number.isFinite(n) ? n : null;
+  return zahlAusText(text(formData, name, 40));
 }
 
 /** „40,00“ oder „40“ → 4000 Cent; leer → null. */

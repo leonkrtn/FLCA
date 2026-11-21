@@ -7,7 +7,7 @@ import { sprachGrundlagen } from "@/lib/sprache/daten";
 export const metadata = { title: "Sprechen" };
 
 /**
- * Notiz, Termin oder Rechnung per Sprache. Erkennung mit festen Regeln im Code (`src/lib/sprache/`), die
+ * Notiz, Termin, Rechnung oder Kostenvoranschlag per Sprache. Erkennung mit festen Regeln im Code (`src/lib/sprache/`), die
  * Begriffe (Preisliste, Team, Fahrzeuge) kommen bei jedem Aufruf aus der Datenbank.
  */
 export default async function Sprechen() {
@@ -15,7 +15,7 @@ export default async function Sprechen() {
   const { leistungen, team, typen, ...grundlagen } = await sprachGrundlagen();
   return (
     <>
-      <MobilKopf titel="Sprechen" unter="Notiz, Termin oder Rechnung" />
+      <MobilKopf titel="Sprechen" unter="Notiz, Termin, Rechnung oder Kostenvoranschlag" />
       <SprachEingabe aktion={spracheUebernehmen} leistungen={leistungen} team={team} typen={typen} grundlagen={grundlagen} />
     </>
   );

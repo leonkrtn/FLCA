@@ -5,6 +5,28 @@ export function euro(cent: number): string {
   return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(cent / 100);
 }
 
+/**
+ * Wie `euro`, aber mit Bruchteilen eines Cents, wenn es welche gibt: 1260,5 → „12,605 €“, 4000 → „40,00 €“.
+ * Für Einzelpreise auf Belegen (siehe `einzelpreisAnzeige`).
+ */
+export function euroGenau(cent: number): string {
+  return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(cent / 100);
+}
+
+/**
+ * Zahl aus einer Eingabe, deutsch oder nicht: „1.250,50“ → 1250.5, „12,5“ → 12.5, aber auch „12.50“ → 12.5
+ * (am Rechner tippt man oft den Punkt). Ein Punkt ohne Komma gilt nur dann als Tausendertrenner, wenn genau
+ * drei Ziffern folgen („120.000 km“). Leer oder unlesbar: null.
+ */
+export function zahlAusText(text: string): number | null {
+  let t = text.replace(/[\s€%]/g, "");
+  if (!t) return null;
+  if (t.includes(",")) t = t.replace(/\./g, "").replace(",", ".");
+  else if (/^-?\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, "");
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+}
+
 /** Cent als Preisangabe der Website: „40 €“, „ab 95 €“, „Preis auf Anfrage“. */
 export function preis(cent: number | null, ab = false): string {
   if (cent === null) return "auf Anfrage";

@@ -8,7 +8,7 @@ import { mailer } from "../services/email";
 import { db, pruefe } from "../supabase/admin";
 import { berlinDatum, plusTage } from "../zeit";
 import { berechne, nettoAusBruttoPreis, type Position, vorzeichenWechseln } from "./berechnung";
-import { markeUndModell } from "../kunden";
+import { kundeAusBeleg, markeUndModell } from "../kunden";
 import { merken, type PaketWunsch } from "./preisgedaechtnis";
 import { rechnungPdf } from "./pdf";
 import { alsZugferd, eRechnungPruefen, istXRechnung, zugferdXml } from "./zugferd";
@@ -91,7 +91,16 @@ export async function rechnungPerToken(token: string): Promise<Rechnung | null> 
 
 /** Entwurf aus einem Termin: Kunde, Fahrzeug und jede Leistung mit ihrem Festpreis sind schon eingetragen. */
 export async function entwurfAusTermin(terminId: string, vonBenutzer: string): Promise<string> {
-  const { data: vorhanden } = await db().from("rechnungen").select("id").eq("termin_id", terminId).in("status", ["entwurf", "gestellt", "bezahlt"]).limit(1).maybeSingle();
+  // Stornorechnungen zählen nicht: Sie tragen dieselbe termin_id und stehen auf „gestellt“, sonst führte
+  // „Rechnung erstellen“ nach einem Storno immer wieder zur Stornorechnung statt zu einem neuen Entwurf.
+  const { data: vorhanden } = await db()
+    .from("rechnungen")
+    .select("id")
+    .eq("termin_id", terminId)
+    .in("status", ["entwurf", "gestellt", "bezahlt"])
+    .is("storno_zu", null)
+    .limit(1)
+    .maybeSingle();
   if (vorhanden) return vorhanden.id;
 
   // „*“ statt einzelner Spalten: leistung_ids gibt es erst nach der Migration „mehrere_leistungen“.
@@ -184,6 +193,8 @@ export async function stellen(id: string, vonBenutzer: string, pakete: PaketWuns
   const r = await rechnungLaden(id);
   if (!r) throw new Error("Rechnung nicht gefunden.");
   if (!r.empfaenger?.name?.trim()) throw new Error("Bitte einen Rechnungsempfänger eintragen.");
+  // Vor dem Anlegen des Kunden: sonst entstünde er auch, wenn das Stellen gleich danach scheitert
+  if (!r.positionen?.length) throw new Error("Die Rechnung hat keine Positionen.");
   const { firma, rechnung } = await einstellungen();
   // Pflichtangaben der E-Rechnung jetzt prüfen: Nach dem Stellen ist die Rechnung unveränderlich.
   const fehlt = eRechnungPruefen({ empfaenger: r.empfaenger, firma, positionen: r.positionen });
@@ -192,9 +203,11 @@ export async function stellen(id: string, vonBenutzer: string, pakete: PaketWuns
     throw new Error(`Für eine gültige ${art} fehlt noch: ${fehlt.join("; ")}.`);
   }
   const heute = berlinDatum();
+  // Empfänger ohne Kunden: jetzt in die Kartei (gefunden oder neu). Stornos übernehmen den Kunden des Originals.
+  const kundeId = r.kunde_id ?? (r.storno_zu ? null : await kundeAusBeleg(r.empfaenger, r.fahrzeug));
   await db()
     .from("rechnungen")
-    .update({ rechnungsdatum: heute, faellig_am: plusTage(heute, rechnung.zahlungszielTage), leistungsdatum: r.leistungsdatum ?? heute })
+    .update({ rechnungsdatum: heute, faellig_am: plusTage(heute, rechnung.zahlungszielTage), leistungsdatum: r.leistungsdatum ?? heute, kunde_id: kundeId })
     .eq("id", id)
     .eq("status", "entwurf");
   const { data: nummer, error } = await db().rpc("rechnung_stellen", { p_id: id, p_firma: firma });

@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { KvAntwort } from "@/components/site/kv-antwort";
 import { einstellungen } from "@/lib/einstellungen";
-import { datum, datumZeit, euro, telHref } from "@/lib/format";
+import { datum, datumZeit, euro, euroGenau, telHref } from "@/lib/format";
 import { fahrzeugText } from "@/lib/rechnung/aehnlich";
-import { berechne, einzelpreis, rabattText, zeilenbetrag } from "@/lib/rechnung/berechnung";
+import { berechne, einzelpreisAnzeige, rabattText, zeilenbetrag } from "@/lib/rechnung/berechnung";
 import { kvAbgelaufen, kvPerToken } from "@/lib/rechnung/kostenvoranschlaege";
 
 export const dynamic = "force-dynamic";
@@ -59,7 +59,7 @@ export default async function KundenKostenvoranschlag({ params }: { params: Prom
                 {p.rabatt ? rabattText(p) : p.text}
                 {p.rabatt ? null : (
                   <span className="block text-sm text-grau">
-                    {String(p.menge).replace(".", ",")} {p.einheit} × {euro(einzelpreis(p, s.preisart))}
+                    {String(p.menge).replace(".", ",")} {p.einheit} × {euroGenau(einzelpreisAnzeige(p, s, i))}
                     {s.preisart === "netto" ? " netto" : ""}
                   </span>
                 )}

@@ -235,6 +235,29 @@ export async function kundeFindenOderAnlegen(k: { name: string; email: string; t
   return neu.id;
 }
 
+/**
+ * Kunde, der im Formular aus der Kartei gewählt wurde: Der Termin hängt genau an ihm. Was dort eingetragen
+ * ist (Name, Telefon, E-Mail), übernimmt die Kartei; leere Felder löschen nichts.
+ */
+export async function gewaehlterKunde(id: string, k: { name: string; email: string; telefon: string }): Promise<string> {
+  const { data } = await db().from("kunden").select("id").eq("id", id).maybeSingle();
+  if (!data) throw new TerminFehler("Der gewählte Kunde ist nicht mehr in der Kartei. Bitte neu wählen.");
+  const email = k.email.trim().toLowerCase();
+  const telefon = k.telefon.trim();
+  const aenderung = { ...(k.name.trim() && { name: k.name.trim() }), ...(email && { email }), ...(telefon && { telefon }) };
+  if (Object.keys(aenderung).length) await db().from("kunden").update(aenderung).eq("id", id);
+  return id;
+}
+
+/** Gewähltes Fahrzeug, wenn es zu diesem Kunden gehört; sonst über das Kennzeichen wie bisher. */
+async function gewaehltesFahrzeug(fahrzeugId: string | null | undefined, kennzeichen: string, kundeId: string, markeModell = ""): Promise<string | null> {
+  if (fahrzeugId) {
+    const { data } = await db().from("fahrzeuge").select("id").eq("id", fahrzeugId).eq("kunde_id", kundeId).maybeSingle();
+    if (data) return data.id;
+  }
+  return fahrzeugFindenOderAnlegen(kennzeichen, kundeId, markeModell);
+}
+
 export async function fahrzeugFindenOderAnlegen(kennzeichen: string, kundeId: string, markeModell = ""): Promise<string | null> {
   const kz = kennzeichenFormat(kennzeichen);
   if (!kz) return null;
@@ -468,7 +491,15 @@ export async function anfrageStellen(e: AnfrageEingabe): Promise<Termin> {
  * frei beschriebene Arbeit dazukommen; die Dauer ist dann von Hand anzugeben, sonst gilt die Summe.
  */
 export async function terminEintragen(
-  e: AnfrageEingabe & { leistungName?: string; dauerMin?: number; ueberbuchen?: boolean; mitarbeiter?: string | null },
+  e: AnfrageEingabe & {
+    leistungName?: string;
+    dauerMin?: number;
+    ueberbuchen?: boolean;
+    mitarbeiter?: string | null;
+    /** Aus der Kartei gewählt: Der Termin hängt direkt an diesem Kunden (und Fahrzeug) */
+    kundeId?: string | null;
+    fahrzeugId?: string | null;
+  },
   vonBenutzer: string,
 ): Promise<Termin> {
   const einst = await einstellungen();
@@ -476,8 +507,9 @@ export async function terminEintragen(
   const frei = e.leistungName?.trim() ?? "";
   const dauer = e.dauerMin ?? (gewaehlt.length ? gesamtDauer(gewaehlt) : 60);
   const slot = zeitraum(e.datum, e.uhrzeit, dauer, einst.buchung.pufferMin);
-  const kundeId = await kundeFindenOderAnlegen({ name: e.name, email: e.email, telefon: e.telefon });
-  const fahrzeugId = await fahrzeugFindenOderAnlegen(e.kennzeichen, kundeId, e.fahrzeug);
+  const kontakt = { name: e.name, email: e.email, telefon: e.telefon };
+  const kundeId = e.kundeId ? await gewaehlterKunde(e.kundeId, kontakt) : await kundeFindenOderAnlegen(kontakt);
+  const fahrzeugId = await gewaehltesFahrzeug(e.fahrzeugId, e.kennzeichen, kundeId, e.fahrzeug);
 
   const { data: id, error } = await db().rpc("termin_anlegen", {
     p: {
@@ -543,7 +575,15 @@ export async function stornieren(id: string, durch: { kunde: true } | { benutzer
       throw new TerminFehler(`Absagen ist online nur bis ${buchung.stornoFristStd} Stunden vorher möglich. Bitte rufen Sie uns an.`);
     }
   }
-  await db().from("termine").update({ status: "storniert", halten_bis: null, absage_grund: grund }).eq("id", id);
+  // Die Bedingung steht im Update selbst: Hat jemand den Termin inzwischen erledigt oder abgelehnt, bleibt er so.
+  const { data, error } = await db()
+    .from("termine")
+    .update({ status: "storniert", halten_bis: null, absage_grund: grund })
+    .eq("id", id)
+    .in("status", ["angefragt", "bestaetigt"])
+    .select("id");
+  if (error) throw error;
+  if (!data?.length) throw new TerminFehler("Dieser Termin kann nicht mehr abgesagt werden.");
   const neu = (await terminLaden(id))!;
   await verlauf("termin", id, "kunde" in durch ? "Vom Kunden abgesagt" : `Abgesagt${grund ? `: ${grund}` : ""}`, "kunde" in durch ? null : durch.benutzer);
   after(async () => {
@@ -581,7 +621,15 @@ export async function verschieben(id: string, datum: string, uhrzeit: string, vo
 }
 
 export async function erledigen(id: string, vonBenutzer: string, status: "erledigt" | "nicht_erschienen" = "erledigt"): Promise<void> {
-  await db().from("termine").update({ status, auftrag_status: "fertig" }).eq("id", id).in("status", ["bestaetigt", "angefragt"]);
+  const { data, error } = await db()
+    .from("termine")
+    .update({ status, auftrag_status: "fertig" })
+    .eq("id", id)
+    .in("status", ["bestaetigt", "angefragt"])
+    .select("id");
+  if (error) throw error;
+  // Sonst stünde „Erledigt“ bei einem Doppelklick zweimal im Verlauf und Webhooks bekämen termin.erledigt doppelt
+  if (!data?.length) throw new TerminFehler("Der Termin wurde in der Zwischenzeit schon bearbeitet.");
   const termin = (await terminLaden(id))!;
   await verlauf("termin", id, status === "erledigt" ? "Erledigt" : "Kunde nicht erschienen", vonBenutzer);
   if (status === "erledigt") after(() => melden("termin.erledigt", ereignisDaten(termin)));

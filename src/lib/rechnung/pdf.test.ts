@@ -2,6 +2,7 @@ import { writeFileSync } from "node:fs";
 import { PDFDocument, PDFName } from "pdf-lib";
 import { describe, expect, it } from "vitest";
 import { STANDARD } from "../einstellungen";
+import { nettoAusBruttoPreis } from "./berechnung";
 import { rechnungPdf } from "./pdf";
 import { alsZugferd, eRechnungPruefen, istXRechnung, zugferdXml } from "./zugferd";
 
@@ -102,5 +103,27 @@ describe("Netto-Beleg mit Lohn, Teil und Rabatt", () => {
     const xml = zugferdXml({ ...netto, storno: true, positionen: netto.positionen.map((p) => ({ ...p, einzel_netto_cent: -p.einzel_netto_cent })) });
     expect(xml).toContain("<ram:TypeCode>381</ram:TypeCode>");
     expect(xml).toContain("<ram:GrandTotalAmount>295.72</ram:GrandTotalAmount>");
+  });
+});
+
+describe("Stückzahlen und 0 % in der E-Rechnung", () => {
+  const beleg = {
+    ...daten,
+    positionen: [
+      { text: "Zündkerze", menge: 4, einheit: "Stk", einzel_netto_cent: nettoAusBruttoPreis(1500, 19), mwst_satz: 19 },
+      { text: "TÜV-Gebühr", menge: 1, einheit: "Pauschal", einzel_netto_cent: 9850, mwst_satz: 0 },
+    ],
+  };
+  const xml = zugferdXml(beleg);
+
+  it("Einzelpreis ist der gespeicherte Nettopreis, Menge × Preis ergibt die Zeile", () => {
+    expect(xml).toContain("<ram:ChargeAmount>12.6050</ram:ChargeAmount>");
+    expect(xml).toContain('<ram:BilledQuantity unitCode="H87">4</ram:BilledQuantity>');
+    expect(xml).toContain("<ram:LineTotalAmount>50.42</ram:LineTotalAmount>");
+  });
+  it("0 % ist steuerbefreit (E) mit Grund, nicht Normalsatz", () => {
+    expect(xml).not.toMatch(/<ram:CategoryCode>S<\/ram:CategoryCode><ram:RateApplicablePercent>0</);
+    expect(xml).toContain("<ram:CategoryCode>E</ram:CategoryCode><ram:RateApplicablePercent>0</ram:RateApplicablePercent>");
+    expect(xml).toContain("<ram:ExemptionReason>");
   });
 });

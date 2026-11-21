@@ -36,6 +36,7 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
   return (
     <>
       <Kopf titel={k.name} unter={`Kunde Nr. ${k.nummer}${k.firma ? ` · ${k.firma}` : ""}`} zurueck={{ href: "/admin/kunden", text: "Kunden" }}>
+        <Link href={`/admin/termine/neu?kunde=${k.id}`} className="knopf knopf-rahmen knopf-klein">Termin eintragen</Link>
         <form action={belegAnlegen.bind(null, "kostenvoranschlag", "admin", k.id, einziges)}>
           <button className="knopf knopf-rahmen knopf-klein">Kostenvoranschlag</button>
         </form>

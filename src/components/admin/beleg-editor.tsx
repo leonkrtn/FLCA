@@ -8,7 +8,8 @@ import { entwurfSpeichernAktion } from "@/lib/aktionen/rechnungen";
 import { LEER } from "@/lib/forms";
 import type { KundenTreffer } from "@/lib/kunden";
 import { besterTreffer, fahrzeugSchluessel, fahrzeugText, markeModellTrennen, markeNorm, modellNorm } from "@/lib/rechnung/aehnlich";
-import { alsNetto, ausEk, berechne, nettoAusBruttoPreis, type Position, rohertrag, runden } from "@/lib/rechnung/berechnung";
+import { zahlAusText } from "@/lib/format";
+import { alsNetto, ausEk, berechne, centGenau, nettoAusBruttoPreis, type Position, rohertrag, runden } from "@/lib/rechnung/berechnung";
 import type { EditorDaten } from "@/lib/rechnung/editor-daten";
 import type { Gemerkt, Paket } from "@/lib/rechnung/preisgedaechtnis";
 import { KundenSuche } from "./kunden-suche";
@@ -29,6 +30,8 @@ type Artikel = EditorDaten["preisliste"][number];
 
 /** Was zu einer Zeile nur im Editor gehört: Eingabetexte, Hinweis zum Preis und ob der Preis noch automatisch ist. */
 type Zeile = {
+  /** Menge, wie getippt: „2,“ muss stehen bleiben dürfen, sonst lässt sich „2,5“ nie eingeben */
+  menge: string;
   preis: string;
   ek: string;
   aufschlag: string;
@@ -41,14 +44,9 @@ type Zeile = {
 
 const euro = (cent: number) => new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(cent / 100);
 const centZuText = (c: number | null | undefined) => (c == null ? "" : (c / 100).toFixed(2).replace(".", ","));
-const textZuCent = (t: string) => {
-  const n = Number(t.replace(/\./g, "").replace(",", "."));
-  return Number.isFinite(n) ? Math.round(n * 100) : 0;
-};
-const textZuZahl = (t: string) => {
-  const n = Number(t.replace(",", "."));
-  return Number.isFinite(n) ? n : null;
-};
+/** Getippter Preis in Cent, auf Hundertstel Cent genau wie gespeichert („12,605“ bleibt 1260,5). */
+const textZuCent = (t: string) => centGenau((zahlAusText(t) ?? 0) * 100);
+const textZuZahl = zahlAusText;
 const mengeText = (n: number) => String(n).replace(".", ",");
 
 const EINHEITEN = ["Stk", "Std", "Pauschal", "l", "Satz", "km"];
@@ -70,6 +68,7 @@ const TEXTE = {
 
 function zeileFuer(p: Position, extra: Partial<Zeile> = {}): Zeile {
   return {
+    menge: mengeText(p.menge),
     preis: p.rabatt ? (p.rabatt.prozent != null ? mengeText(p.rabatt.prozent) : centZuText(p.rabatt.betrag_cent)) : centZuText(p.einzel_netto_cent),
     ek: centZuText(p.ek_cent),
     aufschlag: p.aufschlag != null ? mengeText(p.aufschlag) : "",
@@ -505,8 +504,8 @@ export function BelegEditor({
                 <div className={tabelle ? "col-span-2 grid grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,1fr)] gap-2 md:contents" : "col-span-2 grid grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,1fr)] gap-2"}>
                   <Spalte text={p.einheit === "Std" ? "Stunden" : "Menge"} tabelle={tabelle}>
                     <input
-                      value={mengeText(p.menge)}
-                      onChange={(ev) => setPos(i, { menge: Number(ev.target.value.replace(",", ".")) || 0 }, { auto: false })}
+                      value={z?.menge ?? mengeText(p.menge)}
+                      onChange={(ev) => setPos(i, { menge: textZuZahl(ev.target.value) ?? 0 }, { menge: ev.target.value, auto: false })}
                       inputMode="decimal"
                       className="feld min-h-10 text-right tabular-nums"
                       aria-label="Menge"

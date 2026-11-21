@@ -7,35 +7,38 @@ import { type Ergebnis, sicher, text } from "../forms";
 import { alsBelegFahrzeug, alsEmpfaenger, fahrzeugTypen, type KundenFahrzeug, type KundenTreffer, kundenSuchen, markeUndModell } from "../kunden";
 import { notizTeam } from "../notizen-seiten";
 import { fahrzeugText, modellNorm } from "../rechnung/aehnlich";
+import { kvAnlegen } from "../rechnung/kostenvoranschlaege";
 import { gemerktFuer } from "../rechnung/preisgedaechtnis";
 import { entwurfAnlegen, preislisteFuerBelege, type Rechnung } from "../rechnung/rechnungen";
 import { leistungenFuerSprache } from "../sprache/daten";
 import type { Fahrzeug } from "../sprache/merkmale";
 import { positionenBauen } from "../sprache/positionen";
 import { klein } from "../sprache/text";
-import { type Art, artErkennen, notizVerstehen, rechnungVerstehen, terminVerstehen } from "../sprache/verstehen";
+import { type Art, ARTEN, artErkennen, kostenvoranschlagVerstehen, notizVerstehen, rechnungVerstehen, terminVerstehen } from "../sprache/verstehen";
 import { notizAdresse, terminAdresse } from "../sprache/vorgabe";
 import { berlinDatum } from "../zeit";
 
 /**
  * Gesprochenen Text übernehmen (Werkstatt-App → Sprechen). Notiz und Termin landen vorausgefüllt im
- * gewohnten Formular und werden erst dort gespeichert. Eine Rechnung wird ein Entwurf im Editor; gestellt
- * wird hier nie etwas.
+ * gewohnten Formular und werden erst dort gespeichert. Rechnung und Kostenvoranschlag werden ein Entwurf im
+ * Editor; gestellt bzw. abgeschlossen wird hier nie etwas.
  */
 export async function spracheUebernehmen(_v: Ergebnis, fd: FormData): Promise<Ergebnis> {
   let ziel = "";
   const e = await sicher(fd, async () => {
+    // Erst anmelden, dann lesen: Das Erkennen der Art lädt schon die Preisliste. Welches Recht nötig ist,
+    // steht erst nach dem Erkennen fest und wird unten je Art geprüft.
+    await benutzerMitRecht();
     // Begrenzt, weil Notiz und Termin über die Adresse des Formulars vorausgefüllt werden
     const satz = text(fd, "text", 1500);
     if (!satz) return { status: "fehler", meldung: "Bitte erst etwas sagen oder eintippen." };
     const heute = berlinDatum();
     // Die Seite schickt, was sie anzeigt (fest gewählt oder erkannt); fehlt es, wird hier genauso erkannt
-    const gewaehlt = text(fd, "art", 10);
-    const art: Art | null =
-      gewaehlt === "notiz" || gewaehlt === "termin" || gewaehlt === "rechnung"
-        ? gewaehlt
-        : (artErkennen(satz, { heute, jetzt: new Date(), leistungen: await leistungenFuerSprache() })?.art ?? null);
-    if (!art) return { status: "fehler", meldung: "Bitte oben wählen: Notiz, Termin oder Rechnung." };
+    const gewaehlt = text(fd, "art", 20);
+    const art: Art | null = ARTEN.includes(gewaehlt as Art)
+      ? (gewaehlt as Art)
+      : (artErkennen(satz, { heute, jetzt: new Date(), leistungen: await leistungenFuerSprache() })?.art ?? null);
+    if (!art) return { status: "fehler", meldung: "Bitte oben wählen: Notiz, Termin, Rechnung oder Kostenvoranschlag." };
 
     if (art === "notiz") {
       const b = await benutzerMitRecht("notizen");
@@ -64,7 +67,9 @@ export async function spracheUebernehmen(_v: Ergebnis, fd: FormData): Promise<Er
         dauer: v.dauerMin ? String(v.dauerMin) : "",
         datum: v.datum ?? "",
         uhrzeit: v.uhrzeit ?? "",
-        // Aus der Kartei, damit der Termin am selben Kunden hängt (gefunden wird er über E-Mail oder Telefon)
+        // Aus der Kartei: Der Termin hängt direkt an diesem Kunden (und Fahrzeug), das Formular zeigt es an
+        kundeId: k?.kunde.id,
+        fahrzeugId: k?.fahrzeug?.id,
         name: k?.kunde.name || v.name,
         telefon: v.telefon || k?.kunde.telefon || "",
         email: v.email || k?.kunde.email || "",
@@ -76,10 +81,12 @@ export async function spracheUebernehmen(_v: Ergebnis, fd: FormData): Promise<Er
       return { status: "ok" };
     }
 
+    // Rechnung und Kostenvoranschlag: dieselben Regeln, dasselbe Recht wie im Editor
     const b = await benutzerMitRecht("rechnungen");
     const [preisliste, einst, typen] = await Promise.all([preislisteFuerBelege(), einstellungen(), fahrzeugTypen()]);
     const { stundensaetze, aufschlagProzent } = einst.rechnung;
-    const v = rechnungVerstehen(satz, { heute, preisliste, lohnarten: stundensaetze.map((s) => s.name), typen });
+    const grundlagen = { heute, preisliste, lohnarten: stundensaetze.map((s) => s.name), typen };
+    const v = art === "rechnung" ? rechnungVerstehen(satz, grundlagen) : kostenvoranschlagVerstehen(satz, grundlagen);
     if (!v.positionen.length && !v.name && !v.kennzeichen) {
       return { status: "fehler", meldung: "Darin habe ich weder Kunde noch Positionen erkannt. Bitte etwas genauer sagen." };
     }
@@ -94,17 +101,13 @@ export async function spracheUebernehmen(_v: Ergebnis, fd: FormData): Promise<Er
     };
     const gemerkt = await gemerktFuer(fahrzeug.marke ?? "", fahrzeug.modell ?? "");
     const positionen = positionenBauen(v.positionen, { preisliste, gemerkt, stundensaetze, aufschlagProzent }).map((p) => p.position);
-    const id = await entwurfAnlegen(
-      {
-        kunde_id: k?.kunde.id ?? null,
-        empfaenger: k ? alsEmpfaenger(k.kunde) : { name: v.name },
-        fahrzeug,
-        positionen,
-        leistungsdatum: v.leistungsdatum ?? heute,
-      },
-      b.id,
-    );
-    ziel = `/app/rechnungen/${id}`;
+    const inhalt = { kunde_id: k?.kunde.id ?? null, empfaenger: k ? alsEmpfaenger(k.kunde) : { name: v.name }, fahrzeug, positionen };
+    if ("leistungsdatum" in v) {
+      ziel = `/app/rechnungen/${await entwurfAnlegen({ ...inhalt, leistungsdatum: v.leistungsdatum ?? heute }, b.id)}`;
+    } else {
+      // Ohne genanntes „gültig bis“ setzt das Abschließen die Frist aus den Einstellungen
+      ziel = `/app/kostenvoranschlaege/${await kvAnlegen({ ...inhalt, ...(v.gueltigBis && { gueltig_bis: v.gueltigBis }) }, b.id)}`;
+    }
     return { status: "ok" };
   });
   if (ziel) redirect(ziel);

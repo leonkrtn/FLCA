@@ -23,6 +23,14 @@ const tag = (iso: string) => iso.slice(0, 10).replace(/-/g, "");
 
 const EINHEITEN: Record<string, string> = { Stk: "H87", Std: "HUR", Pauschal: "LS", l: "LTR", Satz: "SET", km: "KMT" };
 
+/**
+ * Steuerkategorie: „S“ (Normalsatz) verlangt einen Satz über 0 % (Regel BR-S-05). 0 % in der Werkstatt sind
+ * steuerfreie oder durchlaufende Posten (TÜV-Gebühr), also „E“ mit Befreiungsgrund in der Summe je Satz
+ * (BR-E-10). „O“ (nicht steuerbar) ginge nicht: Es darf mit keiner anderen Kategorie gemischt werden.
+ */
+const kategorie = (satz: number) => (satz === 0 ? "E" : "S");
+const BEFREIUNG = "Steuerfrei bzw. durchlaufender Posten";
+
 /** Kennungen der Spezifikation (BT-24) und des Geschäftsprozesses (BT-23). */
 const EN16931 = "urn:cen.eu:en16931:2017";
 const XRECHNUNG = "urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0";
@@ -79,14 +87,16 @@ export function zugferdXml(r: RechnungsDaten): string {
       if (istRabatt(p)) return "";
       nr++;
       const netto = s.zeilenNetto[i];
-      const einzelNetto = p.menge === 0 ? 0 : netto / p.menge / 100;
+      // Der gespeicherte Nettopreis (auf Hundertstel Cent): Menge × Preis, gerundet, ergibt genau die Zeile.
+      // Alte Belege (brutto gespeichert) haben keinen; dort aus der Zeile zurückgerechnet.
+      const einzelNetto = s.preisart === "netto" ? (p.einzel_netto_cent ?? 0) / 100 : p.menge === 0 ? 0 : netto / p.menge / 100;
       return `<ram:IncludedSupplyChainTradeLineItem>
 <ram:AssociatedDocumentLineDocument><ram:LineID>${nr}</ram:LineID></ram:AssociatedDocumentLineDocument>
 <ram:SpecifiedTradeProduct><ram:Name>${esc(p.text)}</ram:Name></ram:SpecifiedTradeProduct>
 <ram:SpecifiedLineTradeAgreement><ram:NetPriceProductTradePrice><ram:ChargeAmount>${einzelNetto.toFixed(4)}</ram:ChargeAmount></ram:NetPriceProductTradePrice></ram:SpecifiedLineTradeAgreement>
 <ram:SpecifiedLineTradeDelivery><ram:BilledQuantity unitCode="${EINHEITEN[p.einheit] ?? "C62"}">${p.menge}</ram:BilledQuantity></ram:SpecifiedLineTradeDelivery>
 <ram:SpecifiedLineTradeSettlement>
-<ram:ApplicableTradeTax><ram:TypeCode>VAT</ram:TypeCode><ram:CategoryCode>S</ram:CategoryCode><ram:RateApplicablePercent>${p.mwst_satz}</ram:RateApplicablePercent></ram:ApplicableTradeTax>
+<ram:ApplicableTradeTax><ram:TypeCode>VAT</ram:TypeCode><ram:CategoryCode>${kategorie(p.mwst_satz)}</ram:CategoryCode><ram:RateApplicablePercent>${p.mwst_satz}</ram:RateApplicablePercent></ram:ApplicableTradeTax>
 <ram:SpecifiedTradeSettlementLineMonetarySummation><ram:LineTotalAmount>${betrag(netto)}</ram:LineTotalAmount></ram:SpecifiedTradeSettlementLineMonetarySummation>
 </ram:SpecifiedLineTradeSettlement>
 </ram:IncludedSupplyChainTradeLineItem>`;
@@ -98,7 +108,7 @@ export function zugferdXml(r: RechnungsDaten): string {
     .filter((g) => g.rabatt !== 0)
     .map(
       (g) =>
-        `<ram:SpecifiedTradeAllowanceCharge><ram:ChargeIndicator><udt:Indicator>false</udt:Indicator></ram:ChargeIndicator><ram:ActualAmount>${betrag(g.rabatt)}</ram:ActualAmount><ram:Reason>Rabatt</ram:Reason><ram:CategoryTradeTax><ram:TypeCode>VAT</ram:TypeCode><ram:CategoryCode>S</ram:CategoryCode><ram:RateApplicablePercent>${g.satz}</ram:RateApplicablePercent></ram:CategoryTradeTax></ram:SpecifiedTradeAllowanceCharge>`,
+        `<ram:SpecifiedTradeAllowanceCharge><ram:ChargeIndicator><udt:Indicator>false</udt:Indicator></ram:ChargeIndicator><ram:ActualAmount>${betrag(g.rabatt)}</ram:ActualAmount><ram:Reason>Rabatt</ram:Reason><ram:CategoryTradeTax><ram:TypeCode>VAT</ram:TypeCode><ram:CategoryCode>${kategorie(g.satz)}</ram:CategoryCode><ram:RateApplicablePercent>${g.satz}</ram:RateApplicablePercent></ram:CategoryTradeTax></ram:SpecifiedTradeAllowanceCharge>`,
     )
     .join("\n");
 
@@ -141,7 +151,7 @@ ${r.firma.iban ? `<ram:SpecifiedTradeSettlementPaymentMeans><ram:TypeCode>58</ra
 ${s.gruppen
   .map(
     (g) =>
-      `<ram:ApplicableTradeTax><ram:CalculatedAmount>${betrag(g.steuer)}</ram:CalculatedAmount><ram:TypeCode>VAT</ram:TypeCode><ram:BasisAmount>${betrag(g.netto)}</ram:BasisAmount><ram:CategoryCode>S</ram:CategoryCode><ram:RateApplicablePercent>${g.satz}</ram:RateApplicablePercent></ram:ApplicableTradeTax>`,
+      `<ram:ApplicableTradeTax><ram:CalculatedAmount>${betrag(g.steuer)}</ram:CalculatedAmount><ram:TypeCode>VAT</ram:TypeCode>${g.satz === 0 ? `<ram:ExemptionReason>${BEFREIUNG}</ram:ExemptionReason>` : ""}<ram:BasisAmount>${betrag(g.netto)}</ram:BasisAmount><ram:CategoryCode>${kategorie(g.satz)}</ram:CategoryCode><ram:RateApplicablePercent>${g.satz}</ram:RateApplicablePercent></ram:ApplicableTradeTax>`,
   )
   .join("\n")}
 ${nachlaesse}

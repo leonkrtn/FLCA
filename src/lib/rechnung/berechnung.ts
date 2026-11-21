@@ -218,6 +218,18 @@ export function einzelpreis(p: Position, preisart: Summen["preisart"]): number {
   return preisart === "brutto" ? (p.einzel_brutto_cent ?? 0) : (p.einzel_netto_cent ?? 0);
 }
 
+/**
+ * Einzelpreis zum Anzeigen, so dass Menge × Einzelpreis die Zeile ergibt. Netto-Preise aus runden
+ * Bruttopreisen haben Bruchteile eines Cents (15,00 € brutto = 12,605 € netto). Auf ganze Cent gerundet
+ * stünde sonst „4 Stk × 12,61 € = 50,42 €“ auf der Rechnung. Ganze Cent, wenn die Rechnung damit aufgeht,
+ * sonst der genaue Preis (bis vier Nachkommastellen in Euro, wie in der E-Rechnung).
+ */
+export function einzelpreisAnzeige(p: Position, s: Summen, i: number): number {
+  const genau = einzelpreis(p, s.preisart);
+  const rund = runden(genau);
+  return runden(p.menge * rund) === zeilenbetrag(s, i) ? rund : genau;
+}
+
 /** Zeilenbetrag, wie ihn PDF und Ansichten zeigen. */
 export function zeilenbetrag(s: Summen, i: number): number {
   return s.preisart === "brutto" ? s.zeilenBrutto[i] : s.zeilenNetto[i];
