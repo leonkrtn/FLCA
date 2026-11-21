@@ -319,14 +319,25 @@ body:has(.dunkel) {
 }
 
 /*
- * Handy-Apps auf dem Home-Bildschirm: iOS 26 meldet beim Start die Fensterhöhe manchmal zu klein und lässt
- * unter der Tab-Leiste einen Streifen frei, den es in der Grundfarbe der Seite füllt. Grundfarbe ist hier
- * deshalb die Farbe der Tab-Leiste: Der Streifen sieht aus wie ein Teil der Leiste. Die Seite selbst bleibt
- * hell (Hülle mit min-h-dvh). Ohne Nachfedern, sonst käme oben beim Ziehen die Leistenfarbe zum Vorschein.
+ * Handy-Apps auf dem Home-Bildschirm: Grundfarbe ist die Farbe der Tab-Leiste, die Seite selbst bleibt hell
+ * (Hülle mit min-h-dvh). Ohne Nachfedern, sonst käme oben beim Ziehen die Leistenfarbe zum Vorschein.
  */
 html:has(.handy-app) {
   overscroll-behavior-y: none;
   background: var(--color-papier);
+}
+/*
+ * iOS 26 macht das Fenster einer Web-App auf dem Home-Bildschirm um die Höhe der Statusleiste zu kurz,
+ * solange die Seite kürzer ist als der Bildschirm (WebKit-Fehler 301108). Die Tab-Leiste hängt dann über
+ * einem hellen Streifen, den iOS selbst malt und den keine Seitenfarbe erreicht. Ein Tag mit wenigen
+ * Terminen löst das bei jedem Start aus. Deshalb ist die Seite hier immer mindestens bildschirmhoch:
+ * 100 % ist das zu kurze Fenster, plus Statusleiste ergibt den Bildschirm. Stimmt das Fenster, begrenzt
+ * 100lvh auf genau den Bildschirm, es entsteht nichts zum Scrollen.
+ */
+@media (display-mode: standalone) {
+  html:has(.handy-app) {
+    min-height: min(100lvh, calc(100% + env(safe-area-inset-top, 0px)));
+  }
 }
 html:has(.handy-app[data-leiste="dunkel"]) {
   background: var(--color-graphit);
