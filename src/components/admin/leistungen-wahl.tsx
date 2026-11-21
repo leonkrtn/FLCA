@@ -9,8 +9,21 @@ const dauerText = (min: number) => (min >= 60 ? `${Math.floor(min / 60)} Std.${m
  * die Server Action liest sie mit getAll. Die Dauer rechnet sich aus der Summe; nur wer zusätzlich etwas frei
  * einträgt oder es anders weiß, gibt sie von Hand an.
  */
-export function LeistungenWahl({ leistungen, kompakt = false }: { leistungen: { id: string; name: string; dauer_min: number }[]; kompakt?: boolean }) {
-  const [gewaehlt, setGewaehlt] = useState<string[]>([]);
+export function LeistungenWahl({
+  leistungen,
+  kompakt = false,
+  start,
+  frei,
+  dauer,
+}: {
+  leistungen: { id: string; name: string; dauer_min: number }[];
+  kompakt?: boolean;
+  /** Vorauswahl (z. B. aus der Sprachaufnahme) */
+  start?: string[];
+  frei?: string;
+  dauer?: string;
+}) {
+  const [gewaehlt, setGewaehlt] = useState<string[]>(() => (start ?? []).filter((id) => leistungen.some((l) => l.id === id)));
   const summe = leistungen.filter((l) => gewaehlt.includes(l.id)).reduce((s, l) => s + l.dauer_min, 0);
 
   return (
@@ -55,11 +68,11 @@ export function LeistungenWahl({ leistungen, kompakt = false }: { leistungen: { 
       </fieldset>
       <label className="block">
         <span className="label">{gewaehlt.length ? "Dazu noch (optional)" : "Andere Leistung"}</span>
-        <input name="leistung_frei" placeholder="z. B. Bremsen vorne" className="feld" maxLength={120} />
+        <input name="leistung_frei" defaultValue={frei ?? ""} placeholder="z. B. Bremsen vorne" className="feld" maxLength={120} />
       </label>
       <label className="block">
         <span className="label">Dauer gesamt in Minuten</span>
-        <input name="dauer" inputMode="numeric" placeholder={String(summe || 60)} className="feld" />
+        <input name="dauer" defaultValue={dauer ?? ""} inputMode="numeric" placeholder={String(summe || 60)} className="feld" />
         <span className="mt-1 block text-sm text-grau">Leer lassen = {summe ? "Summe der Leistungen" : "60 Minuten"}</span>
       </label>
     </>
