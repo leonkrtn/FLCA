@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Pfeil } from "@/components/icons";
-import { preis } from "@/lib/format";
+import { AngebotsChip, AngebotsPreisText } from "@/components/site/angebot";
 import { KATEGORIEN, oeffentlicheLeistungen } from "@/lib/inhalte";
 
 export const revalidate = 300;
@@ -29,10 +29,12 @@ export default async function LeistungenSeite() {
                       <span>
                         <span className="flex items-start justify-between gap-4">
                           <span className="min-w-0 text-xl font-semibold">{l.name}</span>
-                          <span className={`zahlen shrink-0 rounded-md px-3 py-1 text-sm ${l.preis_cent === null ? "text-grau ring-1 ring-linie" : "bg-white/[0.07] text-tinte"}`}>
-                            {preis(l.preis_cent, l.preis_ab)}
-                          </span>
+                          <AngebotsPreisText
+                            l={l}
+                            className={`zahlen shrink-0 rounded-md px-3 py-1 text-sm ${l.preis_cent === null ? "text-grau ring-1 ring-linie" : "bg-white/[0.07] text-tinte"}`}
+                          />
                         </span>
+                        {l.angebot ? <AngebotsChip angebot={l.angebot} className="mt-3" /> : null}
                         <span className="mt-3 block text-grau">{l.beschreibung}</span>
                       </span>
                       <span className="inline-flex items-center gap-2 text-sm font-semibold text-tinte/70 group-hover:text-tinte">

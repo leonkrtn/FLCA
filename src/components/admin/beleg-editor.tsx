@@ -178,7 +178,10 @@ export function BelegEditor({
       mwst_satz: a.mwst_satz,
       artikel_id: a.id,
       ...(lohn && { lohnart: standardLohn.name }),
+      ...(a.angebot && !lohn && { angebot: a.angebot }),
     };
+    // Ein laufendes Angebot geht dem gemerkten Preis vor: Der Kunde hat den Angebotspreis auf der Website gesehen.
+    if (a.angebot && !lohn) return { p, z: zeileFuer(p, { auto: true, hinweis: { text: `Angebot „${a.angebot}“, statt ${euro(a.listen_brutto_cent)} brutto` } }) };
     const g = treffer(a.name, a.id);
     return g ? ausGedaechtnis(p, g) : { p, z: zeileFuer(p, { auto: true }) };
   };
@@ -198,12 +201,12 @@ export function BelegEditor({
     const z = zeilen[i];
     if (!p || p.rabatt || !z || p.text.trim() === z.gesucht.trim()) return;
     if (!z.auto && (p.einzel_netto_cent ?? 0) !== 0) return setZeilen((x) => x.map((q, j) => (j === i ? { ...q, gesucht: p.text } : q)));
-    const g = treffer(p.text, p.artikel_id);
+    const a = preisliste.find((x) => x.name.toLowerCase() === p.text.trim().toLowerCase());
+    const g = a?.angebot ? null : treffer(p.text, p.artikel_id);
     if (g) {
       const n = ausGedaechtnis({ ...p, artikel_id: null }, g);
       return setPos(i, { ...n.p, text: p.text }, { ...n.z, gesucht: p.text });
     }
-    const a = preisliste.find((x) => x.name.toLowerCase() === p.text.trim().toLowerCase());
     if (a) {
       const n = ausListe(a);
       return setPos(i, { ...n.p, text: p.text }, { ...n.z, gesucht: p.text });
@@ -243,9 +246,9 @@ export function BelegEditor({
     const vk = textZuCent(text);
     if (p.ek_cent && p.ek_cent > 0) {
       const aufschlag = Math.round((vk / p.ek_cent - 1) * 1000) / 10;
-      return setPos(i, { einzel_netto_cent: vk, aufschlag }, { preis: text, aufschlag: mengeText(aufschlag), auto: false, hinweis: undefined });
+      return setPos(i, { einzel_netto_cent: vk, aufschlag, angebot: null }, { preis: text, aufschlag: mengeText(aufschlag), auto: false, hinweis: undefined });
     }
-    setPos(i, { einzel_netto_cent: vk }, { preis: text, auto: false, hinweis: undefined });
+    setPos(i, { einzel_netto_cent: vk, angebot: null }, { preis: text, auto: false, hinweis: undefined });
   };
 
   // --- Pakete ---
@@ -261,6 +264,12 @@ export function BelegEditor({
     anhaengen(
       paket.positionen.map((roh) => {
         const pp = alsNetto(roh);
+        // Ein Angebotspreis von damals gilt nicht mehr: heutiger Preis aus der Preisliste (mit heutigem Angebot)
+        const aktuell = pp.angebot ? preisliste.find((x) => x.id === pp.artikel_id) : undefined;
+        if (aktuell) {
+          const n = ausListe(aktuell);
+          return { p: { ...n.p, text: pp.text, menge: pp.menge }, z: n.z };
+        }
         const g = treffer(pp.text, pp.artikel_id);
         if (g) return ausGedaechtnis(pp, g);
         // Lohn kommt immer mit dem heutigen Stundensatz
@@ -287,10 +296,10 @@ export function BelegEditor({
   };
 
   /** Nach einem Fahrzeugwechsel: alle Zeilen, die das Gedächtnis kennt, auf dessen Preis setzen. */
-  const anpassbar = d.positionen.map((p) => (p.rabatt ? null : treffer(p.text, p.artikel_id))).filter((g, i) => g && Math.abs((d.positionen[i].einzel_netto_cent ?? 0) - g.einzel_netto_cent) >= 1);
+  const anpassbar = d.positionen.map((p) => (p.rabatt || p.angebot ? null : treffer(p.text, p.artikel_id))).filter((g, i) => g && Math.abs((d.positionen[i].einzel_netto_cent ?? 0) - g.einzel_netto_cent) >= 1);
   const alleAnpassen = () => {
     d.positionen.forEach((p, i) => {
-      const g = p.rabatt ? null : treffer(p.text, p.artikel_id);
+      const g = p.rabatt || p.angebot ? null : treffer(p.text, p.artikel_id);
       if (g) {
         const n = ausGedaechtnis({ ...p, artikel_id: null }, g);
         setPos(i, { ...n.p, text: p.text }, { ...n.z, gesucht: p.text });
@@ -616,7 +625,7 @@ export function BelegEditor({
             <option value="">+ Aus der Preisliste</option>
             {preisliste.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.name} · {euro(a.preis_brutto_cent)} brutto
+                {a.name} · {euro(a.preis_brutto_cent)} brutto{a.angebot ? ` · ${a.angebot}` : ""}
               </option>
             ))}
           </select>

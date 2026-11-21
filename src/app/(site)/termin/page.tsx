@@ -24,7 +24,7 @@ export default async function TerminSeite({ searchParams }: { searchParams: Prom
       </div>
       {e.buchung.aktiv ? (
         <Buchung
-          leistungen={buchbar.map((l) => ({ id: l.id, slug: l.slug, name: l.name, kurz: l.kurz, preis_cent: l.preis_cent, preis_ab: l.preis_ab, dauer_min: l.dauer_min, kategorie: l.kategorie }))}
+          leistungen={buchbar.map((l) => ({ id: l.id, slug: l.slug, name: l.name, kurz: l.kurz, preis_cent: l.preis_cent, preis_ab: l.preis_ab, dauer_min: l.dauer_min, kategorie: l.kategorie, listen_cent: l.angebot?.listen_cent ?? null, angebot: l.angebot ? `${l.angebot.titel} ${l.angebot.rabatt}` : null }))}
           vorauswahl={vorauswahl}
           telefon={e.firma.telefon}
         />

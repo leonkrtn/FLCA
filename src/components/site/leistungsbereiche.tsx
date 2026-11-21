@@ -4,6 +4,7 @@ import oelstand from "@/assets/oelstand.jpg";
 import reifenmaschine from "@/assets/reifenmaschine.jpg";
 import schweissen from "@/assets/schweissen.jpg";
 import { Pfeil } from "@/components/icons";
+import { AngebotsChip, AngebotsPreisText, angeboteIn } from "@/components/site/angebot";
 import { preis } from "@/lib/format";
 import type { Leistung } from "@/lib/termine";
 
@@ -46,6 +47,7 @@ export function Leistungsbereiche({ leistungen }: { leistungen: Leistung[] }) {
         const liste = leistungen.filter((l) => l.kategorie === b.kategorie);
         if (!liste.length) return null;
         const ab = Math.min(...liste.map((l) => l.preis_cent ?? Infinity));
+        const angebote = angeboteIn(liste);
         return (
           <article key={b.kategorie} className={`group relative isolate flex min-h-[480px] flex-col justify-end overflow-hidden rounded-lg bg-flaeche ${b.flaeche}`}>
             <Image
@@ -56,6 +58,13 @@ export function Leistungsbereiche({ leistungen }: { leistungen: Leistung[] }) {
               className="-z-10 object-cover transition-transform duration-700 ease-[var(--ease-ruhig)] group-hover:scale-[1.04]"
             />
             <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black via-black/75 to-black/10" />
+            {angebote.length ? (
+              <div className="absolute left-5 top-5 flex flex-wrap gap-2 md:left-7 md:top-7">
+                {angebote.map((a) => (
+                  <AngebotsChip key={a.id} angebot={a} className="text-sm" />
+                ))}
+              </div>
+            ) : null}
             <div className="p-5 md:p-7">
               <div className="mb-1 flex items-baseline justify-between gap-4">
                 <h3 className="schmal min-w-0 text-3xl text-hell md:text-4xl">{b.titel}</h3>
@@ -70,7 +79,7 @@ export function Leistungsbereiche({ leistungen }: { leistungen: Leistung[] }) {
                       className="inline-flex items-center gap-2 rounded-md bg-white/10 px-3.5 py-2 text-sm text-hell ring-1 ring-white/15 backdrop-blur-md transition-colors hover:bg-white/20"
                     >
                       {l.name}
-                      <span className="zahlen opacity-70">{preis(l.preis_cent, l.preis_ab)}</span>
+                      <AngebotsPreisText l={l} className={`zahlen ${l.angebot?.listen_cent != null ? "" : "opacity-70"}`} />
                     </Link>
                   </li>
                 ))}

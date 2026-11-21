@@ -9,7 +9,8 @@ import type { PositionsWunsch } from "./verstehen";
  * Ein gesprochener Preis geht vor und ist netto, außer es wurde „brutto“ gesagt.
  */
 
-export type ListenEintrag = { id: string; name: string; einheit: string; preis_brutto_cent: number; mwst_satz: number; sprachnamen?: string[] | null };
+/** angebot: Titel eines laufenden Angebots; dessen Preis geht dann dem gemerkten Preis vor. */
+export type ListenEintrag = { id: string; name: string; einheit: string; preis_brutto_cent: number; mwst_satz: number; sprachnamen?: string[] | null; angebot?: string | null };
 
 /** Was aus dem Preisgedächtnis gebraucht wird (Teilmenge von `Gemerkt`, damit das hier ohne Server läuft). */
 export type GemerktKurz = {
@@ -69,7 +70,7 @@ export function positionenBauen(wuensche: PositionsWunsch[], g: Grundlagen): { p
       };
     }
 
-    const gemerkt = g.gemerkt.length ? (besterTreffer(w.text, g.gemerkt) ?? (artikel ? (g.gemerkt.find((x) => x.artikel_id === artikel.id) ?? null) : null)) : null;
+    const gemerkt = g.gemerkt.length && !artikel?.angebot ? (besterTreffer(w.text, g.gemerkt) ?? (artikel ? (g.gemerkt.find((x) => x.artikel_id === artikel.id) ?? null) : null)) : null;
     const mwst = artikel?.mwst_satz ?? gemerkt?.mwst_satz ?? 19;
     const menge = w.menge ?? gemerkt?.menge ?? 1;
     let einzel = 0;
@@ -110,6 +111,7 @@ export function positionenBauen(wuensche: PositionsWunsch[], g: Grundlagen): { p
         artikel_id: artikel?.id ?? gemerkt?.artikel_id ?? null,
         ...(einheit === "Std" && { lohnart: satzFuer(gemerkt?.lohnart ?? null)?.name ?? null }),
         ...(ek !== null && { ek_cent: ek, aufschlag }),
+        ...(herkunft === "Preisliste" && artikel?.angebot && { angebot: artikel.angebot }),
       },
       herkunft,
     };

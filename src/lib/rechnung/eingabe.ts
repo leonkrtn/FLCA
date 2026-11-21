@@ -40,6 +40,7 @@ export function positionenAus(roh: unknown): Position[] {
       einzel_netto_cent: preis,
       mwst_satz: satz,
       artikel_id,
+      ...(typeof p.angebot === "string" && p.angebot.trim() && { angebot: p.angebot.trim().slice(0, 80) }),
       ...(einheit === "Std" && typeof p.lohnart === "string" && p.lohnart.trim() && { lohnart: p.lohnart.trim().slice(0, 40) }),
       ...(ek != null && Number.isFinite(ek) && ek > 0 && { ek_cent: ek, aufschlag: aufschlag != null && Number.isFinite(aufschlag) ? Math.round(aufschlag * 100) / 100 : null }),
     };
