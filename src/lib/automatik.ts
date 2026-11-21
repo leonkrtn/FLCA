@@ -4,11 +4,42 @@ import { ENV } from "./env";
 import { zustellen } from "./ereignisse";
 import { mail } from "./email/vorlagen";
 import { monatsexport } from "./rechnung/datev";
+import { zeit } from "./format";
 import { mailer } from "./services/email";
+import { pushSenden } from "./services/push";
 import { db } from "./supabase/admin";
 import { erinnerungenSenden } from "./notizen";
 import { erinnerungSenden, TERMIN_FELDER, type Termin } from "./termine";
-import { berlinDatum, berlinUhrzeit, plusTage } from "./zeit";
+import { berlin, berlinDatum, berlinUhrzeit, plusTage } from "./zeit";
+
+/** Push an jeden mit bestätigten Aufträgen heute: wie viele und welche. Wer heute nichts hat, bekommt nichts. */
+async function tagesvorschau(heute: string): Promise<number> {
+  const { data } = await db()
+    .from("termine")
+    .select("beginn, leistung_name, zugewiesen_an, fahrzeug:fahrzeuge(kennzeichen)")
+    .eq("status", "bestaetigt")
+    .not("zugewiesen_an", "is", null)
+    .gte("beginn", berlin(heute).toISOString())
+    .lt("beginn", berlin(plusTage(heute, 1)).toISOString())
+    .order("beginn");
+  const liste = (data ?? []) as unknown as { beginn: string; leistung_name: string; zugewiesen_an: string; fahrzeug: { kennzeichen: string } | null }[];
+  let gesendet = 0;
+  for (const profil of new Set(liste.map((t) => t.zugewiesen_an))) {
+    if (!(await einmalig("tagesvorschau", `${heute}:${profil}`))) continue;
+    const eigene = liste.filter((t) => t.zugewiesen_an === profil);
+    await pushSenden(
+      { profile: [profil] },
+      {
+        titel: `Heute ${eigene.length} ${eigene.length === 1 ? "Auftrag" : "Aufträge"}`,
+        text: eigene.map((t) => `${zeit(t.beginn)} ${t.leistung_name}${t.fahrzeug ? ` (${t.fahrzeug.kennzeichen})` : ""}`).join(", "),
+        url: "/team",
+        tag: `tagesvorschau-${heute}`,
+      },
+    );
+    gesendet++;
+  }
+  return gesendet;
+}
 
 /** Trägt eine erledigte Aufgabe ein. false = gab es schon (dann nichts tun). */
 async function einmalig(art: string, bezug: string): Promise<boolean> {
@@ -85,6 +116,11 @@ export async function takt(): Promise<Bericht> {
 
   // Einmal am Tag, ab 6 Uhr Berliner Zeit
   const heute = berlinDatum();
+  // Tagesvorschau für Mitarbeiter: morgens ein Push mit den eigenen Aufträgen des Tages (je Person einmal).
+  // Nur bis 10 Uhr: Wer erst mittags einen Auftrag bekommt, hat dafür schon den Push „Neuer Auftrag“.
+  const uhr = berlinUhrzeit(new Date());
+  if (uhr >= "06:00" && uhr < "10:00") await schritt("tagesvorschau", () => tagesvorschau(heute));
+
   if (berlinUhrzeit(new Date()) >= "06:00" && (await einmalig("taeglich", heute))) {
     await schritt("saison", async () => {
       const s = e.automatik.saison;

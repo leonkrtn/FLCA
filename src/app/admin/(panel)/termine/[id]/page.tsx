@@ -12,6 +12,7 @@ import {
   bestaetigenAktion,
   detailsSpeichern,
   erledigtAktion,
+  gegenvorschlagAktion,
   kundeVerknuepfen,
   rechnungAusTermin,
   rechnungLoesen,
@@ -26,7 +27,7 @@ import { darf } from "@/lib/rollen";
 import { db } from "@/lib/supabase/admin";
 import { TERMIN_TON } from "@/lib/status";
 import { freieRechnungen, terminZusatz } from "@/lib/termin-daten";
-import { STATUS_TEXT, terminLaden } from "@/lib/termine";
+import { anfrageLage, STATUS_TEXT, terminLaden } from "@/lib/termine";
 import { berlinDatum, berlinUhrzeit } from "@/lib/zeit";
 
 export default async function TerminDetail({ params }: { params: Promise<{ id: string }> }) {
@@ -35,16 +36,22 @@ export default async function TerminDetail({ params }: { params: Promise<{ id: s
   const t = await terminLaden(id);
   if (!t) notFound();
   const mitRechnungen = darf(b.rolle, "rechnungen");
-  const [z, zuletzt, frei] = await Promise.all([
+  const [z, zuletzt, frei, lage] = await Promise.all([
     terminZusatz(id),
     darf(b.rolle, "kunden") ? kundenSuchen("", 8) : Promise.resolve([]),
     mitRechnungen ? freieRechnungen(t.kunde?.id ?? null) : Promise.resolve([]),
+    t.status === "angefragt" ? anfrageLage(t) : Promise.resolve(undefined),
   ]);
   const angebotPreise = Object.entries(t.angebot_preise ?? {});
   // Namen stehen nur als Text am Termin; je Leistung den Namen aus der Preisliste holen
   const { data: namen } = angebotPreise.length ? await db().from("leistungen").select("id, name").in("id", angebotPreise.map(([lid]) => lid)) : { data: [] };
   const leistungName = (lid: string) => (namen ?? []).find((n) => n.id === lid)?.name ?? "Leistung";
-  const haltAbgelaufen = t.status === "angefragt" && t.halten_bis && new Date(t.halten_bis) < new Date();
+  // Anfragen zu einer belegten Zeit halten von Anfang an nichts; dort ist der Hinweis überflüssig.
+  const haltAbgelaufen = t.status === "angefragt" && t.wunschzeit_frei !== false && t.halten_bis && new Date(t.halten_bis) < new Date();
+  const vorschlagOffen =
+    t.status === "angefragt" && t.vorschlag_am
+      ? `Vorschlag ${datumLangText(t.beginn)}, ${zeit(t.beginn)} Uhr ist beim Kunden (gesendet ${datumZeit(t.vorschlag_am)}${t.wunsch_beginn ? `, Wunsch war ${datumLangText(t.wunsch_beginn)}, ${zeit(t.wunsch_beginn)} Uhr` : ""}). Er sagt über seinen Link zu oder ab.`
+      : undefined;
 
   return (
     <>
@@ -166,7 +173,10 @@ export default async function TerminDetail({ params }: { params: Promise<{ id: s
                 absagen: absagenAktion.bind(null, t.id),
                 verschieben: verschiebenAktion.bind(null, t.id),
                 erledigt: erledigtAktion.bind(null, t.id),
+                gegenvorschlag: gegenvorschlagAktion.bind(null, t.id),
               }}
+              lage={lage}
+              vorschlagOffen={vorschlagOffen}
             />
             {!["angefragt", "bestaetigt"].includes(t.status) ? <p className="text-grau">Keine offene Entscheidung.</p> : null}
           </Abschnitt>

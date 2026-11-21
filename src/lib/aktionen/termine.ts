@@ -4,10 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { benutzerMitRecht } from "../auth";
 import { melden, verlauf } from "../ereignisse";
-import { type Ergebnis, ja, sicher, text, zahl } from "../forms";
+import { type Ergebnis, ja, sicher, text, werteAus, zahl } from "../forms";
 import { entwurfAusTermin } from "../rechnung/rechnungen";
 import { db } from "../supabase/admin";
-import { ablehnen, bestaetigen, erledigen, loeschen, stornieren, terminEintragen, TerminFehler, verschieben } from "../termine";
+import { ablehnen, bestaetigen, erledigen, gegenvorschlag, loeschen, PlanungsWarnung, stornieren, terminEintragen, TerminFehler, umplanen, verschieben } from "../termine";
 import { istDatum } from "../zeit";
 
 /** Termin-Aktionen. Admin am Rechner und Handy-App teilen sich diese Funktionen. */
@@ -27,6 +27,15 @@ async function mitFehlertext(fd: FormData | null, fn: () => Promise<Ergebnis>): 
     try {
       return await fn();
     } catch (error) {
+      if (error instanceof PlanungsWarnung) {
+        return {
+          status: "fehler",
+          meldung: error.message,
+          daten: { warnungen: error.gruende },
+          werte: fd ? werteAus(fd) : undefined,
+          versuch: Date.now(),
+        };
+      }
       if (error instanceof TerminFehler) return { status: "fehler", meldung: error.message };
       throw error;
     }
@@ -82,6 +91,23 @@ export async function verschiebenAktion(id: string, _v: Ergebnis, fd: FormData):
   });
 }
 
+/**
+ * Gegenvorschlag zu einer Anfrage. Die Zeit kommt aus einem der vorgeschlagenen freien Termine (Knopf mit
+ * name="vorschlag", Wert „Datum|Uhrzeit“) oder aus den Feldern Datum und Uhrzeit.
+ */
+export async function gegenvorschlagAktion(id: string, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
+  return mitFehlertext(fd, async () => {
+    const b = await benutzerMitRecht("termine");
+    const [vDatum, vUhr] = text(fd, "vorschlag", 20).split("|");
+    const datum = vDatum || text(fd, "datum", 10);
+    const uhrzeit = vUhr || text(fd, "uhrzeit", 5);
+    if (!istDatum(datum) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(uhrzeit)) return { status: "fehler", meldung: "Bitte einen Termin wählen oder Datum und Uhrzeit angeben." };
+    await gegenvorschlag(id, datum, uhrzeit, text(fd, "nachricht", 1000), b.id, ja(fd, "ueberbuchen"));
+    neuLaden(id);
+    return { status: "ok", meldung: "Vorschlag ist an den Kunden raus. Er kann über seinen Link annehmen oder ablehnen." };
+  });
+}
+
 export async function erledigtAktion(id: string, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
   return mitFehlertext(fd, async () => {
     const b = await benutzerMitRecht("termine");
@@ -94,17 +120,40 @@ export async function erledigtAktion(id: string, _v: Ergebnis, fd: FormData): Pr
 export async function detailsSpeichern(id: string, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
   return mitFehlertext(fd, async () => {
     const b = await benutzerMitRecht("termine");
-    const mitarbeiter = text(fd, "zugewiesen_an", 40);
+    const mitarbeiter = uuidOderNull(fd.get("zugewiesen_an"));
     const km = zahl(fd, "km_stand");
+    // Die Person geht über termine.ts (Prüfung, Push, Ereignis); bei erledigten Terminen nur noch nachtragen.
+    const { data: t } = await db().from("termine").select("status, zugewiesen_an").eq("id", id).single();
+    if (t && t.zugewiesen_an !== mitarbeiter) {
+      if (["angefragt", "bestaetigt"].includes(t.status)) await umplanen(id, { mitarbeiter }, b.id, ja(fd, "ueberbuchen"));
+      else await db().from("termine").update({ zugewiesen_an: mitarbeiter }).eq("id", id);
+    }
     await db()
       .from("termine")
-      .update({ notiz_intern: text(fd, "notiz_intern", 3000), zugewiesen_an: mitarbeiter || null, km_stand: km === null ? null : Math.round(km) })
+      .update({ notiz_intern: text(fd, "notiz_intern", 3000), km_stand: km === null ? null : Math.round(km) })
       .eq("id", id);
     if (km !== null) {
       const { data } = await db().from("termine").select("fahrzeug_id").eq("id", id).single();
       if (data?.fahrzeug_id) await db().from("fahrzeuge").update({ km_stand: Math.round(km) }).eq("id", data.fahrzeug_id);
     }
     await verlauf("termin", id, "Details geändert", b.id);
+    neuLaden(id);
+    return { status: "ok", meldung: "Gespeichert." };
+  });
+}
+
+/**
+ * Ziehen und Auswahl im Kalender: Uhrzeit und/oder Mitarbeiter ändern. Gibt bei einer Warnung die Gründe in
+ * `daten.warnungen` zurück; der Kalender fragt nach und ruft mit `trotzdem` noch einmal auf.
+ */
+export async function umplanenAktion(id: string, ziel: { datum?: string; uhrzeit?: string; mitarbeiter?: string | null }, trotzdem = false): Promise<Ergebnis> {
+  return mitFehlertext(null, async () => {
+    const b = await benutzerMitRecht("termine");
+    if (!UUID.test(id)) return { status: "fehler", meldung: "Termin nicht gefunden." };
+    if (ziel.datum !== undefined && !istDatum(ziel.datum)) return { status: "fehler", meldung: "Ungültiges Datum." };
+    if (ziel.uhrzeit !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(ziel.uhrzeit)) return { status: "fehler", meldung: "Ungültige Uhrzeit." };
+    const mitarbeiter = ziel.mitarbeiter === undefined ? undefined : uuidOderNull(ziel.mitarbeiter);
+    await umplanen(id, { datum: ziel.datum, uhrzeit: ziel.uhrzeit, mitarbeiter }, b.id, Boolean(trotzdem));
     neuLaden(id);
     return { status: "ok", meldung: "Gespeichert." };
   });
@@ -136,7 +185,8 @@ export async function eintragenAktion(basis: "/admin/termine" | "/app/termine", 
         fahrzeug: text(fd, "fahrzeug", 120),
         notiz: text(fd, "notiz", 1500),
         ueberbuchen: ja(fd, "ueberbuchen"),
-        mitarbeiter: text(fd, "zugewiesen_an", 40) || null,
+        // leer = automatisch (wer frei ist), „-“ = bewusst niemand
+        mitarbeiter: text(fd, "zugewiesen_an", 40) === "-" ? null : (uuidOderNull(fd.get("zugewiesen_an")) ?? "auto"),
         kundeId: uuidOderNull(fd.get("kunde_id")),
         fahrzeugId: uuidOderNull(fd.get("fahrzeug_id")),
       },

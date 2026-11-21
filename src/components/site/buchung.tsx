@@ -19,7 +19,8 @@ type LeistungKurz = {
   listen_cent: number | null;
   angebot: string | null;
 };
-type Tag = { datum: string; slots: string[] };
+/** slots: frei; anfragbar: belegt, aber anfragbar (Zusage oder Gegenvorschlag vom Betrieb) */
+type Tag = { datum: string; slots: string[]; anfragbar?: string[] };
 
 const KATEGORIEN: Record<string, string> = { reifen: "Reifen", service: "Service und Reparatur", schutz: "Rostschutz" };
 
@@ -110,7 +111,7 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
       if (nummer !== anfrage.current) return;
       setTage((alt) => (anhaengen ? [...alt, ...json.tage] : json.tage));
       if (!anhaengen) {
-        const erster = json.tage.find((t) => t.slots.length);
+        const erster = json.tage.find((t) => t.slots.length) ?? json.tage.find((t) => t.anfragbar?.length);
         setDatum(erster?.datum ?? null);
       }
     } catch {
@@ -157,9 +158,12 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
     [leistungen],
   );
   const tag = tage.find((t) => t.datum === datum);
+  // Freie und belegte Zeiten in einer Reihe; belegte sind gestrichelt und trotzdem wählbar
+  const zeiten = tag ? [...tag.slots.map((z) => ({ z, frei: true })), ...(tag.anfragbar ?? []).map((z) => ({ z, frei: false }))].sort((a, b) => a.z.localeCompare(b.z)) : [];
+  const gewaehltEng = Boolean(tag && uhrzeit && !tag.slots.includes(uhrzeit));
 
   if (zustand.status === "ok" && zustand.daten && !zustand.daten.spam) {
-    const d = zustand.daten as { token: string; leistung: string; wann: string; email: string };
+    const d = zustand.daten as { token: string; leistung: string; wann: string; email: string; frei?: boolean };
     return (
       <div className="max-w-xl" role="status">
         <div className="mb-6 flex size-14 items-center justify-center rounded-full bg-white/10 text-tinte ring-1 ring-linie">
@@ -167,7 +171,11 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
         </div>
         <h2 className="schmal mb-3 text-3xl">Anfrage ist da.</h2>
         <p className="mb-6 text-lg">
-          {d.leistung} am {d.wann}. Wir halten den Termin für Sie frei und bestätigen ihn per E-Mail an <span className="font-semibold">{d.email}</span>.
+          {d.leistung} am {d.wann}.{" "}
+          {d.frei === false
+            ? "Zu dieser Zeit ist es bei uns eng. Wir melden uns per E-Mail mit einer Zusage oder einem anderen Vorschlag an "
+            : "Wir halten den Termin für Sie frei und bestätigen ihn per E-Mail an "}
+          <span className="font-semibold">{d.email}</span>.
         </p>
         <p className="mb-8 text-grau">Keine Mail bekommen? Schauen Sie im Spam-Ordner nach oder rufen Sie uns an: {telefon}.</p>
         <Link href={`/t/${d.token}`} className="knopf knopf-dunkel">
@@ -267,6 +275,7 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
               <div className="-mx-4 flex snap-x gap-2 quer-scrollen px-4 pb-3 [scrollbar-width:thin] md:mx-0 md:px-0" role="listbox" aria-label="Tag wählen">
                 {tage.map((t) => {
                   const frei = t.slots.length;
+                  const moeglich = frei + (t.anfragbar?.length ?? 0);
                   const gewaehlt = t.datum === datum;
                   return (
                     <button
@@ -274,18 +283,18 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
                       type="button"
                       role="option"
                       aria-selected={gewaehlt}
-                      disabled={!frei}
+                      disabled={!moeglich}
                       onClick={() => {
                         setDatum(t.datum);
                         setUhrzeit(null);
                       }}
                       className={`flex w-[4.5rem] shrink-0 snap-start flex-col items-center gap-0.5 rounded-md border py-2.5 transition-colors ${
-                        gewaehlt ? "border-grau bg-white/[0.08]" : frei ? "border-linie bg-flaeche hover:border-tinte" : "border-transparent text-grau-hell"
+                        gewaehlt ? "border-grau bg-white/[0.08]" : frei ? "border-linie bg-flaeche hover:border-tinte" : moeglich ? "border-dashed border-linie hover:border-tinte" : "border-transparent text-grau-hell"
                       }`}
                     >
                       <span className="text-xs uppercase">{wt.format(alsDatum(t.datum)).replace(".", "")}</span>
                       <span className="zahlen font-medium">{tm.format(alsDatum(t.datum))}</span>
-                      <span className={`text-[11px] ${"text-grau"}`}>{frei ? `${frei} frei` : "voll"}</span>
+                      <span className={`text-[11px] ${"text-grau"}`}>{frei ? `${frei} frei` : moeglich ? "auf Anfrage" : "zu"}</span>
                     </button>
                   );
                 })}
@@ -309,24 +318,30 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
                 <div className="mt-6">
                   <p className="mb-3 font-semibold">{lang.format(alsDatum(tag.datum))}</p>
                   <div className="grid grid-cols-4 gap-2 sm:grid-cols-6" role="listbox" aria-label="Uhrzeit wählen">
-                    {tag.slots.map((s) => (
+                    {zeiten.map(({ z: s, frei }) => (
                       <button
                         key={s}
                         type="button"
                         role="option"
                         aria-selected={s === uhrzeit}
+                        aria-label={frei ? `${s} Uhr, frei` : `${s} Uhr, belegt, Anfrage möglich`}
                         onClick={() => {
                           setUhrzeit(s);
                           requestAnimationFrame(() => document.getElementById("schritt-daten")?.scrollIntoView({ behavior: "smooth", block: "start" }));
                         }}
                         className={`zahlen min-h-12 rounded-md border transition-colors ${
-                          s === uhrzeit ? "border-grau bg-white/[0.08]" : "border-linie bg-flaeche hover:border-tinte"
+                          s === uhrzeit ? "border-grau bg-white/[0.08]" : frei ? "border-linie bg-flaeche hover:border-tinte" : "border-dashed border-linie text-grau hover:border-tinte hover:text-tinte"
                         }`}
                       >
                         {s}
                       </button>
                     ))}
                   </div>
+                  {tag.anfragbar?.length ? (
+                    <p className="mt-3 text-sm text-grau">
+                      Gestrichelte Zeiten sind eigentlich schon belegt. Sie können sie trotzdem anfragen: Wir sagen zu oder schlagen Ihnen eine andere Zeit vor.
+                    </p>
+                  ) : null}
                 </div>
               ) : laedt && !tage.length ? (
                 <div className="mt-6" aria-hidden>
@@ -341,7 +356,7 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
                 <p className="text-grau">
                   Gerade können wir keine freien Zeiten anzeigen. Rufen Sie uns an: {telefon}
                 </p>
-              ) : !laedt && tage.length ? (
+              ) : !laedt && tage.length && !tage.some((t) => t.slots.length || t.anfragbar?.length) ? (
                 <p className="mt-4 text-grau">
                   In diesem Zeitraum ist nichts mehr frei.{" "}
                   {gewaehlt.length > 1 ? "Mehrere Leistungen brauchen zusammen länger, vielleicht passt es mit weniger auf einmal. " : ""}
@@ -427,6 +442,9 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
               <button type="submit" disabled={!uhrzeit || sendet} className="knopf knopf-rot w-full sm:w-auto sm:min-w-64">
                 {sendet ? "Wird gesendet …" : uhrzeit ? "Termin anfragen" : "Bitte zuerst eine Uhrzeit wählen"}
               </button>
+              {gewaehltEng ? (
+                <p className="mt-3 max-w-xl text-sm">Die gewählte Zeit ist eigentlich belegt. Wir melden uns mit einer Zusage oder einem anderen Vorschlag.</p>
+              ) : null}
               <p className="mt-3 max-w-xl text-sm text-grau">
                 Wir verwenden Ihre Angaben nur für diesen Termin und die zugehörige Rechnung. Mehr dazu in der{" "}
                 <Link href="/datenschutz" className="underline">

@@ -32,6 +32,15 @@
   --color-fehler: #a40403;
   /* Logo beim Überfahren mit der Maus: echtes Verkehrsrot, auch auf der Website, wo „rot“ grau ist */
   --color-logo-rot: #cc0605;
+  /* Mitarbeiter im Kalender der Verwaltung (nur hell): gedämpfte, unterscheidbare Töne, Schrift bleibt tinte */
+  --color-person-1: #9cc3e6;
+  --color-person-2: #f2c38b;
+  --color-person-3: #a8d5a2;
+  --color-person-4: #d9a7c7;
+  --color-person-5: #c9b8f0;
+  --color-person-6: #f0e08a;
+  --color-person-7: #8fd3cf;
+  --color-person-8: #e6a3a3;
 
   --text-xs: 0.8rem;
   --text-xs--line-height: 1.4;

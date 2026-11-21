@@ -8,6 +8,7 @@ import { AdminNav, type NavEintrag } from "@/components/admin/nav";
 import { benutzerMitRecht } from "@/lib/auth";
 import { erinnerungenNachholen } from "@/lib/automatik";
 import { einstellungen } from "@/lib/einstellungen";
+import { ohneMitarbeiterAnzahl } from "@/lib/mitarbeiter";
 import { faelligeAnzahl } from "@/lib/notizen";
 import { darf, rollenName } from "@/lib/rollen";
 import { db } from "@/lib/supabase/admin";
@@ -22,16 +23,17 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const e = await einstellungen();
   const zaehlen = (tabelle: string, spalte: string, wert: string) =>
     db().from(tabelle).select("id", { count: "exact", head: true }).eq(spalte, wert).then((r) => r.count ?? 0);
-  const [anfragen, abwesenheiten, bewerbungen, erinnerungen] = await Promise.all([
+  const [anfragen, abwesenheiten, bewerbungen, erinnerungen, ohnePerson] = await Promise.all([
     zaehlen("termine", "status", "angefragt"),
     darf(b.rolle, "team") ? zaehlen("abwesenheiten", "status", "beantragt") : 0,
     darf(b.rolle, "karriere") ? zaehlen("bewerbungen", "status", "neu") : 0,
     darf(b.rolle, "notizen") ? faelligeAnzahl(b) : 0,
+    ohneMitarbeiterAnzahl(),
   ]);
 
   const alle: (NavEintrag & { recht: Parameters<typeof darf>[1]; modul?: keyof typeof e.module })[] = [
     { href: "/admin", text: "Übersicht", recht: "termine" },
-    { href: "/admin/kalender", text: "Kalender", recht: "termine", gruppe: "Werkstatt" },
+    { href: "/admin/kalender", text: "Kalender", recht: "termine", gruppe: "Werkstatt", anzahl: ohnePerson },
     { href: "/admin/termine", text: "Termine", recht: "termine", anzahl: anfragen },
     { href: "/admin/notizen", text: "Notizen", recht: "notizen", anzahl: erinnerungen },
     { href: "/admin/kunden", text: "Kunden", recht: "kunden" },
@@ -41,7 +43,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: "/admin/preisliste", text: "Preisliste", recht: "rechnungen" },
     { href: "/admin/angebote", text: "Angebote", recht: "angebote" },
     { href: "/admin/gemerkte-preise", text: "Gemerkte Preise", recht: "rechnungen" },
-    { href: "/admin/team", text: "Team", recht: "team", anzahl: abwesenheiten, gruppe: "Betrieb" },
+    { href: "/admin/mitarbeiter", text: "Mitarbeiter", recht: "team", anzahl: abwesenheiten, gruppe: "Betrieb" },
     { href: "/admin/karriere", text: "Karriere", recht: "karriere", anzahl: bewerbungen, modul: "karriere" },
     { href: "/admin/website", text: "Website", recht: "website" },
     { href: "/admin/einstellungen", text: "Einstellungen", recht: "einstellungen" },

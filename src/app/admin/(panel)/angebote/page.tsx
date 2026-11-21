@@ -39,7 +39,7 @@ export default async function AngeboteSeite() {
 
       {unmigriert ? (
         <p className="mb-6 border-l-2 border-rot bg-weiss px-4 py-3">
-          Die Datenbank ist noch nicht auf dem neuen Stand. Bitte im Supabase SQL-Editor <span className="font-semibold">supabase/migrations/20261121180000_angebote.sql</span> ausführen.
+          Die Datenbank ist noch nicht auf dem neuen Stand. Bitte im Supabase SQL-Editor <span className="font-semibold">supabase/migrations/20261122120000_angebote.sql</span> ausführen.
         </p>
       ) : null}
 
