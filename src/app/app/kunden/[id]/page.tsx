@@ -22,7 +22,8 @@ export default async function AppKunde({ params }: { params: Promise<{ id: strin
         <div className="grid grid-cols-2 gap-2">
           {k.telefon ? <a href={telHref(k.telefon)} className="knopf knopf-dunkel">Anrufen</a> : null}
           {k.email ? <a href={`mailto:${k.email}`} className="knopf knopf-rahmen">E-Mail</a> : null}
-          <Link href={`/app/notizen/neu?kunde=${k.id}`} className="knopf knopf-rahmen col-span-2">Notiz zum Kunden</Link>
+          <Link href={`/app/neu?kunde=${k.id}`} className="knopf knopf-rahmen">Termin eintragen</Link>
+          <Link href={`/app/notizen/neu?kunde=${k.id}`} className="knopf knopf-rahmen">Notiz zum Kunden</Link>
         </div>
         <dl className="grid gap-y-1 text-sm">
           {[

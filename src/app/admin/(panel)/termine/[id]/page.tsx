@@ -3,15 +3,28 @@ import { notFound } from "next/navigation";
 import { Formular, Senden } from "@/components/admin/formular";
 import { NotizenAbschnitt } from "@/components/admin/notizen";
 import { TerminAktionen } from "@/components/admin/termin-aktionen";
+import { TerminKundeAendern } from "@/components/admin/termin-kunde-aendern";
 import { TerminLoeschen } from "@/components/admin/termin-loeschen";
 import { Abschnitt, Auswahl, Feld, Kopf, Marke, Textfeld } from "@/components/admin/ui";
-import { ablehnenAktion, absagenAktion, bestaetigenAktion, detailsSpeichern, erledigtAktion, rechnungAusTermin, verschiebenAktion } from "@/lib/aktionen/termine";
+import {
+  ablehnenAktion,
+  absagenAktion,
+  bestaetigenAktion,
+  detailsSpeichern,
+  erledigtAktion,
+  kundeVerknuepfen,
+  rechnungAusTermin,
+  rechnungLoesen,
+  rechnungVerknuepfen,
+  verschiebenAktion,
+} from "@/lib/aktionen/termine";
 import { benutzerMitRecht } from "@/lib/auth";
-import { datumLangText, datumZeit, euro, telHref, zeit } from "@/lib/format";
+import { datum, datumLangText, datumZeit, euro, telHref, zeit } from "@/lib/format";
+import { kundenSuchen } from "@/lib/kunden";
 import { RECHNUNG_STATUS } from "@/lib/rechnung/rechnungen";
 import { darf } from "@/lib/rollen";
 import { TERMIN_TON } from "@/lib/status";
-import { terminZusatz } from "@/lib/termin-daten";
+import { freieRechnungen, terminZusatz } from "@/lib/termin-daten";
 import { STATUS_TEXT, terminLaden } from "@/lib/termine";
 import { berlinDatum, berlinUhrzeit } from "@/lib/zeit";
 
@@ -20,7 +33,12 @@ export default async function TerminDetail({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const t = await terminLaden(id);
   if (!t) notFound();
-  const z = await terminZusatz(id);
+  const mitRechnungen = darf(b.rolle, "rechnungen");
+  const [z, zuletzt, frei] = await Promise.all([
+    terminZusatz(id),
+    darf(b.rolle, "kunden") ? kundenSuchen("", 8) : Promise.resolve([]),
+    mitRechnungen ? freieRechnungen(t.kunde?.id ?? null) : Promise.resolve([]),
+  ]);
   const haltAbgelaufen = t.status === "angefragt" && t.halten_bis && new Date(t.halten_bis) < new Date();
 
   return (
@@ -64,6 +82,7 @@ export default async function TerminDetail({ params }: { params: Promise<{ id: s
                 </>
               ) : null}
             </dl>
+            {darf(b.rolle, "kunden") ? <TerminKundeAendern hatKunde={Boolean(t.kunde)} zuletzt={zuletzt} aktion={kundeVerknuepfen.bind(null, t.id)} /> : null}
           </Abschnitt>
 
           <Abschnitt titel="Werkstatt">
@@ -129,11 +148,19 @@ export default async function TerminDetail({ params }: { params: Promise<{ id: s
             {z.rechnungen.length ? (
               <ul className="mb-4 space-y-2">
                 {z.rechnungen.map((r) => (
-                  <li key={r.id}>
-                    <Link href={`/admin/rechnungen/${r.id}`} className="flex justify-between gap-2 hover:underline">
-                      <span className="min-w-0">{r.nummer ? <>{r.nummer} <span className="text-grau">· {RECHNUNG_STATUS[r.status as keyof typeof RECHNUNG_STATUS]}</span></> : "Entwurf"}</span>
+                  <li key={r.id} className="flex items-center gap-2">
+                    <Link href={`/admin/rechnungen/${r.id}`} className="flex min-w-0 flex-1 justify-between gap-2 hover:underline">
+                      <span className="min-w-0">{r.nummer ? <>{r.nummer} <span className="text-grau">· {r.storno_zu ? "Storno" : RECHNUNG_STATUS[r.status as keyof typeof RECHNUNG_STATUS]}</span></> : "Entwurf"}</span>
                       <span className="zahlen">{euro(r.summe_brutto_cent)}</span>
                     </Link>
+                    {/* Stornorechnungen hängen an ihrem Original und gehen mit ihm */}
+                    {mitRechnungen && !r.storno_zu ? (
+                      <form action={rechnungLoesen.bind(null, t.id, r.id)}>
+                        <button className="text-xs text-grau underline hover:text-tinte" title="Verknüpfung mit dem Termin lösen, die Rechnung bleibt">
+                          lösen
+                        </button>
+                      </form>
+                    ) : null}
                   </li>
                 ))}
               </ul>
@@ -142,6 +169,22 @@ export default async function TerminDetail({ params }: { params: Promise<{ id: s
               <form action={rechnungAusTermin.bind(null, t.id, "/admin/rechnungen")}>
                 <button className="knopf knopf-dunkel w-full">Rechnung erstellen</button>
               </form>
+            ) : null}
+            {frei.length ? (
+              <Formular aktion={rechnungVerknuepfen.bind(null, t.id)} className="mt-4 grid gap-2">
+                <Auswahl
+                  label={t.kunde ? `Vorhandene Rechnung von ${t.kunde.name}` : "Vorhandene Rechnung"}
+                  name="rechnung"
+                  leer="bitte wählen"
+                  optionen={frei.map((r) => [
+                    r.id,
+                    [r.nummer ?? `Entwurf vom ${datum(r.erstellt_am)}`, euro(r.summe_brutto_cent), RECHNUNG_STATUS[r.status as keyof typeof RECHNUNG_STATUS], t.kunde ? "" : r.empfaenger?.firma || r.empfaenger?.name]
+                      .filter(Boolean)
+                      .join(" · "),
+                  ])}
+                />
+                <Senden art="rahmen" klein vorab="Verknüpft">Mit Termin verknüpfen</Senden>
+              </Formular>
             ) : null}
           </Abschnitt>
           <p className="px-1 text-sm text-grau">

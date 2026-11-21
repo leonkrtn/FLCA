@@ -235,6 +235,29 @@ export async function kundeFindenOderAnlegen(k: { name: string; email: string; t
   return neu.id;
 }
 
+/**
+ * Kunde, der im Formular aus der Kartei gewählt wurde: Der Termin hängt genau an ihm. Was dort eingetragen
+ * ist (Name, Telefon, E-Mail), übernimmt die Kartei; leere Felder löschen nichts.
+ */
+export async function gewaehlterKunde(id: string, k: { name: string; email: string; telefon: string }): Promise<string> {
+  const { data } = await db().from("kunden").select("id").eq("id", id).maybeSingle();
+  if (!data) throw new TerminFehler("Der gewählte Kunde ist nicht mehr in der Kartei. Bitte neu wählen.");
+  const email = k.email.trim().toLowerCase();
+  const telefon = k.telefon.trim();
+  const aenderung = { ...(k.name.trim() && { name: k.name.trim() }), ...(email && { email }), ...(telefon && { telefon }) };
+  if (Object.keys(aenderung).length) await db().from("kunden").update(aenderung).eq("id", id);
+  return id;
+}
+
+/** Gewähltes Fahrzeug, wenn es zu diesem Kunden gehört; sonst über das Kennzeichen wie bisher. */
+async function gewaehltesFahrzeug(fahrzeugId: string | null | undefined, kennzeichen: string, kundeId: string, markeModell = ""): Promise<string | null> {
+  if (fahrzeugId) {
+    const { data } = await db().from("fahrzeuge").select("id").eq("id", fahrzeugId).eq("kunde_id", kundeId).maybeSingle();
+    if (data) return data.id;
+  }
+  return fahrzeugFindenOderAnlegen(kennzeichen, kundeId, markeModell);
+}
+
 export async function fahrzeugFindenOderAnlegen(kennzeichen: string, kundeId: string, markeModell = ""): Promise<string | null> {
   const kz = kennzeichenFormat(kennzeichen);
   if (!kz) return null;
@@ -468,7 +491,15 @@ export async function anfrageStellen(e: AnfrageEingabe): Promise<Termin> {
  * frei beschriebene Arbeit dazukommen; die Dauer ist dann von Hand anzugeben, sonst gilt die Summe.
  */
 export async function terminEintragen(
-  e: AnfrageEingabe & { leistungName?: string; dauerMin?: number; ueberbuchen?: boolean; mitarbeiter?: string | null },
+  e: AnfrageEingabe & {
+    leistungName?: string;
+    dauerMin?: number;
+    ueberbuchen?: boolean;
+    mitarbeiter?: string | null;
+    /** Aus der Kartei gewählt: Der Termin hängt direkt an diesem Kunden (und Fahrzeug) */
+    kundeId?: string | null;
+    fahrzeugId?: string | null;
+  },
   vonBenutzer: string,
 ): Promise<Termin> {
   const einst = await einstellungen();
@@ -476,8 +507,9 @@ export async function terminEintragen(
   const frei = e.leistungName?.trim() ?? "";
   const dauer = e.dauerMin ?? (gewaehlt.length ? gesamtDauer(gewaehlt) : 60);
   const slot = zeitraum(e.datum, e.uhrzeit, dauer, einst.buchung.pufferMin);
-  const kundeId = await kundeFindenOderAnlegen({ name: e.name, email: e.email, telefon: e.telefon });
-  const fahrzeugId = await fahrzeugFindenOderAnlegen(e.kennzeichen, kundeId, e.fahrzeug);
+  const kontakt = { name: e.name, email: e.email, telefon: e.telefon };
+  const kundeId = e.kundeId ? await gewaehlterKunde(e.kundeId, kontakt) : await kundeFindenOderAnlegen(kontakt);
+  const fahrzeugId = await gewaehltesFahrzeug(e.fahrzeugId, e.kennzeichen, kundeId, e.fahrzeug);
 
   const { data: id, error } = await db().rpc("termin_anlegen", {
     p: {

@@ -67,7 +67,9 @@ export async function spracheUebernehmen(_v: Ergebnis, fd: FormData): Promise<Er
         dauer: v.dauerMin ? String(v.dauerMin) : "",
         datum: v.datum ?? "",
         uhrzeit: v.uhrzeit ?? "",
-        // Aus der Kartei, damit der Termin am selben Kunden hängt (gefunden wird er über E-Mail oder Telefon)
+        // Aus der Kartei: Der Termin hängt direkt an diesem Kunden (und Fahrzeug), das Formular zeigt es an
+        kundeId: k?.kunde.id,
+        fahrzeugId: k?.fahrzeug?.id,
         name: k?.kunde.name || v.name,
         telefon: v.telefon || k?.kunde.telefon || "",
         email: v.email || k?.kunde.email || "",

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { benutzerMitRecht } from "../auth";
-import { verlauf } from "../ereignisse";
+import { melden, verlauf } from "../ereignisse";
 import { type Ergebnis, ja, sicher, text, zahl } from "../forms";
 import { entwurfAusTermin } from "../rechnung/rechnungen";
 import { db } from "../supabase/admin";
@@ -11,6 +11,9 @@ import { ablehnen, bestaetigen, erledigen, loeschen, stornieren, terminEintragen
 import { istDatum } from "../zeit";
 
 /** Termin-Aktionen. Admin am Rechner und Handy-App teilen sich diese Funktionen. */
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const uuidOderNull = (x: unknown) => (typeof x === "string" && UUID.test(x) ? x : null);
 
 function neuLaden(id?: string) {
   revalidatePath("/admin", "layout");
@@ -134,6 +137,8 @@ export async function eintragenAktion(basis: "/admin/termine" | "/app/termine", 
         notiz: text(fd, "notiz", 1500),
         ueberbuchen: ja(fd, "ueberbuchen"),
         mitarbeiter: text(fd, "zugewiesen_an", 40) || null,
+        kundeId: uuidOderNull(fd.get("kunde_id")),
+        fahrzeugId: uuidOderNull(fd.get("fahrzeug_id")),
       },
       b.id,
     );
@@ -149,4 +154,74 @@ export async function rechnungAusTermin(id: string, basis: "/admin/rechnungen" |
   const b = await benutzerMitRecht("rechnungen");
   const rechnungId = await entwurfAusTermin(id, b.id);
   redirect(`${basis}/${rechnungId}`);
+}
+
+/**
+ * Bestehenden Termin an einen Kunden aus der Kartei hängen (falsch zugeordnet, Kunde doppelt angelegt,
+ * Anfrage ohne Kunde). Fahrzeug nur, wenn es diesem Kunden gehört; sonst bleibt der Termin ohne Fahrzeug.
+ */
+export async function kundeVerknuepfen(id: string, kundeId: string, fahrzeugId: string | null): Promise<Ergebnis> {
+  return mitFehlertext(null, async () => {
+    const b = await benutzerMitRecht("termine");
+    if (!uuidOderNull(kundeId)) return { status: "fehler", meldung: "Bitte einen Kunden wählen." };
+    const { data: k } = await db().from("kunden").select("id, name").eq("id", kundeId).maybeSingle();
+    if (!k) return { status: "fehler", meldung: "Der Kunde ist nicht mehr in der Kartei." };
+    const { data: fz } = uuidOderNull(fahrzeugId)
+      ? await db().from("fahrzeuge").select("id, kennzeichen").eq("id", fahrzeugId!).eq("kunde_id", kundeId).maybeSingle()
+      : { data: null };
+    const { data: vorher } = await db().from("termine").select("kunde_id").eq("id", id).maybeSingle();
+    if (!vorher) return { status: "fehler", meldung: "Termin nicht gefunden." };
+    const { error } = await db().from("termine").update({ kunde_id: k.id, fahrzeug_id: fz?.id ?? null }).eq("id", id);
+    if (error) throw new Error(error.message);
+    await verlauf("termin", id, `Kunde verknüpft: ${k.name}${fz ? ` (${fz.kennzeichen})` : ""}`, b.id);
+    await melden("termin.kunde_verknuepft", { termin_id: id, kunde_id: k.id, vorher_kunde_id: vorher.kunde_id, fahrzeug_id: fz?.id ?? null });
+    neuLaden(id);
+    revalidatePath(`/admin/kunden/${k.id}`);
+    if (vorher.kunde_id) revalidatePath(`/admin/kunden/${vorher.kunde_id}`);
+    return { status: "ok", meldung: `Mit ${k.name} verknüpft.` };
+  });
+}
+
+/**
+ * Vorhandene Rechnung an den Termin hängen (z. B. „Rechnung ohne Termin“, später zugeordnet). Ihre
+ * Stornorechnungen gehen mit. Auch gestellte Rechnungen: Der Verweis auf den Termin gehört nicht zum
+ * unveränderlichen Inhalt.
+ */
+export async function rechnungVerknuepfen(id: string, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
+  return mitFehlertext(fd, async () => {
+    const b = await benutzerMitRecht("rechnungen");
+    const rechnungId = uuidOderNull(fd.get("rechnung"));
+    if (!rechnungId) return { status: "fehler", meldung: "Bitte eine Rechnung wählen." };
+    const { data: r } = await db().from("rechnungen").select("id, nummer, termin_id, storno_zu").eq("id", rechnungId).maybeSingle();
+    if (!r || r.storno_zu) return { status: "fehler", meldung: "Diese Rechnung lässt sich nicht verknüpfen." };
+    if (r.termin_id === id) return { status: "ok", meldung: "Ist schon verknüpft." };
+    if (r.termin_id) return { status: "fehler", meldung: "Diese Rechnung gehört schon zu einem anderen Termin. Bitte dort zuerst lösen." };
+    const { data: t } = await db().from("termine").select("id, nummer").eq("id", id).maybeSingle();
+    if (!t) return { status: "fehler", meldung: "Termin nicht gefunden." };
+    const { error } = await db().from("rechnungen").update({ termin_id: id }).or(`id.eq.${r.id},storno_zu.eq.${r.id}`);
+    if (error) throw new Error(error.message);
+    const name = r.nummer ?? "Rechnungsentwurf";
+    await verlauf("termin", id, `${name} verknüpft`, b.id);
+    await verlauf("rechnung", r.id, `Mit Termin Nr. ${t.nummer} verknüpft`, b.id);
+    await melden("rechnung.termin_verknuepft", { rechnung_id: r.id, nummer: r.nummer, termin_id: id, termin_nummer: t.nummer, verknuepft: true });
+    neuLaden(id);
+    revalidatePath("/admin/rechnungen", "layout");
+    return { status: "ok", meldung: `${name} ist jetzt mit dem Termin verknüpft.` };
+  });
+}
+
+/** Rechnung vom Termin lösen (falsch zugeordnet). Die Rechnung selbst bleibt, wie sie ist. */
+export async function rechnungLoesen(id: string, rechnungId: string): Promise<void> {
+  const b = await benutzerMitRecht("rechnungen");
+  if (!uuidOderNull(rechnungId)) return;
+  const { data: r } = await db().from("rechnungen").select("id, nummer, storno_zu").eq("id", rechnungId).eq("termin_id", id).maybeSingle();
+  if (!r || r.storno_zu) return;
+  const { error } = await db().from("rechnungen").update({ termin_id: null }).or(`id.eq.${r.id},storno_zu.eq.${r.id}`).eq("termin_id", id);
+  if (error) throw new Error(error.message);
+  const { data: t } = await db().from("termine").select("nummer").eq("id", id).maybeSingle();
+  await verlauf("termin", id, `${r.nummer ?? "Rechnungsentwurf"} gelöst`, b.id);
+  await verlauf("rechnung", r.id, `Vom Termin${t ? ` Nr. ${t.nummer}` : ""} gelöst`, b.id);
+  await melden("rechnung.termin_verknuepft", { rechnung_id: r.id, nummer: r.nummer, termin_id: id, termin_nummer: t?.nummer ?? null, verknuepft: false });
+  neuLaden(id);
+  revalidatePath("/admin/rechnungen", "layout");
 }

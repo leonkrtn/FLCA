@@ -68,6 +68,20 @@ export async function kundeLaden(id: string): Promise<KundenTreffer | null> {
   return (data as unknown as KundenTreffer | null) ?? null;
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Vorauswahl aus der Adresse (`?kunde=…&fz=…`), etwa von der Kundenseite oder vom Sprechen. Das Fahrzeug
+ * nur, wenn es diesem Kunden gehört; hat er genau eins, dieses.
+ */
+export async function kundenWahl(kundeId: unknown, fahrzeugId?: unknown): Promise<{ kunde: KundenTreffer; fahrzeug: KundenFahrzeug | null } | null> {
+  if (typeof kundeId !== "string" || !UUID.test(kundeId)) return null;
+  const kunde = await kundeLaden(kundeId);
+  if (!kunde) return null;
+  const fahrzeug = kunde.fahrzeuge.find((f) => f.id === fahrzeugId) ?? (kunde.fahrzeuge.length === 1 ? kunde.fahrzeuge[0] : null);
+  return { kunde, fahrzeug };
+}
+
 /** Empfänger eines Belegs aus den Stammdaten des Kunden. */
 export function alsEmpfaenger(k: Pick<KundenTreffer, "name" | "firma" | "strasse" | "plz" | "ort" | "email" | "ust_id" | "leitweg_id">): Empfaenger {
   return { name: k.name, firma: k.firma, strasse: k.strasse, plz: k.plz, ort: k.ort, email: k.email, ust_id: k.ust_id, leitweg_id: k.leitweg_id };
