@@ -196,11 +196,12 @@ export async function stellen(id: string, vonBenutzer: string, pakete: PaketWuns
   // Vor dem Anlegen des Kunden: sonst entstünde er auch, wenn das Stellen gleich danach scheitert
   if (!r.positionen?.length) throw new Error("Die Rechnung hat keine Positionen.");
   const { firma, rechnung } = await einstellungen();
-  // Pflichtangaben der E-Rechnung jetzt prüfen: Nach dem Stellen ist die Rechnung unveränderlich.
-  const fehlt = eRechnungPruefen({ empfaenger: r.empfaenger, firma, positionen: r.positionen });
-  if (fehlt.length) {
-    const art = istXRechnung(r) ? "XRechnung (Behörde, Leitweg-ID)" : "E-Rechnung";
-    throw new Error(`Für eine gültige ${art} fehlt noch: ${fehlt.join("; ")}.`);
+  // Nur Behörden nehmen ausschließlich eine gültige XRechnung an, dort müssen die Pflichtangaben jetzt
+  // stimmen (danach ist die Rechnung unveränderlich). Allen anderen geht die Rechnung auch ohne
+  // Steuernummer usw. raus, dann eben als PDF ohne eingebettete E-Rechnung (siehe eRechnungMoeglich).
+  if (istXRechnung(r)) {
+    const fehlt = eRechnungPruefen({ empfaenger: r.empfaenger, firma, positionen: r.positionen });
+    if (fehlt.length) throw new Error(`Für eine gültige XRechnung (Behörde, Leitweg-ID) fehlt noch: ${fehlt.join("; ")}.`);
   }
   const heute = berlinDatum();
   // Empfänger ohne Kunden: jetzt in die Kartei (gefunden oder neu). Stornos übernehmen den Kunden des Originals.
@@ -260,12 +261,26 @@ async function gestellteDaten(r: Rechnung) {
   };
 }
 
+/**
+ * Ob die gestellte Rechnung eine gültige E-Rechnung ergibt. Geprüft wird an den bei der Rechnung
+ * gespeicherten Firmendaten, damit sich das später nicht ändert, wenn die Einstellungen ergänzt werden.
+ */
+export function eRechnungFehlt(r: Rechnung): string[] {
+  return r.firma ? eRechnungPruefen({ empfaenger: r.empfaenger, firma: r.firma, positionen: r.positionen }) : ["Firmendaten"];
+}
+
 /** Die E-Rechnung als reine XML-Datei (für Behördenportale, die keine PDFs annehmen). */
 export async function xmlErzeugen(r: Rechnung): Promise<string> {
+  const fehlt = eRechnungFehlt(r);
+  if (fehlt.length) throw new Error(`Zu dieser Rechnung gibt es keine E-Rechnung, es fehlte beim Stellen: ${fehlt.join("; ")}.`);
   return zugferdXml(await gestellteDaten(r));
 }
 
-/** Das PDF zu einer gestellten Rechnung, mit eingebetteter E-Rechnung (ZUGFeRD, bei Behörden XRechnung). */
+/**
+ * Das PDF zu einer gestellten Rechnung, mit eingebetteter E-Rechnung (ZUGFeRD, bei Behörden XRechnung).
+ * Fehlten beim Stellen Pflichtangaben (z. B. die Steuernummer), bleibt es ein PDF ohne XML: eine
+ * ungültige E-Rechnung einzubetten wäre schlechter als keine.
+ */
 export async function pdfErzeugen(r: Rechnung): Promise<Buffer> {
   const { rechnung } = await einstellungen();
   const daten = await gestellteDaten(r);
@@ -277,6 +292,7 @@ export async function pdfErzeugen(r: Rechnung): Promise<Buffer> {
     fusstext: rechnung.fusstext,
     bezahlt: r.status === "bezahlt",
   });
+  if (eRechnungFehlt(r).length) return Buffer.from(pdf);
   return Buffer.from(await alsZugferd(new Uint8Array(pdf), zugferdXml(daten), daten.nummer));
 }
 
@@ -330,12 +346,11 @@ export async function versenden(id: string, an: string, vonBenutzer: string): Pr
         ? [{ art: "absatz" as const, text: `Bitte überweisen Sie auf ${firma.iban} mit dem Verwendungszweck ${r.nummer}. Auf dem PDF ist ein QR-Code für Ihre Banking-App.` }]
         : []),
       { art: "knopf", text: "Rechnung online ansehen", url: link },
-      {
-        art: "absatz",
-        text: xrechnung
-          ? "Die Rechnung liegt zusätzlich als XRechnung (XML, Version 3.0) bei; dieselbe XML ist auch im PDF eingebettet."
-          : "Geschäftskunden: Das PDF enthält die Rechnung zusätzlich als E-Rechnung (ZUGFeRD, EN 16931).",
-      },
+      ...(xrechnung
+        ? [{ art: "absatz" as const, text: "Die Rechnung liegt zusätzlich als XRechnung (XML, Version 3.0) bei; dieselbe XML ist auch im PDF eingebettet." }]
+        : eRechnungFehlt(r).length
+          ? []
+          : [{ art: "absatz" as const, text: "Geschäftskunden: Das PDF enthält die Rechnung zusätzlich als E-Rechnung (ZUGFeRD, EN 16931)." }]),
     ],
   });
   const ergebnis = await mailer().senden({
