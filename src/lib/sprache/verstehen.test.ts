@@ -166,3 +166,51 @@ describe("Positionen bauen", () => {
     expect(p.position).toMatchObject({ einzel_netto_cent: 15000, einheit: "Satz", ek_cent: 9000 });
   });
 });
+
+describe("Neue Angebote und Umbenennungen", () => {
+  // Nichts davon steht im Code: Die Liste kommt aus der Datenbank, wie sie gerade ist.
+  const neu = [
+    ...leistungen,
+    { id: "aufbereitung", name: "Fahrzeugaufbereitung" },
+    { id: "klima", name: "Klimaanlagen-Service", sprachnamen: ["Klima auffüllen"] },
+    { id: "versiegelung", name: "Hohlraumversiegelung", sprachnamen: ["Unterbodenschutz"] },
+    { id: "bv", name: "Bremsen vorne" },
+    { id: "bh", name: "Bremsen hinten" },
+  ];
+  const t = (s: string, liste = neu) => terminVerstehen(s, { heute, leistungen: liste, team });
+
+  it("neues Angebot, auch nur mit einem Teil des Namens", () => {
+    const e = t("Termin für Müller Aufbereitung morgen um 10");
+    expect(e.leistungen.map((l) => l.id)).toEqual(["aufbereitung"]);
+    expect(e.name).toBe("Müller");
+  });
+  it("weitere Namen beim Sprechen", () => {
+    expect(t("Termin für Weber, Klima auffüllen, Freitag um 9").leistungen.map((l) => l.id)).toEqual(["klima"]);
+    expect(t("Termin Unterbodenschutz für Krause übermorgen 8 Uhr").leistungen.map((l) => l.id)).toEqual(["versiegelung"]);
+  });
+  it("nach einer Umbenennung gilt der neue Name", () => {
+    const umbenannt = neu.map((l) => (l.id === "radwechsel" ? { ...l, name: "Saisonwechsel Räder" } : l));
+    expect(t("Termin für Müller Saisonwechsel morgen 9 Uhr", umbenannt).leistungen.map((l) => l.id)).toEqual(["radwechsel"]);
+  });
+  it("mehrdeutiges Teilwort bleibt frei statt falsch", () => {
+    const e = t("Termin für Schneider Bremsen morgen um 3");
+    expect(e.leistungen).toEqual([]);
+    expect(e.leistungFrei).toBe("Bremsen");
+  });
+  it("Wort aus der Preisliste beendet den Namen", () => {
+    expect(t("Termin für Müller Unterbodenschutz morgen").name).toBe("Müller");
+  });
+  it("neuer Eintrag der Preisliste in der Rechnung", () => {
+    const liste = [...preisliste, { id: "aufb", name: "Fahrzeugaufbereitung komplett", einheit: "Pauschal", preis_brutto_cent: 14900, mwst_satz: 19, sprachnamen: ["Innenreinigung"] }];
+    const e = rechnungVerstehen("Rechnung für Müller Innenreinigung", { heute, preisliste: liste, lohnarten });
+    expect(e.name).toBe("Müller");
+    const [p] = positionenBauen(e.positionen, { preisliste: liste, gemerkt: [], stundensaetze, aufschlagProzent: 30 });
+    expect(p.position).toMatchObject({ text: "Fahrzeugaufbereitung komplett", artikel_id: "aufb", einzel_netto_cent: nettoAusBruttoPreis(14900, 19) });
+  });
+  it("Modell aus der Kartei auch ohne Marke", () => {
+    const typen = { marken: ["Lancia"], modelle: [{ marke: "Lancia", modell: "Ypsilon" }] };
+    const e = rechnungVerstehen("Rechnung für Müller Ypsilon Ölwechsel", { heute, preisliste, lohnarten, typen });
+    expect(e).toMatchObject({ name: "Müller", fahrzeug: { marke: "Lancia", modell: "Ypsilon" } });
+    expect(e.positionen).toMatchObject([{ text: "Ölwechsel" }]);
+  });
+});

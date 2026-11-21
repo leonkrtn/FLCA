@@ -73,10 +73,10 @@ const MODELLE: Record<string, string> = {
 const MARKE_ANZEIGE: Record<string, string> = { vw: "VW", mercedes: "Mercedes-Benz", benz: "Mercedes-Benz" };
 const MARKEN_NORM = new Map(MARKEN.map((m) => [markeNorm(m), m]));
 
-function markeAus(text: string): string | null {
+function markeAus(text: string, wissen: Fahrzeugwissen): string | null {
   const k = klein(text);
   if (MARKE_ANZEIGE[k]) return MARKE_ANZEIGE[k];
-  return MARKEN_NORM.get(markeNorm(text)) ?? null;
+  return wissen.marken.get(markeNorm(text)) ?? null;
 }
 
 /** Teile von Wörtern, die nach Arbeit oder Ersatzteil klingen: so etwas ist weder Modell noch Name. */
@@ -107,19 +107,50 @@ export const istStop = (w: string) => STOP.has(klein(w));
 
 export type Fahrzeug = { marke: string; modell: string };
 
+/** Was die Kartei an Marken und Modellen kennt (`fahrzeugTypen()`), zusätzlich zu den festen Listen oben. */
+export type FahrzeugTypen = { marken?: string[]; modelle?: { marke: string; modell: string }[] };
+export type Fahrzeugwissen = { modelle: Map<string, string>; marken: Map<string, string> };
+
+/**
+ * Feste Listen plus Kartei: Ein Modell, das schon einmal in der Werkstatt war, wird auch ohne Marke erkannt
+ * („der Ypsilon von Müller“). Ein Modellwort, das bei zwei Marken vorkommt, zählt ohne Marke nicht.
+ */
+export function fahrzeugWissen(t?: FahrzeugTypen | null): Fahrzeugwissen {
+  const marken = new Map(MARKEN_NORM);
+  for (const m of t?.marken ?? []) {
+    const n = markeNorm(m);
+    if (n.length >= 2 && !marken.has(n)) marken.set(n, m.trim());
+  }
+  const modelle = new Map(Object.entries(MODELLE));
+  const aus = new Map<string, string | null>();
+  for (const { marke, modell } of t?.modelle ?? []) {
+    if (!marke?.trim() || !modell?.trim()) continue;
+    const erstes = modell.trim().split(/\s+/)[0];
+    for (const k of new Set([klein(modell), klein(erstes)])) {
+      // Kurze Wörter („Bus“) und alles, was nach Arbeit klingt, zählen nur zusammen mit der Marke
+      if (k.length < 4 || /^\d+$/.test(k) || STOP.has(k) || klingtNachArbeit(k) || modelle.has(k)) continue;
+      aus.set(k, aus.has(k) && aus.get(k) !== marke.trim() ? null : marke.trim());
+    }
+  }
+  for (const [k, m] of aus) if (m) modelle.set(k, m);
+  return { modelle, marken };
+}
+
+const FESTES_WISSEN = fahrzeugWissen();
+
 const modellZusatz = (w: string) => /^(\d{1,3}|[ivx]{1,4}|gti|gtd|tdi|tsi|rs|st|plus|variant|kombi|avant|touring)$/i.test(w);
 
 /**
  * Marke und Modell („VW Golf 7“, „Audi A4“, „der Golf“, „C-Klasse“). Nimmt nur das Fahrzeug heraus, die
  * Wörter drumherum („für den“) bleiben stehen.
  */
-export function fahrzeugNehmen(rest: Rest, ersatz = TRENNER): Fahrzeug | null {
+export function fahrzeugNehmen(rest: Rest, ersatz = TRENNER, wissen: Fahrzeugwissen = FESTES_WISSEN): Fahrzeug | null {
   const w = woerter(rest.text);
   for (let i = 0; i < w.length; i++) {
     const zwei = i + 1 < w.length && !w[i + 1].nachTrenner ? `${w[i].text} ${w[i + 1].text}` : null;
-    let marke = zwei ? markeAus(zwei) : null;
+    let marke = zwei ? markeAus(zwei, wissen) : null;
     let n = marke ? 2 : 1;
-    if (!marke) marke = markeAus(w[i].text);
+    if (!marke) marke = markeAus(w[i].text, wissen);
     if (marke) {
       // Modell: das Wort danach, wenn es nicht schon etwas anderes ist
       const m = w[i + n];
@@ -135,14 +166,15 @@ export function fahrzeugNehmen(rest: Rest, ersatz = TRENNER): Fahrzeug | null {
     }
     // Nur das Modell
     const k2 = zwei ? klein(zwei) : "";
-    n = k2 && MODELLE[k2] ? 2 : 1;
+    n = k2 && wissen.modelle.has(k2) ? 2 : 1;
     const k = n === 2 ? k2 : klein(w[i].text);
-    if (MODELLE[k]) {
+    const modellMarke = wissen.modelle.get(k);
+    if (modellMarke) {
       let bis = i + n - 1;
       while (bis + 1 < w.length && !w[bis + 1].nachTrenner && modellZusatz(w[bis + 1].text) && bis - i < 3) bis++;
       const modell = rest.text.slice(w[i].start, w[bis].ende);
       rest.entfernen(w[i].start, w[bis].ende, ersatz);
-      return { marke: MODELLE[k], modell: modellSchreibung(modell) };
+      return { marke: modellMarke, modell: modellSchreibung(modell) };
     }
   }
   return null;
@@ -161,7 +193,12 @@ function modellSchreibung(s: string): string {
  * Name nach „für“, „Kunde“, „Herr“, „Frau“: ein bis drei Wörter, bis etwas kommt, das kein Name ist
  * (Datum, Zahl, Füllwort, Leistung). `keinName` prüft zusätzlich gegen die Preisliste.
  */
-export function nameNehmen(rest: Rest, keinName: (woerterAbHier: string[]) => boolean = () => false, marker = "für|fuer|kunde|kundin|kunden|von|bei"): string | null {
+export function nameNehmen(
+  rest: Rest,
+  keinName: (woerterAbHier: string[]) => boolean = () => false,
+  marker = "für|fuer|kunde|kundin|kunden|von|bei",
+  wissen: Fahrzeugwissen = FESTES_WISSEN,
+): string | null {
   // Ohne `wort()`: Das Muster endet mit Leerzeichen, danach kommt der Name selbst.
   const muster = new RegExp(`(?<![\\p{L}\\p{N}])(?:(?:(?:${marker})\\s+)?(herrn?|frau)|(?:${marker}))(?![\\p{L}\\p{N}])\\s+`, "giu");
   for (let m = muster.exec(rest.text); m; m = muster.exec(rest.text)) {
@@ -173,7 +210,7 @@ export function nameNehmen(rest: Rest, keinName: (woerterAbHier: string[]) => bo
     const max = m[1] ? 2 : 3;
     for (let i = 0; i < w.length && name.length < max; i++) {
       const x = w[i];
-      if (x.nachTrenner || /\d/.test(x.text) || istStop(x.text) || klingtNachArbeit(x.text) || markeAus(x.text) || MODELLE[klein(x.text)]) break;
+      if (x.nachTrenner || /\d/.test(x.text) || istStop(x.text) || klingtNachArbeit(x.text) || markeAus(x.text, wissen) || wissen.modelle.has(klein(x.text))) break;
       if (keinName(w.slice(i).map((y) => y.text))) break;
       name.push(x.text);
       ende = nach + x.ende;

@@ -17,6 +17,18 @@ function adresse(roh: string): string {
     .slice(0, 80);
 }
 
+/** PostgREST bzw. Postgres: Spalte unbekannt. */
+const SPALTE_FEHLT = ["PGRST204", "42703"];
+
+/** „Klima auffüllen, Klimaservice“ → Liste, ohne Doppelte, höchstens zehn. */
+function sprachnamenAus(roh: string): string[] {
+  const liste = roh
+    .split(/[,;\n]/)
+    .map((x) => x.replace(/\s+/g, " ").trim().slice(0, 60))
+    .filter(Boolean);
+  return [...new Map(liste.map((x) => [x.toLowerCase(), x])).values()].slice(0, 10);
+}
+
 /**
  * Speichert eine Position der Preisliste (Tabelle leistungen). Preis, Nummer, Einheit und MwSt. darf, wer
  * Rechnungen schreibt. Was die Website zeigt (Texte, Bild, sichtbar, buchbar), nur, wer die Website
@@ -36,8 +48,10 @@ export async function preislisteSpeichern(id: string | null, _v: Ergebnis, fd: F
     const aktiv = ja(fd, "aktiv");
     const satz = zahl(fd, "mwst_satz") ?? 19;
 
+    const sprachnamen = sprachnamenAus(text(fd, "sprachnamen", 800));
     const daten: Record<string, unknown> = {
       name,
+      sprachnamen,
       nummer: text(fd, "nummer", 40),
       einheit: text(fd, "einheit", 20) || "Pauschal",
       preis_cent: centAus(fd, "preis"),
@@ -70,6 +84,13 @@ export async function preislisteSpeichern(id: string | null, _v: Ergebnis, fd: F
     else if (website && art === "leistung" && gewuenscht) daten.slug = gewuenscht;
 
     let antwort = id ? await db().from("leistungen").update(daten).eq("id", id).select("id").single() : await db().from("leistungen").insert(daten).select("id").single();
+    // Spalte „sprachnamen“ gibt es erst nach der Migration: dann ohne sie speichern statt gar nicht
+    let ohneSprachnamen = false;
+    if (antwort.error && SPALTE_FEHLT.includes(antwort.error.code) && /sprachnamen/.test(antwort.error.message)) {
+      delete daten.sprachnamen;
+      ohneSprachnamen = true;
+      antwort = id ? await db().from("leistungen").update(daten).eq("id", id).select("id").single() : await db().from("leistungen").insert(daten).select("id").single();
+    }
     if (antwort.error?.code === "23505" && art === "position") {
       daten.slug = `${daten.slug ?? `position-${adresse(name)}`}-${randomBytes(2).toString("hex")}`;
       antwort = id ? await db().from("leistungen").update(daten).eq("id", id).select("id").single() : await db().from("leistungen").insert(daten).select("id").single();
@@ -77,6 +98,7 @@ export async function preislisteSpeichern(id: string | null, _v: Ergebnis, fd: F
     if (antwort.error) return { status: "fehler", meldung: antwort.error.code === "23505" ? "Diese Webadresse (Slug) gibt es schon." : antwort.error.message };
     if (!id) ziel = `/admin/preisliste/${antwort.data.id}`;
     revalidatePath("/", "layout");
+    if (ohneSprachnamen && sprachnamen.length) return { status: "ok", meldung: "Gespeichert, ohne die weiteren Namen: Dafür fehlt noch die Migration „sprachnamen“." };
     return { status: "ok", meldung: website ? "Gespeichert. Die Website zeigt es in wenigen Minuten." : "Gespeichert." };
   });
   if (ziel) redirect(ziel);

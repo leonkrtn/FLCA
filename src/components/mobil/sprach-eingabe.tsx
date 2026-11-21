@@ -4,8 +4,9 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 import { Formular, Senden } from "@/components/admin/formular";
 import { euro } from "@/lib/format";
 import type { Ergebnis } from "@/lib/forms";
+import type { FahrzeugTypen } from "@/lib/sprache/merkmale";
 import { type Grundlagen, positionenBauen } from "@/lib/sprache/positionen";
-import { absichtErkennen, type Art, ART_TEXT, notizVerstehen, type Person, rechnungVerstehen, terminVerstehen } from "@/lib/sprache/verstehen";
+import { absichtErkennen, type Art, ART_TEXT, type Leistungswahl, notizVerstehen, type Person, rechnungVerstehen, terminVerstehen } from "@/lib/sprache/verstehen";
 import { berlinDatum } from "@/lib/zeit";
 
 /**
@@ -44,11 +45,19 @@ const FEHLER: Record<string, string> = {
   "audio-capture": "Kein Mikrofon gefunden.",
 };
 
-const BEISPIELE: Record<Art, string> = {
-  notiz: "Erinnere mich morgen um 9, Bremsbeläge für den Golf von Müller bestellen",
-  termin: "Termin für Herrn Müller, Ölwechsel und Radwechsel, nächsten Dienstag halb neun, Kennzeichen OF AB 123, Telefon 0151 2345678",
-  rechnung: "Rechnung für Müller, Ölwechsel, zwei Stunden Arbeit, Bremsscheiben vorne 180 Euro brutto",
-};
+/** „Ölwechsel inkl. Filter“ → „Ölwechsel“: so, wie man es sagt. */
+const kurzName = (n: string) => n.split(/\s+(?:inkl\.?|inklusive|mit)\s+|[(,/]/i)[0].trim();
+
+/** Beispiele mit den Namen aus der aktuellen Preisliste, damit sie auch nach einer Umbenennung passen. */
+function beispiele(leistungen: Leistungswahl[], preisliste: Grundlagen["preisliste"]): Record<Art, string> {
+  const l = leistungen.slice(0, 2).map((x) => kurzName(x.name));
+  const p = preisliste.find((x) => x.einheit !== "Std" && !leistungen.slice(0, 2).some((y) => y.id === x.id)) ?? preisliste[0];
+  return {
+    notiz: "Erinnere mich morgen um 9, Bremsbeläge für den Golf von Müller bestellen",
+    termin: `Termin für Herrn Müller, ${l.length ? l.join(" und ") : "Bremsen vorne"}, nächsten Dienstag halb neun, Kennzeichen OF AB 123, Telefon 0151 2345678`,
+    rechnung: `Rechnung für Müller, ${p ? `${kurzName(p.name)}, ` : ""}zwei Stunden Arbeit, Bremsscheiben vorne 180 Euro brutto`,
+  };
+}
 
 const KNOPF: Record<Art, string> = { notiz: "Weiter zur Notiz", termin: "Weiter zum Termin", rechnung: "Rechnungsentwurf anlegen" };
 const HINWEIS: Record<Art, string> = {
@@ -66,11 +75,14 @@ export function SprachEingabe({
   aktion,
   leistungen,
   team,
+  typen,
   grundlagen,
 }: {
   aktion: (v: Ergebnis, fd: FormData) => Promise<Ergebnis>;
-  leistungen: { id: string; name: string }[];
+  leistungen: Leistungswahl[];
   team: Person[];
+  /** Marken und Modelle aus der Kartei */
+  typen: FahrzeugTypen;
   grundlagen: Omit<Grundlagen, "gemerkt">;
 }) {
   const [text, setText] = useState("");
@@ -89,6 +101,7 @@ export function SprachEingabe({
   useEffect(() => () => erkennung.current?.stop(), []);
 
   const erkannt = useMemo(() => absichtErkennen(text), [text]);
+  const vorlagen = useMemo(() => beispiele(leistungen, grundlagen.preisliste), [leistungen, grundlagen.preisliste]);
   const art = gewaehlt ?? erkannt;
 
   const starten = () => {
@@ -160,7 +173,7 @@ export function SprachEingabe({
               rows={5}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder={BEISPIELE[art ?? "termin"]}
+              placeholder={vorlagen[art ?? "termin"]}
               className="feld"
               maxLength={1500}
             />
@@ -186,7 +199,7 @@ export function SprachEingabe({
             {fehler ? <p className="text-sm font-semibold text-rot">{fehler}</p> : null}
           </div>
 
-          {text.trim() && art ? <Vorschau art={art} text={text} leistungen={leistungen} team={team} grundlagen={grundlagen} /> : null}
+          {text.trim() && art ? <Vorschau art={art} text={text} leistungen={leistungen} team={team} typen={typen} grundlagen={grundlagen} /> : null}
 
           <div className="grid gap-2">
             <Senden className="w-full">{art ? KNOPF[art] : "Weiter"}</Senden>
@@ -207,9 +220,9 @@ export function SprachEingabe({
           <ul className="mt-3 grid gap-2">
             {(["notiz", "termin", "rechnung"] as Art[]).map((a) => (
               <li key={a}>
-                <button type="button" onClick={() => setText(BEISPIELE[a])} className="w-full rounded-md border border-linie px-3 py-2 text-left text-sm active:bg-papier">
+                <button type="button" onClick={() => setText(vorlagen[a])} className="w-full rounded-md border border-linie px-3 py-2 text-left text-sm active:bg-papier">
                   <span className="block font-semibold">{ART_TEXT[a]}</span>
-                  {BEISPIELE[a]}
+                  {vorlagen[a]}
                 </button>
               </li>
             ))}
@@ -221,7 +234,21 @@ export function SprachEingabe({
 }
 
 /** Erkannte Felder als Liste. Fehlt etwas Wichtiges, steht es rot da. */
-function Vorschau({ art, text, leistungen, team, grundlagen }: { art: Art; text: string; leistungen: { id: string; name: string }[]; team: Person[]; grundlagen: Omit<Grundlagen, "gemerkt"> }) {
+function Vorschau({
+  art,
+  text,
+  leistungen,
+  team,
+  typen,
+  grundlagen,
+}: {
+  art: Art;
+  text: string;
+  leistungen: Leistungswahl[];
+  team: Person[];
+  typen: FahrzeugTypen;
+  grundlagen: Omit<Grundlagen, "gemerkt">;
+}) {
   const zeilen = useMemo((): [string, string | null, boolean?][] => {
     const heute = berlinDatum();
     if (art === "notiz") {
@@ -235,7 +262,7 @@ function Vorschau({ art, text, leistungen, team, grundlagen }: { art: Art; text:
       ];
     }
     if (art === "termin") {
-      const v = terminVerstehen(text, { heute, leistungen, team });
+      const v = terminVerstehen(text, { heute, leistungen, team, typen });
       return [
         ["Leistungen", [...v.leistungen.map((l) => l.name), v.leistungFrei].filter(Boolean).join(", ") || null, true],
         ["Datum", tagText(v.datum), true],
@@ -250,7 +277,7 @@ function Vorschau({ art, text, leistungen, team, grundlagen }: { art: Art; text:
         ["Notiz", v.notiz || null],
       ];
     }
-    const v = rechnungVerstehen(text, { heute, preisliste: grundlagen.preisliste, lohnarten: grundlagen.stundensaetze.map((s) => s.name) });
+    const v = rechnungVerstehen(text, { heute, preisliste: grundlagen.preisliste, lohnarten: grundlagen.stundensaetze.map((s) => s.name), typen });
     const pos = positionenBauen(v.positionen, { ...grundlagen, gemerkt: [] });
     return [
       ["Kunde", v.name || null, !v.kennzeichen],
@@ -265,7 +292,7 @@ function Vorschau({ art, text, leistungen, team, grundlagen }: { art: Art; text:
       ]),
       ...(pos.length ? [] : [["Positionen", null, true] as [string, null, boolean]]),
     ];
-  }, [art, text, leistungen, team, grundlagen]);
+  }, [art, text, leistungen, team, typen, grundlagen]);
 
   return (
     <div className="rounded-md border border-linie px-3 py-2" aria-live="polite">

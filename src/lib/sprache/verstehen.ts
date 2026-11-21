@@ -1,10 +1,12 @@
 import type { Rabatt } from "../rechnung/berechnung";
 import { berlinUhrzeit, plusTage, type Wiederholung } from "../zeit";
-import { besterEintrag, eintraegeNehmen, SCHWELLE_SPRACHE } from "./abgleich";
+import { besterEintrag, type Eintrag, eintraegeNehmen, istFachwort, SCHWELLE_SPRACHE } from "./abgleich";
 import {
   emailNehmen,
   type Fahrzeug,
   fahrzeugNehmen,
+  type FahrzeugTypen,
+  fahrzeugWissen,
   kennzeichenNehmen,
   mitarbeiterNehmen,
   nameNehmen,
@@ -105,7 +107,8 @@ export function notizVerstehen(satz: string, k: { heute: string; jetzt: Date; te
 // ---------------------------------------------------------------------------------------------------------
 // Termin
 
-export type Leistungswahl = { id: string; name: string };
+/** Leistung aus der Preisliste, mit den weiteren Namen beim Sprechen. */
+export type Leistungswahl = Eintrag & { id: string };
 
 export type TerminVerstanden = {
   leistungen: Leistungswahl[];
@@ -124,11 +127,12 @@ export type TerminVerstanden = {
 };
 
 /** „Termin für Herrn Müller, Ölwechsel und Bremsen vorne, nächsten Dienstag halb neun, Kennzeichen OF AB 123, Telefon 0151 …“ */
-export function terminVerstehen(satz: string, k: { heute: string; leistungen: Leistungswahl[]; team: Person[] }): TerminVerstanden {
+export function terminVerstehen(satz: string, k: { heute: string; leistungen: Leistungswahl[]; team: Person[]; typen?: FahrzeugTypen | null }): TerminVerstanden {
   const rest = vorbereiten(satz);
-  const keinName = (w: string[]) => Boolean(besterEintrag(w[0], k.leistungen));
+  const wissen = fahrzeugWissen(k.typen);
+  const keinName = (w: string[]) => istFachwort(w[0], k.leistungen);
   // „Termin Max Schulz …“: Name direkt nach dem Wort Termin, vor allem anderen
-  const nameVorn = nameNehmen(rest, keinName, "termin\\s+(?:für|fuer)|termin");
+  const nameVorn = nameNehmen(rest, keinName, "termin\\s+(?:für|fuer)|termin", wissen);
   rest.nimm(wort("(?:(?:einen?|neuen?)\\s+)?termin(?:\\s+(?:eintragen|anlegen|machen))?"));
 
   // „Notiz: …“ am Ende gilt bis zum Schluss
@@ -145,8 +149,8 @@ export function terminVerstehen(satz: string, k: { heute: string; leistungen: Le
   const telefon = telefonNehmen(rest) ?? "";
   const kennzeichen = kennzeichenMitWort ?? kennzeichenNehmen(rest) ?? "";
   const leistungen = eintraegeNehmen(rest, k.leistungen);
-  const fahrzeug = fahrzeugNehmen(rest);
-  const name = nameVorn ?? nameNehmen(rest, keinName) ?? "";
+  const fahrzeug = fahrzeugNehmen(rest, undefined, wissen);
+  const name = nameVorn ?? nameNehmen(rest, keinName, undefined, wissen) ?? "";
 
   // Rest: ohne erkannte Leistung ist er die Leistung, sonst eine Notiz
   const uebrig = stuecke(rest.text).join(", ");
@@ -203,10 +207,14 @@ export type RechnungVerstanden = {
  * „Rechnung für Müller, Golf, Ölwechsel, zwei Stunden Arbeit, Bremsscheiben vorne 180 Euro brutto,
  * 10 Prozent Rabatt“. Preise ohne Angabe sind netto (wie im Editor).
  */
-export function rechnungVerstehen(satz: string, k: { heute: string; preisliste: { name: string }[]; lohnarten: string[] }): RechnungVerstanden {
+export function rechnungVerstehen(
+  satz: string,
+  k: { heute: string; preisliste: Eintrag[]; lohnarten: string[]; typen?: FahrzeugTypen | null },
+): RechnungVerstanden {
   const rest = vorbereiten(satz);
-  const keinName = (w: string[]) => Boolean(besterEintrag(w[0], k.preisliste));
-  const nameVorn = nameNehmen(rest, keinName, "rechnung\\s+(?:für|fuer|an)|rechnung");
+  const wissen = fahrzeugWissen(k.typen);
+  const keinName = (w: string[]) => istFachwort(w[0], k.preisliste);
+  const nameVorn = nameNehmen(rest, keinName, "rechnung\\s+(?:für|fuer|an)|rechnung", wissen);
   rest.nimm(wort("(?:(?:eine?|neue)\\s+)?rechnung(?:\\s+(?:schreiben|erstellen|anlegen|machen))?"));
   const alleBrutto = rest.nimm(
     wort("(?:alle|alles|die)\\s+(?:preise\\s+)?(?:sind\\s+)?brutto|preise\\s+(?:sind\\s+)?brutto|alles\\s+(?:inklusive|inkl\\.?|mit)\\s+(?:mehrwertsteuer|mwst)"),
@@ -218,8 +226,8 @@ export function rechnungVerstehen(satz: string, k: { heute: string; preisliste: 
   const kennzeichen = kennzeichenNehmen(rest) ?? "";
   const leistungsdatum = rest.nimmErstes(wort("(?:leistungsdatum|datum)\\s*:?"), () => true) ? datumNehmen(rest, k.heute, "vergangenheit") : datumAmRand(rest, k.heute);
   // Das Fahrzeug steht oft mitten in einer Position („Bremsen für den Golf 180 Euro“): ohne Trenner herausnehmen
-  const fahrzeug = fahrzeugNehmen(rest, " ");
-  const name = nameVorn ?? nameNehmen(rest, keinName, "für|fuer|kunde|kundin|an") ?? "";
+  const fahrzeug = fahrzeugNehmen(rest, " ", wissen);
+  const name = nameVorn ?? nameNehmen(rest, keinName, "für|fuer|kunde|kundin|an", wissen) ?? "";
 
   const positionen: PositionsWunsch[] = [];
   for (const stueck of segmente(rest.text, k.preisliste)) {
@@ -262,7 +270,7 @@ const HAT_ZAHL = /\d|euro|€|stunde|std/i;
  * (ein Preis, eine Menge, ein Eintrag der Preisliste) oder rechts eine Zahl beginnt: „Bremsscheiben und
  * Beläge vorne 180 Euro“ bleibt eine Position, „Ölwechsel und Luftfilter“ werden zwei.
  */
-function segmente(text: string, preisliste: { name: string }[]): string[] {
+function segmente(text: string, preisliste: Eintrag[]): string[] {
   const aus: string[] = [];
   for (const teil of text.split(HARTER_TRENNER)) {
     let t = teil.trim();

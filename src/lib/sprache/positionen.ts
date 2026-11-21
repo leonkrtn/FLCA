@@ -9,7 +9,7 @@ import type { PositionsWunsch } from "./verstehen";
  * Ein gesprochener Preis geht vor und ist netto, außer es wurde „brutto“ gesagt.
  */
 
-export type ListenEintrag = { id: string; name: string; einheit: string; preis_brutto_cent: number; mwst_satz: number };
+export type ListenEintrag = { id: string; name: string; einheit: string; preis_brutto_cent: number; mwst_satz: number; sprachnamen?: string[] | null };
 
 /** Was aus dem Preisgedächtnis gebraucht wird (Teilmenge von `Gemerkt`, damit das hier ohne Server läuft). */
 export type GemerktKurz = {
