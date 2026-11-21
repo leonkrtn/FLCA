@@ -9,7 +9,7 @@ import { db, pruefe } from "../supabase/admin";
 import { berlinDatum, plusTage } from "../zeit";
 import { berechne, type Position } from "./berechnung";
 import { rechnungPdf } from "./pdf";
-import { alsZugferd, zugferdXml } from "./zugferd";
+import { alsZugferd, eRechnungPruefen, istXRechnung, zugferdXml } from "./zugferd";
 
 export type Empfaenger = {
   name: string;
@@ -167,8 +167,11 @@ export async function stellen(id: string, vonBenutzer: string): Promise<string> 
   if (!r) throw new Error("Rechnung nicht gefunden.");
   if (!r.empfaenger?.name?.trim()) throw new Error("Bitte einen Rechnungsempfänger eintragen.");
   const { firma, rechnung } = await einstellungen();
-  if (!firma.steuernummer && !firma.ustId) {
-    throw new Error("Auf einer Rechnung müssen Steuernummer oder USt-IdNr. stehen. Bitte unter Einstellungen → Firma eintragen.");
+  // Pflichtangaben der E-Rechnung jetzt prüfen: Nach dem Stellen ist die Rechnung unveränderlich.
+  const fehlt = eRechnungPruefen({ empfaenger: r.empfaenger, firma, positionen: r.positionen });
+  if (fehlt.length) {
+    const art = istXRechnung(r) ? "XRechnung (Behörde, Leitweg-ID)" : "E-Rechnung";
+    throw new Error(`Für eine gültige ${art} fehlt noch: ${fehlt.join("; ")}.`);
   }
   const heute = berlinDatum();
   await db()
@@ -199,16 +202,15 @@ const ereignisDaten = (r: Rechnung) => ({
   empfaenger: r.empfaenger?.firma || r.empfaenger?.name,
 });
 
-/** Das PDF zu einer gestellten Rechnung, mit eingebetteter E-Rechnung (ZUGFeRD). */
-export async function pdfErzeugen(r: Rechnung): Promise<Buffer> {
+/** Die gespeicherten Daten einer gestellten Rechnung, so wie PDF und E-Rechnung sie brauchen. */
+async function gestellteDaten(r: Rechnung) {
   if (!r.nummer || !r.firma || !r.rechnungsdatum) throw new Error("Nur gestellte Rechnungen haben ein PDF. Für Entwürfe gibt es die Vorschau.");
-  const { rechnung } = await einstellungen();
   let stornoZu: string | null = null;
   if (r.storno_zu) {
     const { data } = await db().from("rechnungen").select("nummer").eq("id", r.storno_zu).maybeSingle();
     stornoZu = data?.nummer ?? null;
   }
-  const daten = {
+  return {
     nummer: r.nummer,
     storno: Boolean(r.storno_zu),
     storno_zu_nummer: stornoZu,
@@ -220,6 +222,17 @@ export async function pdfErzeugen(r: Rechnung): Promise<Buffer> {
     empfaenger: r.empfaenger,
     firma: r.firma,
   };
+}
+
+/** Die E-Rechnung als reine XML-Datei (für Behördenportale, die keine PDFs annehmen). */
+export async function xmlErzeugen(r: Rechnung): Promise<string> {
+  return zugferdXml(await gestellteDaten(r));
+}
+
+/** Das PDF zu einer gestellten Rechnung, mit eingebetteter E-Rechnung (ZUGFeRD, bei Behörden XRechnung). */
+export async function pdfErzeugen(r: Rechnung): Promise<Buffer> {
+  const { rechnung } = await einstellungen();
+  const daten = await gestellteDaten(r);
   const pdf = await rechnungPdf({
     ...daten,
     kundennummer: r.kunde?.nummer ?? null,
@@ -228,7 +241,7 @@ export async function pdfErzeugen(r: Rechnung): Promise<Buffer> {
     fusstext: rechnung.fusstext,
     bezahlt: r.status === "bezahlt",
   });
-  return Buffer.from(await alsZugferd(new Uint8Array(pdf), zugferdXml(daten), r.nummer));
+  return Buffer.from(await alsZugferd(new Uint8Array(pdf), zugferdXml(daten), daten.nummer));
 }
 
 /** Vorschau eines Entwurfs (ohne Nummer, ohne E-Rechnung). */
@@ -252,8 +265,8 @@ export async function vorschauPdf(r: Rechnung): Promise<Buffer> {
   });
 }
 
-export function dateiname(r: Pick<Rechnung, "nummer" | "storno_zu">): string {
-  return `${r.storno_zu ? "Stornorechnung" : "Rechnung"}-${(r.nummer ?? "Entwurf").replace(/[^A-Za-z0-9-]/g, "_")}.pdf`;
+export function dateiname(r: Pick<Rechnung, "nummer" | "storno_zu">, endung: "pdf" | "xml" = "pdf"): string {
+  return `${r.storno_zu ? "Stornorechnung" : "Rechnung"}-${(r.nummer ?? "Entwurf").replace(/[^A-Za-z0-9-]/g, "_")}.${endung}`;
 }
 
 export async function versenden(id: string, an: string, vonBenutzer: string): Promise<void> {
@@ -261,6 +274,7 @@ export async function versenden(id: string, an: string, vonBenutzer: string): Pr
   if (!r || r.status === "entwurf") throw new Error("Bitte die Rechnung zuerst stellen.");
   const { firma } = await einstellungen();
   const pdf = await pdfErzeugen(r);
+  const xrechnung = istXRechnung(r);
   const link = `${ENV.siteUrl}/r/${r.token}`;
   const storno = Boolean(r.storno_zu);
   const { html, text } = mail(firma, {
@@ -280,7 +294,12 @@ export async function versenden(id: string, an: string, vonBenutzer: string): Pr
         ? [{ art: "absatz" as const, text: `Bitte überweisen Sie auf ${firma.iban} mit dem Verwendungszweck ${r.nummer}. Auf dem PDF ist ein QR-Code für Ihre Banking-App.` }]
         : []),
       { art: "knopf", text: "Rechnung online ansehen", url: link },
-      { art: "absatz", text: "Geschäftskunden: Das PDF enthält die Rechnung zusätzlich als E-Rechnung (ZUGFeRD, EN 16931)." },
+      {
+        art: "absatz",
+        text: xrechnung
+          ? "Die Rechnung liegt zusätzlich als XRechnung (XML, Version 3.0) bei; dieselbe XML ist auch im PDF eingebettet."
+          : "Geschäftskunden: Das PDF enthält die Rechnung zusätzlich als E-Rechnung (ZUGFeRD, EN 16931).",
+      },
     ],
   });
   const ergebnis = await mailer().senden({
@@ -289,7 +308,10 @@ export async function versenden(id: string, an: string, vonBenutzer: string): Pr
     html,
     text,
     antwortAn: firma.email,
-    anhaenge: [{ dateiname: dateiname(r), inhalt: pdf, typ: "application/pdf" }],
+    anhaenge: [
+      { dateiname: dateiname(r), inhalt: pdf, typ: "application/pdf" },
+      ...(xrechnung ? [{ dateiname: dateiname(r, "xml"), inhalt: Buffer.from(await xmlErzeugen(r), "utf8"), typ: "application/xml" }] : []),
+    ],
   });
   if (!ergebnis.ok) throw new Error(`Die Mail wurde nicht versendet: ${ergebnis.fehler}`);
   await db().from("rechnungen").update({ gesendet_am: new Date().toISOString(), gesendet_an: an }).eq("id", id);

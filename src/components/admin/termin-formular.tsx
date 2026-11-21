@@ -22,7 +22,7 @@ export function TerminFormular({
       <Feld label="Andere Leistung" name="leistung_frei" placeholder="z. B. Bremsen vorne" />
       <Feld label="Dauer in Minuten (nur bei anderer Leistung)" name="dauer" inputMode="numeric" placeholder="60" />
       <Feld label="Datum" name="datum" typ="date" wert={datum} required />
-      <Feld label="Uhrzeit" name="uhrzeit" typ="time" step={900} required />
+      <Feld label="Uhrzeit" name="uhrzeit" typ="time" required />
       <Feld label="Name" name="name" required autoComplete="off" />
       <Feld label="Telefon" name="telefon" typ="tel" inputMode="tel" />
       <Feld label="Kennzeichen" name="kennzeichen" autoCapitalize="characters" className="uppercase-input" />
