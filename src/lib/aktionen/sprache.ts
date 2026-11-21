@@ -4,18 +4,17 @@ import { redirect } from "next/navigation";
 import { benutzerMitRecht } from "../auth";
 import { einstellungen } from "../einstellungen";
 import { type Ergebnis, sicher, text } from "../forms";
-import { alsBelegFahrzeug, alsEmpfaenger, type KundenFahrzeug, type KundenTreffer, kundenSuchen, markeUndModell } from "../kunden";
+import { alsBelegFahrzeug, alsEmpfaenger, fahrzeugTypen, type KundenFahrzeug, type KundenTreffer, kundenSuchen, markeUndModell } from "../kunden";
 import { notizTeam } from "../notizen-seiten";
 import { fahrzeugText, modellNorm } from "../rechnung/aehnlich";
 import { gemerktFuer } from "../rechnung/preisgedaechtnis";
 import { entwurfAnlegen, preislisteFuerBelege, type Rechnung } from "../rechnung/rechnungen";
+import { leistungenFuerSprache } from "../sprache/daten";
 import type { Fahrzeug } from "../sprache/merkmale";
 import { positionenBauen } from "../sprache/positionen";
 import { klein } from "../sprache/text";
-import { absichtErkennen, type Art, notizVerstehen, rechnungVerstehen, terminVerstehen } from "../sprache/verstehen";
+import { type Art, artErkennen, notizVerstehen, rechnungVerstehen, terminVerstehen } from "../sprache/verstehen";
 import { notizAdresse, terminAdresse } from "../sprache/vorgabe";
-import { db } from "../supabase/admin";
-import { istTerminLeistung, type Leistung } from "../termine";
 import { berlinDatum } from "../zeit";
 
 /**
@@ -29,10 +28,14 @@ export async function spracheUebernehmen(_v: Ergebnis, fd: FormData): Promise<Er
     // Begrenzt, weil Notiz und Termin über die Adresse des Formulars vorausgefüllt werden
     const satz = text(fd, "text", 1500);
     if (!satz) return { status: "fehler", meldung: "Bitte erst etwas sagen oder eintippen." };
-    const gewaehlt = text(fd, "art", 10);
-    const art: Art | null = gewaehlt === "notiz" || gewaehlt === "termin" || gewaehlt === "rechnung" ? gewaehlt : absichtErkennen(satz);
-    if (!art) return { status: "fehler", meldung: "Bitte oben wählen: Notiz, Termin oder Rechnung." };
     const heute = berlinDatum();
+    // Die Seite schickt, was sie anzeigt (fest gewählt oder erkannt); fehlt es, wird hier genauso erkannt
+    const gewaehlt = text(fd, "art", 10);
+    const art: Art | null =
+      gewaehlt === "notiz" || gewaehlt === "termin" || gewaehlt === "rechnung"
+        ? gewaehlt
+        : (artErkennen(satz, { heute, jetzt: new Date(), leistungen: await leistungenFuerSprache() })?.art ?? null);
+    if (!art) return { status: "fehler", meldung: "Bitte oben wählen: Notiz, Termin oder Rechnung." };
 
     if (art === "notiz") {
       const b = await benutzerMitRecht("notizen");
@@ -51,9 +54,9 @@ export async function spracheUebernehmen(_v: Ergebnis, fd: FormData): Promise<Er
 
     if (art === "termin") {
       await benutzerMitRecht("termine");
-      const [{ data: l }, team] = await Promise.all([db().from("leistungen").select("*").order("sortierung"), notizTeam()]);
-      const leistungen = ((l ?? []) as Leistung[]).filter(istTerminLeistung);
-      const v = terminVerstehen(satz, { heute, leistungen, team });
+      // Frisch aus der Datenbank: neue und umbenannte Leistungen gelten sofort
+      const [leistungen, team, typen] = await Promise.all([leistungenFuerSprache(), notizTeam(), fahrzeugTypen()]);
+      const v = terminVerstehen(satz, { heute, leistungen, team, typen });
       const k = await kundeFinden(v);
       ziel = terminAdresse({
         leistungIds: v.leistungen.map((x) => x.id),
@@ -74,9 +77,9 @@ export async function spracheUebernehmen(_v: Ergebnis, fd: FormData): Promise<Er
     }
 
     const b = await benutzerMitRecht("rechnungen");
-    const [preisliste, einst] = await Promise.all([preislisteFuerBelege(), einstellungen()]);
+    const [preisliste, einst, typen] = await Promise.all([preislisteFuerBelege(), einstellungen(), fahrzeugTypen()]);
     const { stundensaetze, aufschlagProzent } = einst.rechnung;
-    const v = rechnungVerstehen(satz, { heute, preisliste, lohnarten: stundensaetze.map((s) => s.name) });
+    const v = rechnungVerstehen(satz, { heute, preisliste, lohnarten: stundensaetze.map((s) => s.name), typen });
     if (!v.positionen.length && !v.name && !v.kennzeichen) {
       return { status: "fehler", meldung: "Darin habe ich weder Kunde noch Positionen erkannt. Bitte etwas genauer sagen." };
     }

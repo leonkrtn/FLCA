@@ -60,14 +60,22 @@ export const RECHNUNG_STATUS: Record<Rechnung["status"], string> = {
   storniert: "Storniert",
 };
 
-export type PreislistenPosition = { id: string; name: string; einheit: string; preis_brutto_cent: number; mwst_satz: number };
+export type PreislistenPosition = { id: string; name: string; einheit: string; preis_brutto_cent: number; mwst_satz: number; sprachnamen: string[] };
 
 /** Auswahl „Aus der Preisliste“ im Rechnungseditor: alles Aktive, Leistungen und Teile, in der Reihenfolge der Preisliste. */
 export async function preislisteFuerBelege(): Promise<PreislistenPosition[]> {
   const { data } = await db().from("leistungen").select("*").order("sortierung");
   return (data ?? [])
     .filter((l) => l.aktiv !== false)
-    .map((l) => ({ id: l.id, name: l.name, einheit: l.einheit ?? "Pauschal", preis_brutto_cent: l.preis_cent ?? 0, mwst_satz: Number(l.mwst_satz ?? 19) }));
+    .map((l) => ({
+      id: l.id,
+      name: l.name,
+      einheit: l.einheit ?? "Pauschal",
+      preis_brutto_cent: l.preis_cent ?? 0,
+      mwst_satz: Number(l.mwst_satz ?? 19),
+      // Vor der Migration „sprachnamen“ fehlt die Spalte
+      sprachnamen: Array.isArray(l.sprachnamen) ? l.sprachnamen : [],
+    }));
 }
 
 export async function rechnungLaden(id: string): Promise<Rechnung | null> {

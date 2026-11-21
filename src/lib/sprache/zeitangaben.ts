@@ -150,8 +150,8 @@ export function uhrzeitNehmen(rest: Rest): string | null {
     rest.nimmErstes(new RegExp(`${UM}(?<![\\d.,])(\\d{1,2}):(\\d{2})(?!\\d)(?:\\s*uhr)?`, "giu"), (m) => fertig(+m[1], +m[2])) ??
     rest.nimmErstes(new RegExp(`(?<![\\d.,])(\\d{1,2})\\.(\\d{2})\\s*uhr`, "giu"), (m) => fertig(+m[1], +m[2])) ??
     rest.nimmErstes(new RegExp(`(?:um|gegen|ab|bis)\\s+(\\d{1,2})\\.(\\d{2})(?![\\d.])`, "giu"), (m) => fertig(+m[1], +m[2])) ??
-    rest.nimmErstes(new RegExp(`${UM}(?<![\\d.,])(\\d{1,2})\\s*uhr(?![\\p{L}])(?:\\s+(\\d{1,2})(?![\\d,.])${KEINE_UHR})?`, "giu"), (m) => fertig(+m[1], m[2] ? +m[2] : 0)) ??
-    rest.nimmErstes(new RegExp(`${UM}(?<![\\d.,])(\\d{1,2})\\s+(nach|vor)\\s+(halb\\s+)?(\\d{1,2})(?![\\d,.])${KEINE_UHR}`, "giu"), (m) => {
+    rest.nimmErstes(new RegExp(`${UM}(?<![\\d.,])(\\d{1,2})\\s*uhr(?![\\p{L}])(?:\\s+(\\d{1,2})(?!\\d|[,.]\\d)${KEINE_UHR})?`, "giu"), (m) => fertig(+m[1], m[2] ? +m[2] : 0)) ??
+    rest.nimmErstes(new RegExp(`${UM}(?<![\\d.,])(\\d{1,2})\\s+(nach|vor)\\s+(halb\\s+)?(\\d{1,2})(?!\\d|[,.]\\d)${KEINE_UHR}`, "giu"), (m) => {
       const min = +m[1];
       const h = +m[4];
       if (min > 29) return null;
@@ -163,7 +163,7 @@ export function uhrzeitNehmen(rest: Rest): string | null {
     rest.nimmErstes(wort(`${UM}(?:drei\\s?viertel|3\\s*viertel)\\s+(\\d{1,2})`), (m) => vor(+m[1], 15)) ??
     rest.nimmErstes(wort(`${UM}viertel\\s+(\\d{1,2})`), (m) => fertig(+m[1] - 1, 15)) ??
     rest.nimmErstes(wort(`${UM}halb\\s+(\\d{1,2})`), (m) => fertig(+m[1] - 1, 30)) ??
-    rest.nimmErstes(new RegExp(`(?<![\\p{L}\\p{N}])(?:um|gegen|ab|bis)\\s+(\\d{1,2})(?![\\d,.:])${KEINE_UHR}`, "giu"), (m) => fertig(+m[1], 0)) ??
+    rest.nimmErstes(new RegExp(`(?<![\\p{L}\\p{N}])(?:um|gegen|ab|bis)\\s+(\\d{1,2})(?![\\d:]|[,.]\\d)${KEINE_UHR}`, "giu"), (m) => fertig(+m[1], 0)) ??
     rest.nimmErstes(wort("mittags?"), () => "12:00")
   );
 }

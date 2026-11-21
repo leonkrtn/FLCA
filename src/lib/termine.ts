@@ -34,6 +34,8 @@ export type Leistung = {
   /** „leistung“ = Arbeit mit Dauer (Website, Termine); „position“ = Teil, Material, Zuschlag (nur Rechnung). */
   art?: "leistung" | "position";
   aktiv?: boolean;
+  /** Weitere Namen, unter denen die Spracheingabe den Eintrag erkennt (seit der Migration „sprachnamen“). */
+  sprachnamen?: string[];
 };
 
 /** Was als Termin eingetragen werden kann: Leistungen, keine Teile, nichts Ausgeblendetes. */

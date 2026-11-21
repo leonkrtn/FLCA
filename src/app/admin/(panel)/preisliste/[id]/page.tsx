@@ -53,6 +53,15 @@ export default async function PreislistePosition({ params }: { params: Promise<{
               ]}
               className="col-span-2"
             />
+            <Feld
+              label="Weitere Namen beim Sprechen"
+              name="sprachnamen"
+              wert={(l?.sprachnamen ?? []).join(", ")}
+              placeholder="z. B. Klima auffüllen, Klimaservice"
+              hilfe="Kommagetrennt. Wie man es im Alltag nennt, wenn es nicht die Bezeichnung ist. Die Bezeichnung selbst wird immer erkannt, auch nach einer Umbenennung."
+              className="col-span-2"
+              maxLength={800}
+            />
             <Feld label="Nummer" name="nummer" wert={l?.nummer} placeholder="optional" />
             <Auswahl label="Einheit" name="einheit" wert={l?.einheit ?? "Pauschal"} optionen={EINHEITEN.map((x) => [x, x])} />
             <Feld

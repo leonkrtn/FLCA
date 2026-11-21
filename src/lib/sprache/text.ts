@@ -92,20 +92,31 @@ const FUELL = new Set(
     "eintragen", "anlegen", "machen", "schreiben", "aufschreiben", "notieren", "merken", "erstellen", "neu", "neue", "neuer", "neuen",
     "termin", "rechnung", "notiz", "position", "positionen", "dass", "daran", "ich", "wir", "er", "sie", "es",
     "kommt", "kommen", "bringt", "will", "moechte", "braucht", "hat", "ist", "soll", "sollen", "muss", "muessen",
+    // Reste von Aufforderungen („Trag … ein“, „Leg … an“, „Stell … aus“, „Kannst du mir …“)
+    "mir", "uns", "mich", "du", "kannst", "brauche", "gern", "gerne", "danke", "okay", "ok", "aus", "hinzu", "ueber",
+    "erstelle", "erstell", "erstellen", "mach", "mache", "schreib", "schreibe", "schreiben", "leg", "lege", "trag", "trage",
   ].map(klein),
 );
 
-/** Füllwörter vorn und hinten abschneiden, Satzzeichen glätten. Leer, wenn nichts Bedeutendes bleibt. */
-export function saeubern(stueck: string): string {
+/** Am Ende einer Notiz nur diese, sonst wird aus „Kunde ruft an“ „Kunde ruft“. */
+const FUELL_HINTEN_NOTIZ = new Set(["und", "oder", "bitte", "mal", "also", "ja", "so", "danke", "okay", "ok"]);
+
+/**
+ * Füllwörter vorn und hinten abschneiden, Satzzeichen glätten. Leer, wenn nichts Bedeutendes bleibt.
+ * `notiz`: hinten nur echte Füllwörter, weil dort Satzteile wie „an“ oder „ein“ zum Inhalt gehören.
+ */
+export function saeubern(stueck: string, notiz = false): string {
   let w = stueck
     .replace(/[|]+/g, " ")
     .replace(/\s+/g, " ")
     .trim()
     .split(" ")
     .filter(Boolean);
-  const rand = (x: string) => FUELL.has(klein(x)) || /^[,;.:!?-]+$/.test(x);
-  while (w.length && rand(w[0])) w = w.slice(1);
-  while (w.length && rand(w[w.length - 1])) w = w.slice(0, -1);
+  const zeichen = (x: string) => /^[,;.:!?-]+$/.test(x);
+  const vorn = (x: string) => FUELL.has(klein(x)) || zeichen(x);
+  const hinten = (x: string) => (notiz ? FUELL_HINTEN_NOTIZ.has(klein(x.replace(/[,;.:!?]+$/, ""))) : FUELL.has(klein(x))) || zeichen(x);
+  while (w.length && vorn(w[0])) w = w.slice(1);
+  while (w.length && hinten(w[w.length - 1])) w = w.slice(0, -1);
   return w
     .join(" ")
     .replace(/\s+([,;.:!?])/g, "$1")
@@ -117,7 +128,7 @@ export function saeubern(stueck: string): string {
 export function stuecke(text: string): string[] {
   return text
     .split(/[|;\n]|[,.](?!\d)|(?<!\d)[,.]/)
-    .map(saeubern)
+    .map((x) => saeubern(x))
     .filter(Boolean);
 }
 

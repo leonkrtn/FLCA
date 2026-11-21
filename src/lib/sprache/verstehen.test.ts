@@ -3,7 +3,7 @@ import { textNorm } from "../rechnung/aehnlich";
 import { nettoAusBruttoPreis } from "../rechnung/berechnung";
 import { berlin } from "../zeit";
 import { positionenBauen } from "./positionen";
-import { absichtErkennen, notizVerstehen, rechnungVerstehen, terminVerstehen } from "./verstehen";
+import { absichtErkennen, artErkennen, notizVerstehen, rechnungVerstehen, terminVerstehen } from "./verstehen";
 
 // Freitag, 20. November 2026, 10 Uhr
 const heute = "2026-11-20";
@@ -164,5 +164,125 @@ describe("Positionen bauen", () => {
     const [p] = positionenBauen(e.positionen, { ...g, gemerkt });
     expect(p.herkunft).toBe("gemerkt");
     expect(p.position).toMatchObject({ einzel_netto_cent: 15000, einheit: "Satz", ek_cent: 9000 });
+  });
+});
+
+describe("Neue Angebote und Umbenennungen", () => {
+  // Nichts davon steht im Code: Die Liste kommt aus der Datenbank, wie sie gerade ist.
+  const neu = [
+    ...leistungen,
+    { id: "aufbereitung", name: "Fahrzeugaufbereitung" },
+    { id: "klima", name: "Klimaanlagen-Service", sprachnamen: ["Klima auffüllen"] },
+    { id: "versiegelung", name: "Hohlraumversiegelung", sprachnamen: ["Unterbodenschutz"] },
+    { id: "bv", name: "Bremsen vorne" },
+    { id: "bh", name: "Bremsen hinten" },
+  ];
+  const t = (s: string, liste = neu) => terminVerstehen(s, { heute, leistungen: liste, team });
+
+  it("neues Angebot, auch nur mit einem Teil des Namens", () => {
+    const e = t("Termin für Müller Aufbereitung morgen um 10");
+    expect(e.leistungen.map((l) => l.id)).toEqual(["aufbereitung"]);
+    expect(e.name).toBe("Müller");
+  });
+  it("weitere Namen beim Sprechen", () => {
+    expect(t("Termin für Weber, Klima auffüllen, Freitag um 9").leistungen.map((l) => l.id)).toEqual(["klima"]);
+    expect(t("Termin Unterbodenschutz für Krause übermorgen 8 Uhr").leistungen.map((l) => l.id)).toEqual(["versiegelung"]);
+  });
+  it("nach einer Umbenennung gilt der neue Name", () => {
+    const umbenannt = neu.map((l) => (l.id === "radwechsel" ? { ...l, name: "Saisonwechsel Räder" } : l));
+    expect(t("Termin für Müller Saisonwechsel morgen 9 Uhr", umbenannt).leistungen.map((l) => l.id)).toEqual(["radwechsel"]);
+  });
+  it("mehrdeutiges Teilwort bleibt frei statt falsch", () => {
+    const e = t("Termin für Schneider Bremsen morgen um 3");
+    expect(e.leistungen).toEqual([]);
+    expect(e.leistungFrei).toBe("Bremsen");
+  });
+  it("Wort aus der Preisliste beendet den Namen", () => {
+    expect(t("Termin für Müller Unterbodenschutz morgen").name).toBe("Müller");
+  });
+  it("neuer Eintrag der Preisliste in der Rechnung", () => {
+    const liste = [...preisliste, { id: "aufb", name: "Fahrzeugaufbereitung komplett", einheit: "Pauschal", preis_brutto_cent: 14900, mwst_satz: 19, sprachnamen: ["Innenreinigung"] }];
+    const e = rechnungVerstehen("Rechnung für Müller Innenreinigung", { heute, preisliste: liste, lohnarten });
+    expect(e.name).toBe("Müller");
+    const [p] = positionenBauen(e.positionen, { preisliste: liste, gemerkt: [], stundensaetze, aufschlagProzent: 30 });
+    expect(p.position).toMatchObject({ text: "Fahrzeugaufbereitung komplett", artikel_id: "aufb", einzel_netto_cent: nettoAusBruttoPreis(14900, 19) });
+  });
+  it("Modell aus der Kartei auch ohne Marke", () => {
+    const typen = { marken: ["Lancia"], modelle: [{ marke: "Lancia", modell: "Ypsilon" }] };
+    const e = rechnungVerstehen("Rechnung für Müller Ypsilon Ölwechsel", { heute, preisliste, lohnarten, typen });
+    expect(e).toMatchObject({ name: "Müller", fahrzeug: { marke: "Lancia", modell: "Ypsilon" } });
+    expect(e.positionen).toMatchObject([{ text: "Ölwechsel" }]);
+  });
+});
+
+describe("Art aus dem Inhalt", () => {
+  const a = (s: string) => artErkennen(s, { heute, jetzt, leistungen });
+
+  it("Schlüsselwort ist eindeutig", () => {
+    expect(a("Termin für Müller")).toMatchObject({ art: "termin", sicher: true });
+  });
+  it("Leistung mit Tag und Uhrzeit ist ein Termin", () => {
+    expect(a("Müller, Ölwechsel, nächsten Dienstag halb neun")).toMatchObject({ art: "termin", sicher: true });
+    expect(a("Herr Weber kommt morgen um 10")).toMatchObject({ art: "termin" });
+  });
+  it("Preise und Arbeitsstunden sind eine Rechnung", () => {
+    expect(a("Müller, Ölwechsel, zwei Stunden Arbeit, Bremsscheiben 180 Euro brutto")).toMatchObject({ art: "rechnung", sicher: true });
+    expect(a("Krause gestern Radwechsel gemacht, 40 Euro")).toMatchObject({ art: "rechnung" });
+  });
+  it("Aufgaben sind Notizen, auch mit Uhrzeit", () => {
+    expect(a("Morgen um 9 Bremsbeläge für den Golf von Müller bestellen")).toMatchObject({ art: "notiz", sicher: true });
+    expect(a("In zwei Stunden Schmidt zurückrufen")).toMatchObject({ art: "notiz" });
+    expect(a("Hebebühne 2 quietscht")).toMatchObject({ art: "notiz", sicher: false });
+  });
+});
+
+describe("Name vorn ohne „für“", () => {
+  it("Termin", () => {
+    const e = terminVerstehen("Müller, Ölwechsel, nächsten Dienstag halb neun", { heute, leistungen, team });
+    expect(e).toMatchObject({ name: "Müller", datum: "2026-11-24", uhrzeit: "08:30" });
+  });
+  it("Rechnung, Wort der Preisliste beendet den Namen", () => {
+    expect(rechnungVerstehen("Müller Ölwechsel 95 Euro", { heute, preisliste, lohnarten })).toMatchObject({ name: "Müller", positionen: [{ text: "Ölwechsel", preisCent: 9500 }] });
+  });
+  it("Position mit Preis ist kein Name", () => {
+    expect(rechnungVerstehen("Lackierung 300 Euro", { heute, preisliste, lohnarten })).toMatchObject({ name: "", positionen: [{ text: "Lackierung", preisCent: 30000 }] });
+  });
+  it("Namen, in denen ein Fachwort steckt", () => {
+    for (const n of ["Konrad", "Glaser", "Sachse", "Katharina Lackner"]) {
+      expect(terminVerstehen(`Termin für ${n} morgen um 9 Radwechsel`, { heute, leistungen, team }).name).toBe(n);
+    }
+  });
+});
+
+describe("Aufforderungen gehören nicht zum Inhalt", () => {
+  const r = (s: string) => rechnungVerstehen(s, { heute, preisliste, lohnarten });
+  const t = (s: string) => terminVerstehen(s, { heute, leistungen, team });
+  const n = (s: string) => notizVerstehen(s, { heute, jetzt, team });
+
+  it("Rechnung: keine Position und kein Name aus der Aufforderung", () => {
+    expect(r("Erstelle mir eine Rechnung für Müller, Ölwechsel, 2 Stunden Arbeit")).toMatchObject({ name: "Müller", positionen: [{ text: "Ölwechsel" }, { stunden: true, menge: 2 }] });
+    expect(r("Erstelle mir eine Rechnung für Müller, Ölwechsel, 2 Stunden Arbeit").positionen).toHaveLength(2);
+    expect(r("Kannst du mir bitte eine Rechnung für Müller erstellen, Ölwechsel und 95 Euro")).toMatchObject({ name: "Müller", positionen: [{ text: "Ölwechsel", preisCent: 9500 }] });
+    expect(r("Mach mal eine neue Rechnung Müller Ölwechsel 95 Euro")).toMatchObject({ name: "Müller", positionen: [{ text: "Ölwechsel", preisCent: 9500 }] });
+    expect(r("Ich brauche eine Rechnung für Schmidt, Radwechsel")).toMatchObject({ name: "Schmidt", positionen: [{ text: "Radwechsel" }] });
+    expect(r("Schreib eine Rechnung an Weber über Bremsscheiben vorne 180 Euro")).toMatchObject({ name: "Weber", positionen: [{ text: "Bremsscheiben vorne", preisCent: 18000 }] });
+    expect(r("Erstelle mir eine Rechnung, Radwechsel 40 Euro")).toMatchObject({ name: "", positionen: [{ text: "Radwechsel", preisCent: 4000 }] });
+    expect(r("Stell bitte eine Rechnung für Krause aus, Radwechsel")).toMatchObject({ name: "Krause", positionen: [{ text: "Radwechsel" }] });
+  });
+  it("Termin: keine Notiz und keine freie Leistung aus der Aufforderung", () => {
+    expect(t("Trag mir bitte einen Termin für Müller morgen um 9 ein, Ölwechsel")).toMatchObject({ name: "Müller", uhrzeit: "09:00", notiz: "", leistungFrei: "" });
+    expect(t("Erstelle einen Termin Max Schulz Freitag 10 Uhr Radwechsel")).toMatchObject({ name: "Max Schulz", notiz: "" });
+    expect(t("Kannst du einen Termin für Krause eintragen, nächsten Montag halb neun, Radwechsel")).toMatchObject({ name: "Krause", notiz: "" });
+    expect(t("Leg einen neuen Termin an für Weber, morgen um 8, Bremsen machen")).toMatchObject({ name: "Weber", uhrzeit: "08:00", leistungFrei: "Bremsen", notiz: "" });
+  });
+  it("Notiz: Titel ohne Aufforderung, Inhalt bleibt ganz", () => {
+    expect(n("Erstelle mir eine Notiz: Hebebühne 2 prüfen").titel).toBe("Hebebühne 2 prüfen");
+    expect(n("Kannst du mich morgen um 9 erinnern, Reifen bestellen")).toMatchObject({ titel: "Reifen bestellen", datum: "2026-11-21", uhrzeit: "09:00" });
+    expect(n("Notiz: Kunde Schmidt ruft wegen Angebot an").titel).toBe("Kunde Schmidt ruft wegen Angebot an");
+    expect(n("Erinnere mich in zwei Stunden, Mail an den Lieferanten schreiben").titel).toBe("Mail an den Lieferanten schreiben");
+  });
+  it("Komma direkt nach Uhrzeit und Cent", () => {
+    expect(t("Termin für Weber morgen um 8, Radwechsel").uhrzeit).toBe("08:00");
+    expect(r("Rechnung für Krause, Ölfilter 19 Euro 90, Radwechsel").positionen).toMatchObject([{ text: "Ölfilter", preisCent: 1990 }, { text: "Radwechsel" }]);
   });
 });
