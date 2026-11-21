@@ -3,13 +3,13 @@ import { datumZeit, zeit } from "@/lib/format";
 import { jetztMs } from "@/lib/zeit";
 
 /**
- * Läuft die Zeitsteuerung (Supabase ruft alle 10 Minuten /api/cron/takt)? Ohne sie kommen Erinnerungen per
+ * Läuft die Zeitsteuerung (Supabase ruft jede Minute /api/cron/takt)? Ohne sie kommen Erinnerungen per
  * Push nur, wenn jemand die App öffnet. `knapp`: nur der Warnhinweis, nichts, solange alles läuft.
  */
 export async function TaktStatus({ knapp = false }: { knapp?: boolean }) {
   const zuletzt = await letzterTakt();
   if (taktLaeuft(zuletzt, jetztMs())) {
-    return knapp ? null : <p className="text-sm text-grau">Zeitsteuerung läuft, zuletzt um {zeit(zuletzt!)} Uhr. Erinnerungen kommen bis zu 10 Minuten nach der eingestellten Zeit.</p>;
+    return knapp ? null : <p className="text-sm text-grau">Zeitsteuerung läuft, zuletzt um {zeit(zuletzt!)} Uhr. Erinnerungen kommen zur eingestellten Minute.</p>;
   }
   return (
     <p className="border-l-2 border-rot bg-weiss px-4 py-3 text-sm">

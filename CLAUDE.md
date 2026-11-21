@@ -24,7 +24,7 @@ npm run dev | build | lint | typecheck | test
 - **Geld:** Cent als Ganzzahl, Preise brutto. Netto/Steuer rechnet nur `src/lib/rechnung/berechnung.ts`.
 - **Rechnungen:** gestellte Rechnungen sind unveränderlich (Trigger `rechnung_schuetzen`), Nummern vergibt nur `rechnung_stellen`. Das PDF entsteht nur in `pdfErzeugen` (`src/lib/rechnung/rechnungen.ts`) aus den gespeicherten Daten, mit eingebetteter ZUGFeRD-XML.
 - **Ereignisse:** jede fachliche Änderung ruft `melden(typ, daten)` (`src/lib/ereignisse.ts`). Neue Typen dort eintragen; Webhooks und `/api/v1/ereignisse` liefern sie automatisch aus.
-- **Takt:** `/api/cron/takt` (alle 10 Minuten aus Supabase pg_cron) ruft `takt()` in `src/lib/automatik.ts`. Jede Aufgabe ist über `automatik_log` idempotent.
+- **Takt:** `/api/cron/takt` (jede Minute aus Supabase pg_cron) ruft `takt()` in `src/lib/automatik.ts`. Jede Aufgabe ist über `automatik_log` idempotent.
 - **Server Actions** für Formulare liegen in `src/lib/aktionen/*` und geben `Ergebnis` (`src/lib/forms.ts`) zurück; Admin und Handy-Apps teilen sie.
 - **Migrationen** in `supabase/migrations/` werden vom Betreiber selbst im SQL-Editor ausgeführt. Neue Tabellen in den RLS-Block am Ende aufnehmen.
 

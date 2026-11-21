@@ -19,7 +19,7 @@ async function einmalig(art: string, bezug: string): Promise<boolean> {
 type Bericht = Record<string, number | string>;
 
 /**
- * Ein Takt (alle 10 Minuten aus Supabase pg_cron, einmal täglich zusätzlich aus Vercel Cron). Jede
+ * Ein Takt (jede Minute aus Supabase pg_cron, einmal täglich zusätzlich aus Vercel Cron). Jede
  * Aufgabe ist idempotent und für sich abgesichert: Scheitert eine, laufen die anderen weiter.
  */
 export async function takt(): Promise<Bericht> {
@@ -50,7 +50,7 @@ export async function takt(): Promise<Bericht> {
     return data?.length ?? 0;
   });
 
-  // Notizen: fällige Erinnerungen per Push (der Takt läuft alle 10 Minuten, so genau ist die Erinnerung)
+  // Notizen: fällige Erinnerungen per Push (der Takt läuft jede Minute, so genau ist die Erinnerung)
   await schritt("notizen", () => erinnerungenSenden(einmalig));
 
   await schritt("bewertungen", async () => {
@@ -152,9 +152,9 @@ export async function letzterTakt(): Promise<Date | null> {
   return data ? new Date(data.erstellt_am as string) : null;
 }
 
-/** Läuft der Takt? Mehr als 25 Minuten ohne Lauf heißt: Die Zeitsteuerung ruft nicht (mehr) an. */
+/** Läuft der Takt? Mehr als 5 Minuten ohne Lauf (er kommt jede Minute) heißt: Die Zeitsteuerung ruft nicht (mehr) an. */
 export function taktLaeuft(zuletzt: Date | null, jetzt: number): boolean {
-  return Boolean(zuletzt && jetzt - zuletzt.getTime() < 25 * 60000);
+  return Boolean(zuletzt && jetzt - zuletzt.getTime() < 5 * 60000);
 }
 
 let zuletztNachgeholt = 0;
@@ -169,7 +169,7 @@ export async function erinnerungenNachholen(): Promise<void> {
   if (jetzt - zuletztNachgeholt < 60000) return;
   zuletztNachgeholt = jetzt;
   const zuletzt = await letzterTakt();
-  if (zuletzt && jetzt - zuletzt.getTime() < 12 * 60000) return;
+  if (zuletzt && jetzt - zuletzt.getTime() < 3 * 60000) return;
   await erinnerungenSenden(einmalig);
 }
 
