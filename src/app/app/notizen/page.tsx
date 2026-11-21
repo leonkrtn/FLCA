@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { NotizZeile } from "@/components/admin/notizen";
+import { TaktStatus } from "@/components/admin/takt-status";
 import { MobilKopf, MobilReiter } from "@/components/mobil/teile";
 import { benutzerMitRecht } from "@/lib/auth";
 import { type NotizAnsicht, notizenLaden } from "@/lib/notizen";
@@ -27,6 +28,7 @@ export default async function AppNotizen({ searchParams }: { searchParams: Promi
         aktion={<Link href="/app/notizen/neu" className="knopf knopf-dunkel knopf-klein">Neu</Link>}
       />
       <MobilReiter aktiv={`/app/notizen?ansicht=${ansicht}`} eintraege={ANSICHTEN.map(([k, t]) => ({ href: `/app/notizen?ansicht=${k}`, text: t }))} />
+      <TaktStatus knapp />
       <ul className="grid grid-cols-1 gap-px bg-linie">
         {liste.map((n) => (
           <li key={n.id} className="bg-weiss px-4">

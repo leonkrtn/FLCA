@@ -2,6 +2,8 @@ import Link from "next/link";
 import { abmelden } from "@/app/login/actions";
 import { MobilKopf } from "@/components/mobil/teile";
 import { PushSchalter } from "@/components/mobil/push-schalter";
+import { Formular, Senden } from "@/components/admin/formular";
+import { pushTest } from "@/lib/aktionen/push";
 import { benutzerMitRecht } from "@/lib/auth";
 import { rollenName } from "@/lib/rollen";
 
@@ -15,8 +17,11 @@ export default async function TeamMehr() {
       <div className="grid gap-6 p-4">
         <section className="grid gap-2">
           <h2 className="font-semibold">Benachrichtigungen</h2>
-          <p className="text-sm text-grau">Push, wenn dein Urlaub genehmigt ist oder sich etwas an deinen Aufträgen ändert.</p>
+          <p className="text-sm text-grau">Push, wenn dein Urlaub genehmigt ist, sich etwas an deinen Aufträgen ändert oder eine Erinnerung fällig ist.</p>
           <PushSchalter />
+          <Formular aktion={pushTest}>
+            <Senden art="rahmen" className="w-full" vorab="Gesendet">Test-Push an mich</Senden>
+          </Formular>
         </section>
         <Link href="/team/notizen" className="knopf knopf-rahmen w-full">Meine Erinnerungen</Link>
         {b.rolle !== "mitarbeiter" ? (

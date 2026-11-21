@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { NotizZeile } from "@/components/admin/notizen";
+import { TaktStatus } from "@/components/admin/takt-status";
 import { Abschnitt, Kopf, Leer, Reiter } from "@/components/admin/ui";
 import { benutzerMitRecht } from "@/lib/auth";
 import { type NotizAnsicht, notizenLaden } from "@/lib/notizen";
@@ -25,6 +26,9 @@ export default async function NotizenSeite({ searchParams }: { searchParams: Pro
         <Link href="/admin/notizen/neu" className="knopf knopf-dunkel">Neue Notiz</Link>
       </Kopf>
       <Reiter aktiv={`/admin/notizen?ansicht=${ansicht}`} eintraege={ANSICHTEN.map(([k, t]) => ({ href: `/admin/notizen?ansicht=${k}`, text: t }))} />
+      <div className="mb-4 empty:hidden">
+        <TaktStatus knapp />
+      </div>
       <Abschnitt>
         {liste.length ? (
           <ul className="divide-y divide-linie">
