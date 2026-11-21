@@ -72,7 +72,7 @@ export function NotizFormular({
         />
         <Auswahl label="Erinnern an" name="erinnern_an" wert={notiz?.erinnern_an ?? ""} leer="Mich selbst" optionen={team.map((p) => [p.id, p.name || "ohne Namen"])} />
         <p className={`text-sm text-grau ${kompakt ? "col-span-2" : "sm:col-span-4"}`}>
-          Ohne Datum keine Erinnerung. Ohne Uhrzeit um 8 Uhr. Der Push kommt bis zu 10 Minuten nach der Uhrzeit.
+          Ohne Datum keine Erinnerung. Ohne Uhrzeit um 8 Uhr. Der Push kommt zur eingestellten Minute.
         </p>
       </fieldset>
       <div className={kompakt ? "" : "sm:col-span-2"}>

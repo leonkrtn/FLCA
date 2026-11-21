@@ -11,7 +11,7 @@ function erlaubt(request: Request): boolean {
   return timingSafeEqual(Buffer.from(gegeben), Buffer.from(ENV.cronSecret));
 }
 
-/** Aufruf alle 10 Minuten aus Supabase (POST, x-cron-secret) und täglich aus Vercel Cron (GET, Bearer). */
+/** Aufruf jede Minute aus Supabase (POST, x-cron-secret) und täglich aus Vercel Cron (GET, Bearer). */
 async function ausfuehren(request: Request) {
   if (!erlaubt(request)) return new NextResponse("Nicht erlaubt", { status: 401 });
   return NextResponse.json(await takt());

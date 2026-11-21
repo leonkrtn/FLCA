@@ -26,7 +26,7 @@ Website, Terminvergabe, Werkstatt-Verwaltung, Rechnungen, Team und Karriere für
 
 **Werkstatt-App.** Das „+“ in der Leiste öffnet eine kurze Auswahl: Termin, Kostenvoranschlag, Rechnung oder Kunde (mit erstem Fahrzeug) anlegen.
 
-**Notizen.** In der Verwaltung, in der Werkstatt-App (auch über das „+“) und an Kunden und Terminen. Jede Notiz ist „nur ich“ oder „Büro“ (Inhaber und Büro) und kann eine Erinnerung haben: Datum und Uhrzeit, einmalig oder täglich, wöchentlich, monatlich, an sich selbst oder eine andere Person (Mitarbeiter sehen ihre Erinnerungen in der Team-App). Der 10-Minuten-Takt schickt den Push; fällige Erinnerungen stehen bis „Erledigt“ oben in der App und zählen im Menü.
+**Notizen.** In der Verwaltung, in der Werkstatt-App (auch über das „+“) und an Kunden und Terminen. Jede Notiz ist „nur ich“ oder „Büro“ (Inhaber und Büro) und kann eine Erinnerung haben: Datum und Uhrzeit, einmalig oder täglich, wöchentlich, monatlich, an sich selbst oder eine andere Person (Mitarbeiter sehen ihre Erinnerungen in der Team-App). Der Minutentakt schickt den Push zur eingestellten Minute; fällige Erinnerungen stehen bis „Erledigt“ oben in der App und zählen im Menü.
 
 **Team.** Arbeitszeiten je Person, Urlaub beantragen und genehmigen, krank melden, Zeiterfassung (pro Person einschaltbar), Aufträge zuweisen, Status und Fotos aus der Team-App.
 
@@ -45,6 +45,7 @@ Website, Terminvergabe, Werkstatt-Verwaltung, Rechnungen, Team und Karriere für
    - `supabase/migrations/20261121100000_termine_loeschen.sql` (Termine endgültig löschen, Auftragsnummern rücken nach)
    - `supabase/migrations/20261121110000_google_kalender_entfernen.sql` (Google-Kalender entfernt)
    - `supabase/migrations/20261121120000_notizen.sql` (Notizen mit Erinnerung per Push)
+   - `supabase/migrations/20261121130000_zeitsteuerung_minuetlich.sql` (Takt jede Minute statt alle 10 Minuten)
 3. *Authentication → Sign In / Providers*: „Allow new users to sign up“ **aus** (Konten legt nur der Inhaber an), Provider „Email“ an.
 4. *Authentication → Emails → SMTP Settings*: eigenen SMTP eintragen, sonst schickt Supabase nur 2 Mails pro Stunde. Mit Resend: Host `smtp.resend.com`, Port 465, Benutzer `resend`, Passwort = Resend-API-Key, Absender wie `MAIL_FROM`.
 5. *Authentication → Emails → Templates*: In „Invite user“ und „Reset password“ den Link ersetzen durch
@@ -76,7 +77,7 @@ Projekt aus dem Repo anlegen, Region ist über `vercel.json` Frankfurt. Umgebung
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | `npx web-push generate-vapid-keys` |
 | `CRON_SECRET` | zufällig, z. B. `openssl rand -hex 32`; derselbe Wert wie in der Zeitsteuerungs-Migration |
 
-Der kostenlose Hobby-Tarif ist laut Vercel nur für nicht-kommerzielle Nutzung. Für den Livegang auf **Pro** wechseln. Der kostenlose Supabase-Tarif pausiert Projekte nach einer Woche ohne Aktivität; der 10-Minuten-Takt hält es wach, für den Betrieb trotzdem Pro empfehlen (tägliche Backups).
+Der kostenlose Hobby-Tarif ist laut Vercel nur für nicht-kommerzielle Nutzung. Für den Livegang auf **Pro** wechseln. Der kostenlose Supabase-Tarif pausiert Projekte nach einer Woche ohne Aktivität; der Minutentakt hält es wach, für den Betrieb trotzdem Pro empfehlen (tägliche Backups).
 
 ### 5. In der Verwaltung
 

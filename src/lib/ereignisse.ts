@@ -63,7 +63,7 @@ export function signatur(geheimnis: string, body: string, zeit = Math.floor(Date
 
 const WARTEZEITEN_MIN = [1, 5, 30, 120, 720, 1440];
 
-/** Stellt fällige Webhooks zu. Läuft nach jedem Ereignis und im 10-Minuten-Takt (Wiederholungen). */
+/** Stellt fällige Webhooks zu. Läuft nach jedem Ereignis und im Minutentakt (Wiederholungen). */
 export async function zustellen(limit = 25): Promise<number> {
   const { data: offen } = await db()
     .from("webhook_zustellungen")
