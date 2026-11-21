@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
+import { MarkeModell, type Typen } from "@/components/admin/marke-modell";
 import { kundeAnlegenAktion } from "@/lib/aktionen/kunden";
 import { LEER } from "@/lib/forms";
 
@@ -19,7 +20,7 @@ const FELDER: { name: string; label: string; typ?: string; modus?: "tel" | "emai
  * Kunde unterwegs anlegen: das Nötigste untereinander, große Felder, passende Tastaturen. Das erste
  * Fahrzeug gleich mit, weil fast jeder Beleg ein Kennzeichen braucht.
  */
-export function KundeNeuFormular() {
+export function KundeNeuFormular({ typen }: { typen: Typen }) {
   const [zustand, aktion] = useActionState(kundeAnlegenAktion.bind(null, "app"), LEER);
   const w = (n: string) => zustand.werte?.[n] ?? "";
   return (
@@ -39,11 +40,8 @@ export function KundeNeuFormular() {
           <span className="label">Kennzeichen</span>
           <input name="kennzeichen" autoCapitalize="characters" autoComplete="off" placeholder="OF-AB 123" defaultValue={w("kennzeichen")} className="feld uppercase" />
         </label>
-        <label className="block min-w-0">
-          <span className="label">Marke / Modell</span>
-          <input name="marke_modell" autoComplete="off" defaultValue={w("marke_modell")} className="feld" />
-        </label>
-        <label className="block min-w-0">
+        <MarkeModell typen={typen} marke={w("marke")} modell={w("modell")} className="col-span-2" />
+        <label className="col-span-2 block min-w-0">
           <span className="label">km-Stand</span>
           <input name="km_stand" inputMode="numeric" autoComplete="off" defaultValue={w("km_stand")} className="feld" />
         </label>

@@ -72,3 +72,35 @@ describe("E-Rechnung und XRechnung", () => {
     expect(eRechnungPruefen({ ...daten, positionen: [] })).toContain("mindestens eine Position");
   });
 });
+
+describe("Netto-Beleg mit Lohn, Teil und Rabatt", () => {
+  const netto = {
+    ...daten,
+    nummer: "RE-2026-0002",
+    positionen: [
+      { text: "Bremsen vorne erneuern", menge: 1.5, einheit: "Std", einzel_netto_cent: 7500, mwst_satz: 19, lohnart: "Mechanik" },
+      { text: "Bremsscheiben vorne", menge: 2, einheit: "Stk", einzel_netto_cent: 6500, mwst_satz: 19, ek_cent: 5000, aufschlag: 30 },
+      { text: "Radwechsel", menge: 1, einheit: "Pauschal", einzel_netto_cent: 3361.34, mwst_satz: 19 },
+      { text: "Stammkunde", menge: 1, einheit: "", einzel_netto_cent: 0, mwst_satz: 19, rabatt: { prozent: 10 } },
+    ],
+  };
+
+  it("PDF entsteht, E-Rechnung weist den Rabatt als Nachlass aus und verrät keinen Einkaufspreis", async () => {
+    const pdf = await rechnungPdf({ ...netto, kundennummer: 10001, fahrzeug: { kennzeichen: "OF-FC 123", marke: "VW", modell: "Golf" }, einleitung: "Test", fusstext: "Fuß", bezahlt: false });
+    expect(pdf.length).toBeGreaterThan(1000);
+    const xml = zugferdXml(netto);
+    // Positionen 11250 + 13000 + 3361 = 27611, Rabatt 2761, Netto 24850, Steuer 4722
+    expect(xml).toContain("<ram:LineTotalAmount>276.11</ram:LineTotalAmount>");
+    expect(xml).toContain("<ram:AllowanceTotalAmount>27.61</ram:AllowanceTotalAmount>");
+    expect(xml).toContain("<ram:TaxBasisTotalAmount>248.50</ram:TaxBasisTotalAmount>");
+    expect(xml).toContain("<ram:GrandTotalAmount>295.72</ram:GrandTotalAmount>");
+    expect(xml.match(/<ram:IncludedSupplyChainTradeLineItem>/g)?.length).toBe(3);
+    expect(xml).not.toContain("50.00");
+  }, 30000);
+
+  it("Storno als Gutschrift mit positiven Beträgen", () => {
+    const xml = zugferdXml({ ...netto, storno: true, positionen: netto.positionen.map((p) => ({ ...p, einzel_netto_cent: -p.einzel_netto_cent })) });
+    expect(xml).toContain("<ram:TypeCode>381</ram:TypeCode>");
+    expect(xml).toContain("<ram:GrandTotalAmount>295.72</ram:GrandTotalAmount>");
+  });
+});

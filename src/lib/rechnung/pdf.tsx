@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { Document, Font, Image, Page, renderToBuffer, StyleSheet, Text, View } from "@react-pdf/renderer";
 import { datum, euro } from "../format";
-import { berechne } from "./berechnung";
+import { fahrzeugText } from "./aehnlich";
+import { berechne, einzelpreis, rabattText, zeilenbetrag } from "./berechnung";
 import { girocode } from "./girocode";
 import type { RechnungsDaten } from "./zugferd";
 
@@ -77,7 +78,7 @@ export type PdfDaten = RechnungsDaten & {
   art?: "rechnung" | "kostenvoranschlag";
   gueltig_bis?: string | null;
   kundennummer: number | null;
-  fahrzeug: { kennzeichen?: string; modell?: string; km?: number | null };
+  fahrzeug: { kennzeichen?: string; marke?: string; modell?: string; km?: number | null };
   einleitung: string;
   fusstext: string;
   bezahlt: boolean;
@@ -89,6 +90,13 @@ export type PdfDaten = RechnungsDaten & {
  */
 export async function rechnungPdf(r: PdfDaten): Promise<Buffer> {
   const summen = berechne(r.positionen);
+  const netto = summen.preisart === "netto";
+  // Rabattzeilen bekommen keine Positionsnummer, die Nummern laufen ohne Lücke weiter.
+  const nummern: number[] = [];
+  r.positionen.reduce((n, p, i) => {
+    nummern[i] = n;
+    return p.rabatt ? n : n + 1;
+  }, 0);
   const f = r.firma;
   const kv = r.art === "kostenvoranschlag";
   const titel = kv ? `Kostenvoranschlag ${r.nummer}` : r.storno ? `Stornorechnung ${r.nummer}` : `Rechnung ${r.nummer}`;
@@ -155,7 +163,7 @@ export async function rechnungPdf(r: PdfDaten): Promise<Buffer> {
 
         <Text style={s.titel}>{titel}</Text>
         {r.storno && r.storno_zu_nummer ? <Text style={s.storno}>Storniert Rechnung {r.storno_zu_nummer} vollständig.</Text> : null}
-        {r.fahrzeug.modell ? <Text style={s.absatz}>Fahrzeug: {r.fahrzeug.modell}</Text> : null}
+        {fahrzeugText(r.fahrzeug) ? <Text style={s.absatz}>Fahrzeug: {fahrzeugText(r.fahrzeug)}</Text> : null}
         {!r.storno ? <Text style={s.absatz}>{r.einleitung}</Text> : null}
 
         <View style={s.tabelle}>
@@ -163,21 +171,47 @@ export async function rechnungPdf(r: PdfDaten): Promise<Buffer> {
             <Text style={s.pos}>Pos.</Text>
             <Text style={s.text}>Bezeichnung</Text>
             <Text style={s.menge}>Menge</Text>
-            <Text style={s.einzel}>Einzelpreis</Text>
-            <Text style={s.gesamt}>Gesamt</Text>
+            <Text style={s.einzel}>{netto ? "Einzel netto" : "Einzelpreis"}</Text>
+            <Text style={s.gesamt}>{netto ? "Gesamt netto" : "Gesamt"}</Text>
           </View>
-          {r.positionen.map((p, i) => (
-            <View key={i} style={s.zeile} wrap={false}>
-              <Text style={s.pos}>{i + 1}</Text>
-              <Text style={s.text}>{p.text}</Text>
-              <Text style={s.menge}>{`${menge(p.menge)} ${p.einheit}`}</Text>
-              <Text style={[s.einzel, s.zahl]}>{euro(p.einzel_brutto_cent)}</Text>
-              <Text style={[s.gesamt, s.zahl]}>{euro(summen.zeilenBrutto[i])}</Text>
-            </View>
-          ))}
+          {r.positionen.map((p, i) =>
+            p.rabatt ? (
+              <View key={i} style={s.zeile} wrap={false}>
+                <Text style={s.pos} />
+                <Text style={s.text}>{rabattText(p)}</Text>
+                <Text style={s.menge} />
+                <Text style={s.einzel} />
+                <Text style={[s.gesamt, s.zahl]}>{euro(summen.zeilenNetto[i])}</Text>
+              </View>
+            ) : (
+              <View key={i} style={s.zeile} wrap={false}>
+                <Text style={s.pos}>{(nummern[i] ?? 0) + 1}</Text>
+                <Text style={s.text}>
+                  {p.text}
+                  {/* Lohn: Stunden × Satz, die Lohnart klein darunter */}
+                  {p.einheit === "Std" && p.lohnart ? <Text style={{ color: grau }}>{`\nArbeitslohn ${p.lohnart}`}</Text> : null}
+                </Text>
+                <Text style={s.menge}>{`${menge(p.menge)} ${p.einheit}`}</Text>
+                <Text style={[s.einzel, s.zahl]}>{euro(einzelpreis(p, summen.preisart))}</Text>
+                <Text style={[s.gesamt, s.zahl]}>{euro(zeilenbetrag(summen, i))}</Text>
+              </View>
+            ),
+          )}
         </View>
 
         <View style={s.summen} wrap={false}>
+          {summen.rabatt ? (
+            <>
+              <View style={s.summenZeile}>
+                <Text style={s.infoLabel}>Summe Positionen</Text>
+                <Text style={s.zahl}>{euro(summen.basis)}</Text>
+              </View>
+              <View style={s.summenZeile}>
+                <Text style={s.infoLabel}>Rabatt</Text>
+                <Text style={s.zahl}>{euro(-summen.rabatt)}</Text>
+              </View>
+            </>
+          ) : null}
           <View style={s.summenZeile}>
             <Text style={s.infoLabel}>Summe netto</Text>
             <Text style={s.zahl}>{euro(summen.netto)}</Text>

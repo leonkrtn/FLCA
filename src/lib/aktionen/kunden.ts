@@ -33,6 +33,13 @@ export async function kundeSpeichern(id: string | null, _v: Ergebnis, fd: FormDa
   return e;
 }
 
+/** Marke und Modell aus zwei Feldern; marke_modell wird für alle Anzeigen zusammengesetzt mitgeschrieben. */
+function markeModellAus(fd: FormData) {
+  const marke = text(fd, "marke", 60);
+  const modell = text(fd, "modell", 60);
+  return { marke, modell, marke_modell: [marke, modell].filter(Boolean).join(" ") };
+}
+
 export async function fahrzeugSpeichern(kundeId: string, fahrzeugId: string | null, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
   return sicher(fd, async () => {
     await benutzerMitRecht("kunden");
@@ -42,7 +49,7 @@ export async function fahrzeugSpeichern(kundeId: string, fahrzeugId: string | nu
     const daten = {
       kunde_id: kundeId,
       kennzeichen: kz,
-      marke_modell: text(fd, "marke_modell", 120),
+      ...markeModellAus(fd),
       hsn: text(fd, "hsn", 8),
       tsn: text(fd, "tsn", 8),
       fin: text(fd, "fin", 20).toUpperCase(),
@@ -86,7 +93,7 @@ export async function kundeAnlegenAktion(ort: "admin" | "app", _v: Ergebnis, fd:
       const km = zahl(fd, "km_stand");
       const { error: f } = await db()
         .from("fahrzeuge")
-        .insert({ kunde_id: data.id, kennzeichen: kz, marke_modell: text(fd, "marke_modell", 120), km_stand: km === null ? null : Math.round(km) });
+        .insert({ kunde_id: data.id, kennzeichen: kz, ...markeModellAus(fd), km_stand: km === null ? null : Math.round(km) });
       if (f) console.error("Fahrzeug zum neuen Kunden nicht gespeichert", f.message);
     }
     await melden("kunde.angelegt", { kunde_id: data.id, nummer: data.nummer, name: daten.name });

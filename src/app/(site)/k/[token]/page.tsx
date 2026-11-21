@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { KvAntwort } from "@/components/site/kv-antwort";
 import { einstellungen } from "@/lib/einstellungen";
 import { datum, datumZeit, euro, telHref } from "@/lib/format";
-import { berechne } from "@/lib/rechnung/berechnung";
+import { fahrzeugText } from "@/lib/rechnung/aehnlich";
+import { berechne, einzelpreis, rabattText, zeilenbetrag } from "@/lib/rechnung/berechnung";
 import { kvAbgelaufen, kvPerToken } from "@/lib/rechnung/kostenvoranschlaege";
 
 export const dynamic = "force-dynamic";
@@ -42,7 +43,7 @@ export default async function KundenKostenvoranschlag({ params }: { params: Prom
         {k.fahrzeug?.kennzeichen ? (
           <>
             <dt className="text-grau">Fahrzeug</dt>
-            <dd>{[k.fahrzeug.kennzeichen, k.fahrzeug.modell].filter(Boolean).join(", ")}</dd>
+            <dd>{[k.fahrzeug.kennzeichen, fahrzeugText(k.fahrzeug)].filter(Boolean).join(", ")}</dd>
           </>
         ) : null}
         <dt className="text-grau">Datum</dt>
@@ -55,12 +56,15 @@ export default async function KundenKostenvoranschlag({ params }: { params: Prom
           {k.positionen.map((p, i) => (
             <li key={i} className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 py-3">
               <span className="min-w-0 break-words">
-                {p.text}
-                <span className="block text-sm text-grau">
-                  {String(p.menge).replace(".", ",")} {p.einheit} × {euro(p.einzel_brutto_cent)}
-                </span>
+                {p.rabatt ? rabattText(p) : p.text}
+                {p.rabatt ? null : (
+                  <span className="block text-sm text-grau">
+                    {String(p.menge).replace(".", ",")} {p.einheit} × {euro(einzelpreis(p, s.preisart))}
+                    {s.preisart === "netto" ? " netto" : ""}
+                  </span>
+                )}
               </span>
-              <span className="zahlen text-right">{euro(s.zeilenBrutto[i])}</span>
+              <span className="zahlen text-right">{euro(zeilenbetrag(s, i))}</span>
             </li>
           ))}
         </ul>

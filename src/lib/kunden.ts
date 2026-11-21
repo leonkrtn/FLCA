@@ -1,8 +1,9 @@
 import "server-only";
+import { MARKEN, markeModellTrennen } from "./rechnung/aehnlich";
 import type { Empfaenger } from "./rechnung/rechnungen";
 import { db } from "./supabase/admin";
 
-export type KundenFahrzeug = { id: string; kennzeichen: string; marke_modell: string; km_stand: number | null };
+export type KundenFahrzeug = { id: string; kennzeichen: string; marke_modell: string; marke: string; modell: string; km_stand: number | null };
 
 export type KundenTreffer = {
   id: string;
@@ -21,7 +22,7 @@ export type KundenTreffer = {
   passend?: string[];
 };
 
-const SPALTEN = "id, nummer, name, firma, telefon, email, strasse, plz, ort, ust_id, leitweg_id, fahrzeuge(id, kennzeichen, marke_modell, km_stand)";
+const SPALTEN = "id, nummer, name, firma, telefon, email, strasse, plz, ort, ust_id, leitweg_id, fahrzeuge(id, kennzeichen, marke_modell, marke, modell, km_stand)";
 
 /** Suchtext für PostgREST-Filter entschärfen: Komma, Klammern und % hätten dort eine Bedeutung. */
 export const suchText = (q: string) => q.replace(/[,()%*\\]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
@@ -72,6 +73,31 @@ export function alsEmpfaenger(k: Pick<KundenTreffer, "name" | "firma" | "strasse
   return { name: k.name, firma: k.firma, strasse: k.strasse, plz: k.plz, ort: k.ort, email: k.email, ust_id: k.ust_id, leitweg_id: k.leitweg_id };
 }
 
+/** Marke und Modell eines Fahrzeugs; ältere Einträge haben nur den gemeinsamen Text und werden getrennt. */
+export function markeUndModell(f: Pick<KundenFahrzeug, "marke_modell"> & Partial<Pick<KundenFahrzeug, "marke" | "modell">>) {
+  return f.marke?.trim() || f.modell?.trim() ? { marke: f.marke ?? "", modell: f.modell ?? "" } : markeModellTrennen(f.marke_modell);
+}
+
 export function alsBelegFahrzeug(f: KundenFahrzeug | null | undefined) {
-  return f ? { kennzeichen: f.kennzeichen, modell: f.marke_modell, km: f.km_stand } : {};
+  return f ? { kennzeichen: f.kennzeichen, ...markeUndModell(f), km: f.km_stand } : {};
+}
+
+export type FahrzeugTypen = { marken: string[]; modelle: { marke: string; modell: string }[] };
+
+/**
+ * Vorschläge für die Felder Marke und Modell: was in der Kartei und bei gemerkten Preisen schon vorkommt,
+ * dazu die gängigen Marken. Wer „VW“ tippt, bekommt so immer dieselbe Schreibweise angeboten.
+ */
+export async function fahrzeugTypen(): Promise<FahrzeugTypen> {
+  const [fz, pg] = await Promise.all([
+    db().from("fahrzeuge").select("marke, modell").neq("marke", "").order("aktualisiert_am", { ascending: false }).limit(2000),
+    db().from("preis_gedaechtnis").select("marke, modell").order("aktualisiert_am", { ascending: false }).limit(2000),
+  ]);
+  const paare = new Map<string, { marke: string; modell: string }>();
+  for (const z of [...(fz.data ?? []), ...(pg.data ?? [])] as { marke: string; modell: string }[]) {
+    if (z.marke?.trim() && z.modell?.trim()) paare.set(`${z.marke.toLowerCase()}|${z.modell.toLowerCase()}`, { marke: z.marke.trim(), modell: z.modell.trim() });
+  }
+  const modelle = [...paare.values()].sort((a, b) => a.marke.localeCompare(b.marke, "de") || a.modell.localeCompare(b.modell, "de"));
+  const marken = [...new Map([...MARKEN, ...modelle.map((m) => m.marke)].map((m) => [m.toLowerCase(), m])).values()].sort((a, b) => a.localeCompare(b, "de"));
+  return { marken, modelle };
 }

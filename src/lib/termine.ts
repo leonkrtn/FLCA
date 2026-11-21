@@ -11,6 +11,7 @@ import { pushSenden } from "./services/push";
 import { type Belegung, freieSlots, type Slot } from "./slots";
 import { db, pruefe } from "./supabase/admin";
 import { berlin, berlinDatum, plusTage, wochentag } from "./zeit";
+import { markeModellTrennen } from "./rechnung/aehnlich";
 
 export type Leistung = {
   id: string;
@@ -240,11 +241,12 @@ export async function fahrzeugFindenOderAnlegen(kennzeichen: string, kundeId: st
   if (data) {
     await db()
       .from("fahrzeuge")
-      .update({ kunde_id: kundeId, kennzeichen: kz, ...(markeModell && !data.marke_modell && { marke_modell: markeModell }) })
+      .update({ kunde_id: kundeId, kennzeichen: kz, ...(markeModell && !data.marke_modell && { marke_modell: markeModell, ...markeModellTrennen(markeModell) }) })
       .eq("id", data.id);
     return data.id;
   }
-  return pruefe(await db().from("fahrzeuge").insert({ kennzeichen: kz, kunde_id: kundeId, marke_modell: markeModell }).select("id").single()).id;
+  // Die Website hat nur ein Feld „Marke/Modell“; getrennt wird geschätzt und ist im Beleg änderbar.
+  return pruefe(await db().from("fahrzeuge").insert({ kennzeichen: kz, kunde_id: kundeId, marke_modell: markeModell, ...markeModellTrennen(markeModell) }).select("id").single()).id;
 }
 
 // ---------------------------------------------------------------------------

@@ -208,6 +208,29 @@ async function RechnungBereich() {
         <Textfeld label="Einleitungssatz" name="einleitung" wert={e.rechnung.einleitung} zeilen={2} />
         <Textfeld label="Fußtext" name="fusstext" wert={e.rechnung.fusstext} zeilen={2} />
         <fieldset className="grid gap-4 border-t border-linie pt-6">
+          <legend className="mb-2 font-semibold">Stundensätze und Teile</legend>
+          <p className="text-sm text-grau">
+            Netto je Stunde. Eine Position mit der Einheit „Std“ ist Lohn: Lohnart wählen, Stunden eintragen, der Satz kommt von hier. Der
+            erste Satz ist der Standard. Leere Zeilen werden entfernt.
+          </p>
+          <div className="grid gap-3">
+            {Array.from({ length: 6 }, (_, i) => e.rechnung.stundensaetze[i] ?? { name: "", netto_cent: 0 }).map((l, i) => (
+              <div key={i} className="grid grid-cols-[minmax(0,1fr)_9rem] gap-3">
+                <Feld label={i ? `Lohnart ${i + 1}` : "Lohnart 1 (Standard)"} name={`lohn_name_${i}`} wert={l.name} placeholder={i ? "" : "Mechanik"} />
+                <Feld label="€ netto/Std" name={`lohn_preis_${i}`} wert={l.name ? (l.netto_cent / 100).toFixed(2).replace(".", ",") : ""} inputMode="decimal" />
+              </div>
+            ))}
+          </div>
+          <Feld
+            label="Aufschlag auf Teile-Einkauf (%)"
+            name="aufschlagProzent"
+            wert={e.rechnung.aufschlagProzent}
+            inputMode="decimal"
+            className="max-w-xs"
+            hilfe="Standard für neue Teile mit Einkaufspreis, in jeder Position änderbar."
+          />
+        </fieldset>
+        <fieldset className="grid gap-4 border-t border-linie pt-6">
           <legend className="mb-2 font-semibold">Kostenvoranschläge · Nummern mit eigenem Präfix KV-</legend>
           <Feld label="Gültig (Tage)" name="kv_gueltigTage" wert={e.kostenvoranschlag.gueltigTage} inputMode="numeric" className="max-w-xs" />
           <Textfeld label="Einleitungssatz" name="kv_einleitung" wert={e.kostenvoranschlag.einleitung} zeilen={2} />

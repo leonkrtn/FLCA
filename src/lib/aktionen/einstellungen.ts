@@ -5,10 +5,13 @@ import { revalidatePath } from "next/cache";
 import { benutzerMitRecht } from "../auth";
 import { type Einstellungen, einstellungen, einstellungenSpeichern, type Fenster } from "../einstellungen";
 import { EREIGNIS_TYPEN, signatur } from "../ereignisse";
-import { type Ergebnis, ja, sicher, text, zahl } from "../forms";
+import { centAus, type Ergebnis, ja, sicher, text, zahl } from "../forms";
 import { db } from "../supabase/admin";
 
 const alles = () => revalidatePath("/", "layout");
+
+/** So viele Lohnarten bietet das Formular in den Einstellungen an. */
+const LOHNARTEN_MAX = 6;
 
 const zahlIn = (fd: FormData, n: string, min: number, max: number, std: number) => Math.min(Math.max(Math.round(zahl(fd, n) ?? std), min), max);
 
@@ -68,10 +71,17 @@ export async function buchungSpeichern(_v: Ergebnis, fd: FormData): Promise<Erge
 export async function rechnungEinstellungen(_v: Ergebnis, fd: FormData): Promise<Ergebnis> {
   return sicher(fd, async () => {
     await benutzerMitRecht("einstellungen");
+    // Leere Zeilen fallen weg; ein Name ohne Preis gilt als 0 €, damit nichts stillschweigend verschwindet.
+    const stundensaetze = Array.from({ length: LOHNARTEN_MAX }, (_, i) => ({
+      name: text(fd, `lohn_name_${i}`, 40),
+      netto_cent: Math.max(0, centAus(fd, `lohn_preis_${i}`) ?? 0),
+    })).filter((l, i, alle) => l.name && alle.findIndex((x) => x.name === l.name) === i);
     await einstellungenSpeichern("rechnung", {
       zahlungszielTage: zahlIn(fd, "zahlungszielTage", 0, 90, 14),
       einleitung: text(fd, "einleitung", 500),
       fusstext: text(fd, "fusstext", 500),
+      stundensaetze: stundensaetze.length ? stundensaetze : [{ name: "Arbeitslohn", netto_cent: 0 }],
+      aufschlagProzent: Math.min(Math.max(zahl(fd, "aufschlagProzent") ?? 30, 0), 1000),
     });
     await einstellungenSpeichern("kostenvoranschlag", {
       gueltigTage: zahlIn(fd, "kv_gueltigTage", 1, 365, 30),

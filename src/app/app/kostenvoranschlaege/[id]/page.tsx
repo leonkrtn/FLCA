@@ -5,7 +5,7 @@ import { MobilKopf } from "@/components/mobil/teile";
 import { benutzerMitRecht } from "@/lib/auth";
 import { kundenSuchen } from "@/lib/kunden";
 import { kvLaden, kvStatusText } from "@/lib/rechnung/kostenvoranschlaege";
-import { preislisteFuerBelege } from "@/lib/rechnung/rechnungen";
+import { editorDaten } from "@/lib/rechnung/editor-daten";
 
 export const metadata = { title: "Kostenvoranschlag" };
 
@@ -15,7 +15,7 @@ export default async function AppKostenvoranschlag({ params }: { params: Promise
   const k = await kvLaden(id);
   if (!k) notFound();
   const entwurf = k.status === "entwurf";
-  const [preisliste, zuletzt] = await Promise.all([entwurf ? preislisteFuerBelege() : [], entwurf ? kundenSuchen("", 6) : []]);
+  const [daten, zuletzt] = await Promise.all([entwurf ? editorDaten(k.fahrzeug) : null, entwurf ? kundenSuchen("", 6) : []]);
   return (
     <>
       <MobilKopf titel={k.nummer ? `KV ${k.nummer}` : "Kostenvoranschlag"} unter={kvStatusText(k)} zurueck="/app/kostenvoranschlaege" />
@@ -25,7 +25,7 @@ export default async function AppKostenvoranschlag({ params }: { params: Promise
             art="kostenvoranschlag"
             kompakt
             id={k.id}
-            preisliste={preisliste}
+            daten={daten!}
             zuletzt={zuletzt}
             start={{ kunde_id: k.kunde_id, empfaenger: k.empfaenger as Record<string, string>, fahrzeug: k.fahrzeug ?? {}, positionen: k.positionen, gueltig_bis: k.gueltig_bis, hinweis: k.hinweis }}
           />
