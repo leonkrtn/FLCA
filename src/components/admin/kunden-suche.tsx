@@ -7,35 +7,52 @@ import type { KundenFahrzeug, KundenTreffer } from "@/lib/kunden";
 export type KundenWahl = { kunde: KundenTreffer; fahrzeug: KundenFahrzeug | null };
 
 /**
- * Eine Zeile je Fahrzeug: Ein Tipp wählt Kunde und Auto zugleich, ohne zweiten Schritt. Wurde nach einem
- * Kennzeichen gesucht, stehen nur die getroffenen Fahrzeuge da, nicht die übrigen Autos desselben Kunden.
+ * Fahrzeug direkt klar, ohne zweiten Schritt? Kein Auto, genau ein Auto, oder die Suche nach einem
+ * Kennzeichen hat genau eines getroffen. Sonst (mehrere Autos) wählt man es im zweiten Schritt.
  */
-function zeilen(kunden: KundenTreffer[]): KundenWahl[] {
-  return kunden.flatMap((kunde): KundenWahl[] => {
-    const fahrzeuge = kunde.passend?.length ? kunde.fahrzeuge.filter((f) => kunde.passend!.includes(f.id)) : kunde.fahrzeuge;
-    return fahrzeuge.length ? fahrzeuge.map((fahrzeug) => ({ kunde, fahrzeug })) : [{ kunde, fahrzeug: null }];
-  });
+function eindeutig(k: KundenTreffer): { fahrzeug: KundenFahrzeug | null } | null {
+  if (!k.fahrzeuge.length) return { fahrzeug: null };
+  if (k.fahrzeuge.length === 1) return { fahrzeug: k.fahrzeuge[0] };
+  if (k.passend?.length === 1) return { fahrzeug: k.fahrzeuge.find((f) => f.id === k.passend![0]) ?? null };
+  return null;
+}
+
+/** Zweiter Schritt: getroffene Kennzeichen zuerst, dann die übrigen Autos, zuletzt „ohne Fahrzeug“. */
+function fahrzeugZeilen(k: KundenTreffer): (KundenFahrzeug | null)[] {
+  const passt = (f: KundenFahrzeug) => (k.passend?.includes(f.id) ? 0 : 1);
+  return [...[...k.fahrzeuge].sort((a, b) => passt(a) - passt(b)), null];
 }
 
 /**
  * Kundensuche für neue Belege und den Editor. Sucht beim Tippen (Name, Firma, Telefon, E-Mail,
- * Kennzeichen, Kundennummer), ohne Eingabe stehen die zuletzt bearbeiteten Kunden da. Mit Pfeiltasten
- * und Enter bedienbar, auf dem Handy reicht ein Tipp auf die Zeile.
+ * Kennzeichen, Kundennummer), ohne Eingabe stehen die zuletzt bearbeiteten Kunden da. Jeder Kunde steht
+ * einmal in der Liste; hat er mehrere Autos, wählt man im zweiten Schritt das Fahrzeug. Mit Pfeiltasten,
+ * Enter und Escape bedienbar, auf dem Handy reicht ein Tipp auf die Zeile.
  */
 export function KundenSuche({
   zuletzt,
   onWahl,
   autoFocus = false,
   gesperrt = false,
+  onFahrzeugwahl,
 }: {
   zuletzt: KundenTreffer[];
   onWahl: (w: KundenWahl) => void;
   autoFocus?: boolean;
   gesperrt?: boolean;
+  /** Meldet, ob gerade der zweite Schritt (Fahrzeug wählen) offen ist, etwa um Knöpfe daneben auszublenden. */
+  onFahrzeugwahl?: (offen: boolean) => void;
 }) {
   const [q, setQ] = useState("");
   const [ergebnis, setErgebnis] = useState<{ fuer: string; treffer: KundenTreffer[]; fehler?: boolean } | null>(null);
   const [aktiv, setAktiv] = useState(0);
+  // Zweiter Schritt: Kunde mit mehreren Autos ist gewählt, jetzt das Fahrzeug
+  const [kunde, setKundeZustand] = useState<KundenTreffer | null>(null);
+  const setKunde = (k: KundenTreffer | null) => {
+    setKundeZustand(k);
+    onFahrzeugwahl?.(Boolean(k));
+  };
+  const zweiterSchritt = useRef<HTMLDivElement>(null);
   const lauf = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const listeId = useId();
@@ -63,10 +80,75 @@ export function KundenSuche({
   const laedt = Boolean(such) && ergebnis?.fuer !== such;
   const treffer = such ? (ergebnis?.treffer ?? null) : null;
 
-  const liste = zeilen(treffer ?? zuletzt);
-  const waehlen = (w: KundenWahl | undefined) => {
-    if (w && !gesperrt) onWahl(w);
+  const liste = treffer ?? zuletzt;
+  const waehlen = (k: KundenTreffer | undefined) => {
+    if (!k || gesperrt) return;
+    const klar = eindeutig(k);
+    if (klar) return onWahl({ kunde: k, fahrzeug: klar.fahrzeug });
+    setKunde(k);
+    setAktiv(0);
   };
+  // Im zweiten Schritt springt der Fokus auf das erste Auto, damit Tastatur und VoiceOver mitkommen.
+  useEffect(() => {
+    if (kunde) zweiterSchritt.current?.querySelector<HTMLButtonElement>("button[data-fahrzeug]")?.focus({ preventScroll: true });
+  }, [kunde]);
+
+  if (kunde) {
+    const autos = fahrzeugZeilen(kunde);
+    return (
+      <div
+        ref={zweiterSchritt}
+        className="grid min-w-0 grid-cols-1 gap-2"
+        onKeyDown={(e) => {
+          const knoepfe = [...e.currentTarget.querySelectorAll<HTMLButtonElement>("button[data-fahrzeug]")];
+          const i = knoepfe.indexOf(document.activeElement as HTMLButtonElement);
+          if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+            e.preventDefault();
+            knoepfe[Math.max(0, Math.min(knoepfe.length - 1, i + (e.key === "ArrowDown" ? 1 : -1)))]?.focus();
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            setKunde(null);
+          }
+        }}
+      >
+        <button type="button" onClick={() => setKunde(null)} className="justify-self-start text-sm text-grau underline">
+          ← anderen Kunden wählen
+        </button>
+        <p className="min-w-0">
+          <span className="block truncate font-semibold">
+            {kunde.name}
+            {kunde.firma ? <span className="font-normal text-grau"> · {kunde.firma}</span> : null}
+          </span>
+          <span className="block text-xs text-grau">Welches Fahrzeug?</span>
+        </p>
+        <ul role="list" aria-label={`Fahrzeuge von ${kunde.name}`} className="divide-y divide-linie border-y border-linie">
+          {autos.map((f) => (
+            <li key={f?.id ?? "ohne"}>
+              <button
+                type="button"
+                data-fahrzeug
+                disabled={gesperrt}
+                onClick={() => !gesperrt && onWahl({ kunde, fahrzeug: f })}
+                className="flex min-h-14 w-full items-center gap-3 px-2 py-2 text-left focus:bg-papier disabled:opacity-60 active:bg-papier"
+              >
+                {f ? (
+                  <>
+                    <span className="zahlen shrink-0 rounded-sm border border-linie px-2 py-0.5 text-sm font-semibold">{f.kennzeichen}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate">{f.marke_modell || "Modell nicht eingetragen"}</span>
+                      {f.km_stand ? <span className="zahlen block text-sm text-grau">{f.km_stand.toLocaleString("de-DE")} km</span> : null}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-grau">Ohne Fahrzeug weiter</span>
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
 
   // grid-cols-1 heißt minmax(0, 1fr): Lange, abgeschnittene Namen dürfen die Spalte nicht aufziehen.
   return (
@@ -108,28 +190,35 @@ export function KundenSuche({
         {!treffer ? (laedt ? "Sucht …" : "Zuletzt bearbeitet") : ergebnis?.fehler ? "Die Suche hat nicht geklappt. Bitte noch einmal tippen." : liste.length ? "Treffer" : laedt ? "Sucht …" : "Kein Kunde gefunden"}
       </p>
       <ul id={listeId} role="listbox" aria-label="Kunden" className="divide-y divide-linie border-y border-linie">
-        {liste.map((w, i) => (
-          <li key={`${w.kunde.id}-${w.fahrzeug?.id ?? "ohne"}`} id={`${listeId}-${i}`} role="option" aria-selected={i === aktiv}>
-            <button
-              type="button"
-              disabled={gesperrt}
-              onClick={() => waehlen(w)}
-              onMouseEnter={() => setAktiv(i)}
-              className={`flex min-h-14 w-full items-center gap-3 px-2 py-2 text-left disabled:opacity-60 ${i === aktiv ? "bg-papier" : ""} active:bg-papier`}
-            >
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-semibold">
-                  {w.kunde.name}
-                  {w.kunde.firma ? <span className="font-normal text-grau"> · {w.kunde.firma}</span> : null}
+        {liste.map((k, i) => {
+          const klar = eindeutig(k);
+          return (
+            <li key={k.id} id={`${listeId}-${i}`} role="option" aria-selected={i === aktiv}>
+              <button
+                type="button"
+                disabled={gesperrt}
+                onClick={() => waehlen(k)}
+                onMouseEnter={() => setAktiv(i)}
+                className={`flex min-h-14 w-full items-center gap-3 px-2 py-2 text-left disabled:opacity-60 ${i === aktiv ? "bg-papier" : ""} active:bg-papier`}
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold">
+                    {k.name}
+                    {k.firma ? <span className="font-normal text-grau"> · {k.firma}</span> : null}
+                  </span>
+                  <span className="block truncate text-sm text-grau">
+                    {[klar ? klar.fahrzeug?.marke_modell : k.fahrzeuge.map((f) => f.kennzeichen).join(", "), k.ort, k.telefon].filter(Boolean).join(" · ") || `Kunde Nr. ${k.nummer}`}
+                  </span>
                 </span>
-                <span className="block truncate text-sm text-grau">
-                  {[w.fahrzeug?.marke_modell, w.kunde.ort, w.kunde.telefon].filter(Boolean).join(" · ") || `Kunde Nr. ${w.kunde.nummer}`}
-                </span>
-              </span>
-              {w.fahrzeug ? <span className="zahlen shrink-0 rounded-sm border border-linie px-2 py-0.5 text-sm font-semibold">{w.fahrzeug.kennzeichen}</span> : null}
-            </button>
-          </li>
-        ))}
+                {klar?.fahrzeug ? (
+                  <span className="zahlen shrink-0 rounded-sm border border-linie px-2 py-0.5 text-sm font-semibold">{klar.fahrzeug.kennzeichen}</span>
+                ) : !klar ? (
+                  <span className="zahlen shrink-0 rounded-sm bg-boden px-2 py-0.5 text-sm font-semibold">{k.fahrzeuge.length} Fahrzeuge ›</span>
+                ) : null}
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
