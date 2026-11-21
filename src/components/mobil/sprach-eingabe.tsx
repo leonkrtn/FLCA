@@ -6,18 +6,29 @@ import { euro } from "@/lib/format";
 import type { Ergebnis } from "@/lib/forms";
 import type { FahrzeugTypen } from "@/lib/sprache/merkmale";
 import { type Grundlagen, positionenBauen } from "@/lib/sprache/positionen";
-import { type Art, ART_TEXT, artErkennen, type Leistungswahl, notizVerstehen, type Person, rechnungVerstehen, terminVerstehen } from "@/lib/sprache/verstehen";
+import {
+  type Art,
+  ART_TEXT,
+  ARTEN,
+  artErkennen,
+  kostenvoranschlagVerstehen,
+  type Leistungswahl,
+  notizVerstehen,
+  type Person,
+  rechnungVerstehen,
+  terminVerstehen,
+} from "@/lib/sprache/verstehen";
 import { berlinDatum } from "@/lib/zeit";
 
 /**
- * Sprechen statt Tippen (Werkstatt-App). Standard ist „Automatisch“: Ob Notiz, Termin oder Rechnung, wird
- * aus dem Inhalt gelesen (`artErkennen`). Wer vorher fest wählt, bekommt genau das, egal was im Text steht.
- * Zwei Wege zum Text: der Knopf „Aufnahme“ (Spracherkennung des
+ * Sprechen statt Tippen (Werkstatt-App). Standard ist „Automatisch“: Ob Notiz, Termin, Rechnung oder
+ * Kostenvoranschlag, wird aus dem Inhalt gelesen (`artErkennen`). Wer vorher fest wählt, bekommt genau das,
+ * egal was im Text steht. Zwei Wege zum Text: der Knopf „Aufnahme“ (Spracherkennung des
  * Browsers, auf dem iPhone die von Apple) oder die Mikrofon-Taste der iPhone-Tastatur im Textfeld. Der
  * zweite geht immer, auch wenn die Web-App vom Home-Bildschirm die Spracherkennung nicht bekommt.
  *
  * Was erkannt wird, steht live darunter. Gespeichert wird nichts: „Weiter“ öffnet das gewohnte Formular
- * vorausgefüllt, bei einer Rechnung einen Entwurf.
+ * vorausgefüllt, bei Rechnung und Kostenvoranschlag einen Entwurf.
  */
 
 type Erkennung = {
@@ -59,22 +70,32 @@ function beispiele(leistungen: Leistungswahl[], preisliste: Grundlagen["preislis
     notiz: "Morgen um 9 Bremsbeläge für den Golf von Müller bestellen",
     termin: `Herr Müller, ${l.length ? l.join(" und ") : "Bremsen vorne"}, nächsten Dienstag halb neun, Kennzeichen OF AB 123, Telefon 0151 2345678`,
     rechnung: `Müller, ${p ? `${kurzName(p.name)}, ` : ""}zwei Stunden Arbeit, Bremsscheiben vorne 180 Euro brutto`,
+    kostenvoranschlag: "Was würde für Müller ein Zahnriemen mit Wasserpumpe beim Golf kosten, 450 Euro brutto, drei Stunden Arbeit",
   };
 }
 
 type Wahl = "auto" | Art;
-const WAHLEN: [Wahl, string][] = [
-  ["auto", "Automatisch"],
-  ["notiz", "Notiz"],
-  ["termin", "Termin"],
-  ["rechnung", "Rechnung"],
+/** Zwei Reihen: oben drei schmale, unten die beiden Belege (der Kostenvoranschlag braucht Platz) */
+const WAHLEN: [Wahl, string, string][] = [
+  ["auto", "Automatisch", "col-span-2"],
+  ["notiz", "Notiz", "col-span-2"],
+  ["termin", "Termin", "col-span-2"],
+  ["rechnung", "Rechnung", "col-span-3"],
+  ["kostenvoranschlag", "Kostenvoranschlag", "col-span-3"],
 ];
 
-const KNOPF: Record<Art, string> = { notiz: "Weiter zur Notiz", termin: "Weiter zum Termin", rechnung: "Rechnungsentwurf anlegen" };
+const KNOPF: Record<Art, string> = {
+  notiz: "Weiter zur Notiz",
+  termin: "Weiter zum Termin",
+  rechnung: "Rechnungsentwurf anlegen",
+  kostenvoranschlag: "Kostenvoranschlag anlegen",
+};
+const BELEG_HINWEIS = "Es entsteht ein Entwurf im Editor. Kunde, Fahrzeug und gemerkte Preise kommen aus der Kartei. Preise ohne Angabe sind netto.";
 const HINWEIS: Record<Art, string> = {
   notiz: "Gespeichert wird erst im Formular danach.",
   termin: "Gespeichert wird erst im Formular danach. Kunde und Fahrzeug werden in der Kartei gesucht.",
-  rechnung: "Es entsteht ein Entwurf im Editor. Kunde, Fahrzeug und gemerkte Preise kommen aus der Kartei. Preise ohne Angabe sind netto.",
+  rechnung: BELEG_HINWEIS,
+  kostenvoranschlag: BELEG_HINWEIS,
 };
 
 const tagText = (d: string | null) =>
@@ -159,14 +180,14 @@ export function SprachEingabe({
         <Formular aktion={aktion} className="grid gap-4">
           <fieldset>
             <legend className="label">Was soll es werden?</legend>
-            <div className="grid grid-cols-[1.35fr_1fr_1fr_1fr] gap-1 rounded-md bg-boden p-1">
-              {WAHLEN.map(([w, name]) => (
+            <div className="grid grid-cols-6 gap-1 rounded-md bg-boden p-1">
+              {WAHLEN.map(([w, name, breite]) => (
                 <button
                   key={w}
                   type="button"
                   aria-pressed={wahl === w}
                   onClick={() => setWahl(w)}
-                  className={`min-h-10 truncate rounded-sm px-0.5 text-[12px] font-semibold min-[375px]:px-1 min-[375px]:text-[13px] ${wahl === w ? "bg-weiss text-tinte shadow-sm" : "text-grau"}`}
+                  className={`${breite} min-h-10 truncate rounded-sm px-0.5 text-[12px] font-semibold min-[375px]:px-1 min-[375px]:text-[13px] ${wahl === w ? "bg-weiss text-tinte shadow-sm" : "text-grau"}`}
                 >
                   {name}
                 </button>
@@ -178,7 +199,7 @@ export function SprachEingabe({
                   Fest gewählt: <strong className="text-tinte">{ART_TEXT[wahl]}</strong>. Der Text wird nur noch dafür gelesen.
                 </>
               ) : !erkannt ? (
-                "Wird aus dem Inhalt erkannt: Preise sind eine Rechnung, Leistung mit Tag und Uhrzeit ein Termin, Aufgaben eine Notiz."
+                "Wird aus dem Inhalt erkannt: Preise sind eine Rechnung, „was würde … kosten“ ein Kostenvoranschlag, Leistung mit Tag und Uhrzeit ein Termin, Aufgaben eine Notiz."
               ) : erkannt.sicher ? (
                 <>
                   Erkannt: <strong className="text-tinte">{ART_TEXT[erkannt.art]}</strong> ({erkannt.grund}).
@@ -244,7 +265,7 @@ export function SprachEingabe({
           <h2 className="font-semibold">Beispiele</h2>
           <p className="mt-1 text-sm text-grau">Reihenfolge egal, fehlende Angaben werden im Formular ergänzt. Tippen übernimmt das Beispiel.</p>
           <ul className="mt-3 grid gap-2">
-            {(["notiz", "termin", "rechnung"] as Art[]).map((a) => (
+            {ARTEN.map((a) => (
               <li key={a}>
                 <button type="button" onClick={() => setText(vorlagen[a])} className="w-full rounded-md border border-linie px-3 py-2 text-left text-sm active:bg-papier">
                   <span className="block font-semibold">{ART_TEXT[a]}</span>
@@ -303,13 +324,16 @@ function Vorschau({
         ["Notiz", v.notiz || null],
       ];
     }
-    const v = rechnungVerstehen(text, { heute, preisliste: grundlagen.preisliste, lohnarten: grundlagen.stundensaetze.map((s) => s.name), typen });
+    const beleg = { heute, preisliste: grundlagen.preisliste, lohnarten: grundlagen.stundensaetze.map((s) => s.name), typen };
+    const v = art === "rechnung" ? rechnungVerstehen(text, beleg) : kostenvoranschlagVerstehen(text, beleg);
     const pos = positionenBauen(v.positionen, { ...grundlagen, gemerkt: [] });
     return [
       ["Kunde", v.name || null, !v.kennzeichen],
       ["Kennzeichen", v.kennzeichen || null],
       ["Fahrzeug", v.fahrzeug ? `${v.fahrzeug.marke} ${v.fahrzeug.modell}`.trim() : null],
-      ["Leistungsdatum", v.leistungsdatum ? tagText(v.leistungsdatum) : "heute"],
+      "leistungsdatum" in v
+        ? ["Leistungsdatum", v.leistungsdatum ? tagText(v.leistungsdatum) : "heute"]
+        : ["Gültig bis", v.gueltigBis ? tagText(v.gueltigBis) : "wie eingestellt"],
       ...pos.map(({ position: p, herkunft }, i): [string, string] => [
         `Position ${i + 1}`,
         p.rabatt

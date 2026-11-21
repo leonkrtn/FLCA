@@ -23,7 +23,7 @@ export const viewport: Viewport = { themeColor: "#ecebe7", viewportFit: "cover" 
 
 /**
  * Handy-App für Inhaber und Büro: nur das, was unterwegs zählt (heute, Anfragen, über das „+“ Termin,
- * Kostenvoranschlag, Rechnung oder Kunde anlegen oder per Sprache Notiz, Termin oder Rechnung). Alles andere steht im großen Admin am Rechner.
+ * Kostenvoranschlag, Rechnung oder Kunde anlegen oder per Sprache Notiz, Termin, Rechnung oder Kostenvoranschlag). Alles andere steht im großen Admin am Rechner.
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   await benutzerMitRecht("termine");

@@ -3,7 +3,7 @@ import { textNorm } from "../rechnung/aehnlich";
 import { nettoAusBruttoPreis } from "../rechnung/berechnung";
 import { berlin } from "../zeit";
 import { positionenBauen } from "./positionen";
-import { absichtErkennen, artErkennen, notizVerstehen, rechnungVerstehen, terminVerstehen } from "./verstehen";
+import { absichtErkennen, artErkennen, kostenvoranschlagVerstehen, notizVerstehen, rechnungVerstehen, terminVerstehen } from "./verstehen";
 
 // Freitag, 20. November 2026, 10 Uhr
 const heute = "2026-11-20";
@@ -35,6 +35,11 @@ describe("Absicht", () => {
     expect(absichtErkennen("Termin für Müller morgen")).toBe("termin");
     expect(absichtErkennen("Rechnung für Müller, Termin war gestern")).toBe("rechnung");
     expect(absichtErkennen("Bremsen vorne für Müller")).toBeNull();
+    expect(absichtErkennen("Kostenvoranschlag für Müller, Zahnriemen")).toBe("kostenvoranschlag");
+    expect(absichtErkennen("KV für Weber")).toBe("kostenvoranschlag");
+    expect(absichtErkennen("Angebot für Krause über Bremsen vorne")).toBe("kostenvoranschlag");
+    // „Angebot“ allein ist kein Kostenvoranschlag
+    expect(absichtErkennen("Kunde Schmidt ruft wegen Angebot an")).toBeNull();
   });
 });
 
@@ -140,6 +145,45 @@ describe("Rechnung", () => {
   });
 });
 
+describe("Kostenvoranschlag", () => {
+  const k = (s: string) => kostenvoranschlagVerstehen(s, { heute, preisliste, lohnarten });
+
+  it("Kunde, Fahrzeug, Positionen wie bei der Rechnung", () => {
+    const e = k("Kostenvoranschlag für Müller, Golf, Zahnriemen mit Wasserpumpe 450 Euro brutto, drei Stunden Arbeit");
+    expect(e).toMatchObject({ name: "Müller", fahrzeug: { marke: "VW", modell: "Golf" }, gueltigBis: null });
+    expect(e.positionen).toMatchObject([
+      { text: "Zahnriemen mit Wasserpumpe", preisCent: 45000, brutto: true },
+      { stunden: true, menge: 3, text: "Arbeit" },
+    ]);
+  });
+  it("Aufforderung, Kennzeichen und „gültig bis“", () => {
+    expect(k("Erstelle mir bitte einen Kostenvoranschlag für Weber, Bremsscheiben und Beläge vorne 240 Euro, gültig bis 15.12.")).toMatchObject({
+      name: "Weber",
+      gueltigBis: "2026-12-15",
+      positionen: [{ text: "Bremsscheiben und Beläge vorne", preisCent: 24000 }],
+    });
+    expect(k("Angebot für Krause über Ölwechsel und Radwechsel, gültig vier Wochen")).toMatchObject({
+      name: "Krause",
+      gueltigBis: "2026-12-18",
+      positionen: [{ text: "Ölwechsel" }, { text: "Radwechsel" }],
+    });
+    expect(k("KV Becker Kennzeichen OF AB 123 Ölwechsel, eine Stunde Diagnose")).toMatchObject({
+      name: "Becker",
+      kennzeichen: "OF-AB 123",
+      positionen: [{ text: "Ölwechsel" }, { stunden: true, menge: 1, lohnart: "Elektrik/Diagnose" }],
+    });
+  });
+  it("Frage nach den Kosten gehört nicht in die Position", () => {
+    expect(k("Was würde für Müller ein Zahnriemen mit Wasserpumpe beim Golf kosten, 450 Euro brutto, drei Stunden Arbeit")).toMatchObject({
+      name: "Müller",
+      fahrzeug: { modell: "Golf" },
+      positionen: [{ text: "Zahnriemen mit Wasserpumpe", preisCent: 45000, brutto: true }, { stunden: true, menge: 3 }],
+    });
+    expect(k("Was kostet ungefähr eine Inspektion beim Golf").positionen).toMatchObject([{ text: "Inspektion" }]);
+    expect(k("Kostenvoranschlag für Weber, Zahnriemen ungefähr 450 Euro").positionen).toMatchObject([{ text: "Zahnriemen", preisCent: 45000 }]);
+  });
+});
+
 describe("Positionen bauen", () => {
   const g = { preisliste, gemerkt: [], stundensaetze, aufschlagProzent: 30 };
 
@@ -228,6 +272,13 @@ describe("Art aus dem Inhalt", () => {
   it("Preise und Arbeitsstunden sind eine Rechnung", () => {
     expect(a("Müller, Ölwechsel, zwei Stunden Arbeit, Bremsscheiben 180 Euro brutto")).toMatchObject({ art: "rechnung", sicher: true });
     expect(a("Krause gestern Radwechsel gemacht, 40 Euro")).toMatchObject({ art: "rechnung" });
+  });
+  it("Frage nach den Kosten ist ein Kostenvoranschlag", () => {
+    expect(a("Was würde für Müller ein Zahnriemen beim Golf kosten, 450 Euro brutto, drei Stunden Arbeit")).toMatchObject({ art: "kostenvoranschlag", sicher: true });
+    expect(a("Was würde die Inspektion beim Golf kosten")).toMatchObject({ art: "kostenvoranschlag", sicher: true });
+    expect(a("Voraussichtlich 300 Euro für Bremsen vorne bei Krause")).toMatchObject({ art: "kostenvoranschlag" });
+    // Ohne Frage bleiben Preise eine Rechnung
+    expect(a("Krause, Bremsen vorne 300 Euro")).toMatchObject({ art: "rechnung" });
   });
   it("Aufgaben sind Notizen, auch mit Uhrzeit", () => {
     expect(a("Morgen um 9 Bremsbeläge für den Golf von Müller bestellen")).toMatchObject({ art: "notiz", sicher: true });
