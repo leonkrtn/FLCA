@@ -152,6 +152,12 @@ export async function letzterTakt(): Promise<Date | null> {
   return data ? new Date(data.erstellt_am as string) : null;
 }
 
+/** Wann zuletzt ein Aufruf der Zeitsteuerung abgelehnt wurde (CRON_SECRET passt nicht); null = nie. */
+export async function letzteAblehnung(): Promise<Date | null> {
+  const { data } = await db().from("automatik_log").select("erstellt_am").eq("art", "takt").eq("bezug", "abgelehnt").maybeSingle();
+  return data ? new Date(data.erstellt_am as string) : null;
+}
+
 /** Läuft der Takt? Mehr als 5 Minuten ohne Lauf (er kommt jede Minute) heißt: Die Zeitsteuerung ruft nicht (mehr) an. */
 export function taktLaeuft(zuletzt: Date | null, jetzt: number): boolean {
   return Boolean(zuletzt && jetzt - zuletzt.getTime() < 5 * 60000);
