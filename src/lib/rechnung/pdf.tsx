@@ -20,7 +20,7 @@ Font.register({
 Font.registerHyphenationCallback((wort) => [wort]);
 
 // Logo als Vektor aus derselben Quelle wie auf der Website: bleibt beim Druck und Zoomen scharf.
-const logoBreite = 130;
+const logoBreite = 104;
 
 const tinte = "#141414";
 const grau = "#6b6862";
