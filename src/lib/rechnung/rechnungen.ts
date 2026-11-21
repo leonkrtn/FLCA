@@ -370,6 +370,25 @@ export async function alsBezahlt(id: string, zahlungsart: "bar" | "ueberweisung"
 }
 
 /**
+ * Nimmt eine versehentlich vermerkte Zahlung zurück. Die Rechnung selbst bleibt unverändert, nur Status,
+ * Zahlungsart und Datum gehen auf offen zurück. Der Verlauf behält beide Einträge, damit nachvollziehbar
+ * bleibt, dass die Rechnung zwischendurch als bezahlt galt.
+ */
+export async function alsUnbezahlt(id: string, vonBenutzer: string): Promise<void> {
+  const { data, error } = await db()
+    .from("rechnungen")
+    .update({ status: "gestellt", zahlungsart: null, bezahlt_am: null })
+    .eq("id", id)
+    .eq("status", "bezahlt")
+    .select("id");
+  if (error) throw new Error(error.message);
+  if (!data?.length) throw new Error("Nur bezahlte Rechnungen lassen sich als nicht bezahlt markieren.");
+  await verlauf("rechnung", id, "Zahlung zurückgenommen, wieder offen", vonBenutzer);
+  const r = (await rechnungLaden(id))!;
+  await melden("rechnung.unbezahlt", ereignisDaten(r));
+}
+
+/**
  * Storno: eine eigene Rechnung mit negativen Beträgen und eigener Nummer, die auf das Original verweist.
  * Das Original bleibt unverändert erhalten (GoBD) und bekommt nur den Status „storniert“.
  */

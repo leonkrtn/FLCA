@@ -20,6 +20,7 @@ export const EREIGNIS_TYPEN = {
   "rechnung.gestellt": "Eine Rechnung wurde gestellt",
   "rechnung.versendet": "Eine Rechnung wurde per E-Mail versendet",
   "rechnung.bezahlt": "Eine Rechnung wurde als bezahlt markiert",
+  "rechnung.unbezahlt": "Eine Zahlung wurde zurückgenommen, die Rechnung ist wieder offen",
   "rechnung.storniert": "Eine Rechnung wurde storniert",
   "rechnung.termin_verknuepft": "Eine Rechnung wurde mit einem Termin verknüpft oder davon gelöst",
   "kostenvoranschlag.abgeschlossen": "Ein Kostenvoranschlag wurde abgeschlossen (Nummer vergeben)",

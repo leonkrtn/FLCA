@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Formular, Senden } from "./formular";
 import { PositionenUebersicht } from "./positionen-uebersicht";
 import { Feld } from "./ui";
-import { bezahltAktion, stornoAktion, versendenAktion } from "@/lib/aktionen/rechnungen";
+import { bezahltAktion, stornoAktion, unbezahltAktion, versendenAktion } from "@/lib/aktionen/rechnungen";
 import { datum, datumZeit } from "@/lib/format";
 import type { Rechnung } from "@/lib/rechnung/rechnungen";
 import { berlinDatum } from "@/lib/zeit";
@@ -21,6 +21,10 @@ export function RechnungAnsicht({ r, basis, pdfHref }: { r: Rechnung; basis: "/a
             <input type="hidden" name="am" value={berlinDatum()} />
             <Senden art="rahmen" name="zahlungsart" value="bar" vorab="Bezahlt">Bar bezahlt</Senden>
             <Senden art="rahmen" name="zahlungsart" value="ueberweisung" vorab="Bezahlt">Überweisung da</Senden>
+          </Formular>
+        ) : r.status === "bezahlt" ? (
+          <Formular aktion={unbezahltAktion.bind(null, r.id)} className="contents">
+            <Senden art="rahmen" vorab="Wird zurückgesetzt">Nicht bezahlt</Senden>
           </Formular>
         ) : null}
       </div>
