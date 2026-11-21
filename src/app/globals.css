@@ -332,6 +332,26 @@ html:has(.handy-app[data-leiste="dunkel"]) {
   background: var(--color-graphit);
 }
 
+/*
+ * Handy-Apps sollen sich wie eine App anfühlen, nicht wie eine Webseite: Langes Drücken auf einen Link oder
+ * ein Bild öffnet sonst die Safari-Vorschau mit „In Safari öffnen“, „Link kopieren“ usw., langes Drücken auf
+ * einen Knopf markiert seinen Text und blendet das Kopieren-Menü ein. Doppeltippen zoomt nicht mehr (ein
+ * Tipp wirkt dadurch sofort). Text in Feldern und normaler Fließtext bleiben markierbar.
+ */
+.handy-app {
+  touch-action: manipulation;
+}
+.handy-app :is(a, img, button, summary, nav) {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* Ältere iOS-Versionen sperren sonst die Eingabe in Feldern, deren Eltern nicht markierbar sind. */
+.handy-app :is(input, textarea, select) {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* Ladeanzeige: schmaler Balken, der von links nach rechts läuft */
 .ladebalken {
   height: 3px;

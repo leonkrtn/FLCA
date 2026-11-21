@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Formular, Senden } from "./formular";
+import { DateiKnopf } from "@/components/mobil/datei-knopf";
 import { PositionenUebersicht } from "./positionen-uebersicht";
 import { Feld } from "./ui";
 import type { Ort } from "@/lib/aktionen/belege";
@@ -15,7 +16,7 @@ export function KvAnsicht({ k, ort }: { k: Kostenvoranschlag; ort: Ort }) {
   return (
     <div className="grid gap-6">
       <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-        <a href={`/admin/kostenvoranschlaege/${k.id}/pdf`} target="_blank" className="knopf knopf-dunkel">PDF öffnen</a>
+        <DateiKnopf art="datei" href={`/admin/kostenvoranschlaege/${k.id}/pdf`} className="knopf knopf-dunkel">PDF öffnen</DateiKnopf>
         {k.rechnung_id ? (
           <Link href={`/${ort}/rechnungen/${k.rechnung_id}`} className="knopf knopf-rahmen">Zur Rechnung</Link>
         ) : umwandelbar ? (
@@ -23,7 +24,7 @@ export function KvAnsicht({ k, ort }: { k: Kostenvoranschlag; ort: Ort }) {
             <button className={`knopf ${k.status === "angenommen" ? "knopf-dunkel" : "knopf-rahmen"}`}>In Rechnung übernehmen</button>
           </form>
         ) : null}
-        <a href={`/k/${k.token}`} target="_blank" className="knopf knopf-rahmen">Kundenansicht</a>
+        <DateiKnopf art="link" href={`/k/${k.token}`} className="knopf knopf-rahmen">{ort === "app" ? "Kundenlink teilen" : "Kundenansicht"}</DateiKnopf>
       </div>
 
       {k.status === "offen" ? (
