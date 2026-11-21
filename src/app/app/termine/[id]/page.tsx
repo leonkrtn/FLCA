@@ -64,6 +64,9 @@ export default async function AppTermin({ params }: { params: Promise<{ id: stri
           )}
         </Karte>
         <Karte>
+          <Link href={`/app/notizen/neu?termin=${t.id}`} className="knopf knopf-rahmen w-full">Notiz zum Termin</Link>
+        </Karte>
+        <Karte>
           <TerminLoeschen id={t.id} nummer={t.nummer} status={t.status} ziel="/app" gross />
         </Karte>
       </div>

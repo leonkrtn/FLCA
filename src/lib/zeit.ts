@@ -90,3 +90,32 @@ export function istDatum(wert: unknown): wert is string {
 export function jetztMs(): number {
   return Date.now();
 }
+
+export type Wiederholung = "keine" | "taeglich" | "woechentlich" | "monatlich";
+
+/** Datum „YYYY-MM-DD“ plus n Monate; gibt es den Tag im Zielmonat nicht (31.), wird es dessen letzter Tag. */
+export function plusMonate(datum: string, n: number): string {
+  const [j, m, d] = datum.split("-").map(Number);
+  const ziel = new Date(Date.UTC(j, m - 1 + n, 1));
+  const letzter = new Date(Date.UTC(ziel.getUTCFullYear(), ziel.getUTCMonth() + 1, 0)).getUTCDate();
+  ziel.setUTCDate(Math.min(d, letzter));
+  return ziel.toISOString().slice(0, 10);
+}
+
+/**
+ * Nächster Zeitpunkt einer wiederkehrenden Erinnerung nach `nach`, zur selben Uhrzeit in Berlin (auch über
+ * die Zeitumstellung). Monatlich zählt vom zuletzt fälligen Tag weiter: nach einem 31. kommt in kürzeren
+ * Monaten der letzte Tag, danach bleibt es bei diesem Tag. Ohne Wiederholung: null.
+ */
+export function naechsteWiederholung(zeitpunkt: Date, wiederholung: Wiederholung, nach: Date): Date | null {
+  if (wiederholung === "keine") return null;
+  const uhr = berlinUhrzeit(zeitpunkt);
+  let datum = berlinDatum(zeitpunkt);
+  // Auch nach langer Pause (Server aus, Takt ausgefallen) nur einmal erinnern und dann in die Zukunft springen.
+  for (let i = 0; i < 5000; i++) {
+    datum = wiederholung === "taeglich" ? plusTage(datum, 1) : wiederholung === "woechentlich" ? plusTage(datum, 7) : plusMonate(datum, 1);
+    const naechster = berlin(datum, uhr);
+    if (naechster.getTime() > nach.getTime()) return naechster;
+  }
+  return null;
+}

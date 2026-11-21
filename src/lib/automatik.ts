@@ -6,6 +6,7 @@ import { mail } from "./email/vorlagen";
 import { monatsexport } from "./rechnung/datev";
 import { mailer } from "./services/email";
 import { db } from "./supabase/admin";
+import { erinnerungenSenden } from "./notizen";
 import { erinnerungSenden, TERMIN_FELDER, type Termin } from "./termine";
 import { berlinDatum, berlinUhrzeit, plusTage } from "./zeit";
 
@@ -48,6 +49,9 @@ export async function takt(): Promise<Bericht> {
     }
     return data?.length ?? 0;
   });
+
+  // Notizen: fällige Erinnerungen per Push (der Takt läuft alle 10 Minuten, so genau ist die Erinnerung)
+  await schritt("notizen", () => erinnerungenSenden(einmalig));
 
   await schritt("bewertungen", async () => {
     const b = e.automatik.bewertung;

@@ -3,6 +3,7 @@ export type Rolle = "inhaber" | "buero" | "mitarbeiter";
 /** Bereiche des Systems. Die Rolle entscheidet, wer was darf. */
 export type Bereich =
   | "termine"
+  | "notizen"
   | "kunden"
   | "rechnungen"
   | "einlagerung"
@@ -15,12 +16,14 @@ export type Bereich =
 
 export const ROLLEN: { wert: Rolle; name: string; beschreibung: string }[] = [
   { wert: "inhaber", name: "Inhaber", beschreibung: "Alles, inklusive Einstellungen, Benutzer und Rechnungsnummern" },
-  { wert: "buero", name: "Büro", beschreibung: "Termine, Kunden, Rechnungen, Einlagerung, Bewerbungen" },
+  { wert: "buero", name: "Büro", beschreibung: "Termine, Notizen, Kunden, Rechnungen, Einlagerung, Bewerbungen" },
   { wert: "mitarbeiter", name: "Mitarbeiter", beschreibung: "Eigene Arbeitszeiten, Aufträge, Urlaub und Zeiterfassung" },
 ];
 
 const RECHTE: Record<Bereich, Rolle[]> = {
   termine: ["inhaber", "buero"],
+  // Notizen anlegen und bearbeiten; Mitarbeiter sehen nur Erinnerungen, die ihnen zugewiesen sind (Team-App)
+  notizen: ["inhaber", "buero"],
   kunden: ["inhaber", "buero"],
   rechnungen: ["inhaber", "buero"],
   einlagerung: ["inhaber", "buero"],

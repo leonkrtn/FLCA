@@ -44,6 +44,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               { href: "/app/kostenvoranschlaege/neu", text: "Kostenvoranschlag" },
               { href: "/app/rechnungen/neu", text: "Rechnung" },
               { href: "/app/kunden/neu", text: "Kunde" },
+              { href: "/app/notizen/neu", text: "Notiz" },
             ],
           },
           { href: "/app/rechnungen", text: "Rechnungen", icon: <Dokument />, auch: ["/app/kostenvoranschlaege"] },
