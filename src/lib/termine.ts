@@ -8,9 +8,11 @@ import { ics } from "./ics";
 import { mail } from "./email/vorlagen";
 import { mailer } from "./services/email";
 import { pushSenden } from "./services/push";
+import { belegungenAm, belegungenMitPerson, leistungNamen, planPersonen, planungAktiv } from "./mitarbeiter";
+import { besteFreiePerson, freieSlotsMitPersonen, konflikte, type PersonSlot } from "./planung";
 import { type Belegung, freieSlots, type Slot } from "./slots";
 import { db, pruefe } from "./supabase/admin";
-import { berlin, berlinDatum, plusTage, wochentag } from "./zeit";
+import { berlin, berlinDatum, berlinUhrzeit, plusTage, wochentag } from "./zeit";
 import { markeModellTrennen } from "./rechnung/aehnlich";
 
 export type Leistung = {
@@ -82,9 +84,20 @@ export const STATUS_TEXT: Record<Termin["status"], string> = {
 
 export class TerminFehler extends Error {}
 
+/**
+ * Die gewählte Person passt nicht (arbeitet nicht, ist abwesend, darf die Leistung nicht, hat schon etwas).
+ * In der Verwaltung nur eine Warnung: Mit „trotzdem“ wird gespeichert.
+ */
+export class PlanungsWarnung extends TerminFehler {
+  constructor(readonly gruende: string[]) {
+    super(gruende.join(" "));
+  }
+}
+
 /** Fehlermeldungen der Datenbankfunktionen in Sätze für Menschen übersetzen. */
 function dbFehler(error: unknown): never {
   const text = error instanceof Error ? error.message : String((error as { message?: string })?.message ?? error);
+  if (text.includes("PERSON_BELEGT")) throw new PlanungsWarnung(["Der Mitarbeiter hat zu der Zeit schon einen anderen Termin."]);
   if (text.includes("SLOT_BELEGT")) throw new TerminFehler("Dieser Termin ist inzwischen vergeben. Bitte wählen Sie eine andere Uhrzeit.");
   if (text.includes("FALSCHER_STATUS")) throw new TerminFehler("Der Termin wurde in der Zwischenzeit schon bearbeitet.");
   if (text.includes("NICHT_GEFUNDEN")) throw new TerminFehler("Termin nicht gefunden.");
@@ -143,57 +156,57 @@ async function belegungen(von: Date, bis: Date): Promise<Belegung[]> {
 
 export type Tagesangebot = { datum: string; slots: string[] };
 
-/** Freie Startzeiten für eine Leistung in einem Datumsbereich. */
-export async function freieTermine(
-  leistung: Pick<Leistung, "dauer_min">,
-  vonDatum: string,
-  tage: number,
-  e?: Einstellungen,
-): Promise<Tagesangebot[]> {
-  const { buchung, oeffnungszeiten } = e ?? (await einstellungen());
-  const heute = berlinDatum();
-  const letzter = plusTage(heute, buchung.maxTage);
-  const start = vonDatum < heute ? heute : vonDatum;
-  const ende = plusTage(start, tage);
-  const bisDatum = ende > letzter ? plusTage(letzter, 1) : ende;
-  if (start > letzter) return [];
+/** Was für freie Zeiten zählt: Dauer und (für die Mitarbeiterplanung) welche Leistungen. */
+export type Bedarf = { dauer_min: number; ids?: string[] };
 
-  const alle = await belegungen(berlin(start), berlin(bisDatum));
+const fensterAm = (e: Einstellungen, datum: string) => e.oeffnungszeiten[String(wochentag(datum)) as keyof Einstellungen["oeffnungszeiten"]] ?? [];
+
+/**
+ * Freie Startzeiten eines Datumsbereichs. Nimmt jemand Aufträge an, muss zusätzlich ein passender Mitarbeiter
+ * frei sein (planung.ts); sonst zählen wie früher nur Öffnungszeiten und Arbeitsplätze.
+ */
+async function slotsImBereich(bedarf: Bedarf, start: string, bisDatum: string, e: Einstellungen): Promise<Map<string, PersonSlot[]>> {
+  const { buchung } = e;
   const fruehestens = new Date(Date.now() + buchung.vorlaufStd * 3600000);
-  const ergebnis: Tagesangebot[] = [];
+  const ergebnis = new Map<string, PersonSlot[]>();
+  const mitPersonen = await planungAktiv();
+  const [alle, personen] = await Promise.all([
+    mitPersonen ? belegungenMitPerson(berlin(start), berlin(bisDatum)) : belegungen(berlin(start), berlin(bisDatum)),
+    mitPersonen ? planPersonen(start, bisDatum) : Promise.resolve([]),
+  ]);
   for (let d = start; d < bisDatum; d = plusTage(d, 1)) {
-    const fenster = oeffnungszeiten[String(wochentag(d)) as keyof typeof oeffnungszeiten] ?? [];
-    const slots = fenster.length
-      ? freieSlots({
-          datum: d,
-          fenster,
-          dauerMin: leistung.dauer_min,
-          pufferMin: buchung.pufferMin,
-          rasterMin: buchung.rasterMin,
-          kapazitaet: buchung.kapazitaet,
-          fruehestens,
-          belegungen: alle,
-        })
-      : [];
-    ergebnis.push({ datum: d, slots: slots.map((s) => zeit(s.beginn)) });
+    const fenster = fensterAm(e, d);
+    if (!fenster.length) {
+      ergebnis.set(d, []);
+      continue;
+    }
+    const basis = { dauerMin: bedarf.dauer_min, pufferMin: buchung.pufferMin, rasterMin: buchung.rasterMin, kapazitaet: buchung.kapazitaet, fruehestens };
+    ergebnis.set(
+      d,
+      mitPersonen
+        ? freieSlotsMitPersonen({ ...basis, datum: d, oeffnung: fenster, personen, leistungIds: bedarf.ids ?? [], belegungen: alle as Awaited<ReturnType<typeof belegungenMitPerson>> })
+        : freieSlots({ ...basis, datum: d, fenster, belegungen: alle }).map((s) => ({ ...s, kandidaten: [] })),
+    );
   }
   return ergebnis;
 }
 
-/** Prüft eine gewünschte Startzeit gegen Öffnungszeiten, Vorlauf und Belegung und liefert den Zeitraum. */
-async function slotPruefen(leistung: Pick<Leistung, "dauer_min">, datum: string, uhrzeit: string, e: Einstellungen): Promise<Slot> {
-  const fenster = e.oeffnungszeiten[String(wochentag(datum)) as keyof Einstellungen["oeffnungszeiten"]] ?? [];
-  const alle = await belegungen(berlin(datum), berlin(plusTage(datum, 1)));
-  const slot = freieSlots({
-    datum,
-    fenster,
-    dauerMin: leistung.dauer_min,
-    pufferMin: e.buchung.pufferMin,
-    rasterMin: e.buchung.rasterMin,
-    kapazitaet: e.buchung.kapazitaet,
-    fruehestens: new Date(Date.now() + e.buchung.vorlaufStd * 3600000),
-    belegungen: alle,
-  }).find((s) => zeit(s.beginn) === uhrzeit);
+/** Freie Startzeiten für eine oder mehrere Leistungen in einem Datumsbereich. */
+export async function freieTermine(bedarf: Bedarf, vonDatum: string, tage: number, e?: Einstellungen): Promise<Tagesangebot[]> {
+  const einst = e ?? (await einstellungen());
+  const heute = berlinDatum();
+  const letzter = plusTage(heute, einst.buchung.maxTage);
+  const start = vonDatum < heute ? heute : vonDatum;
+  const ende = plusTage(start, tage);
+  const bisDatum = ende > letzter ? plusTage(letzter, 1) : ende;
+  if (start > letzter) return [];
+  const slots = await slotsImBereich(bedarf, start, bisDatum, einst);
+  return [...slots].map(([datum, liste]) => ({ datum, slots: liste.map((s) => zeit(s.beginn)) }));
+}
+
+/** Prüft eine gewünschte Startzeit gegen Öffnungszeiten, Vorlauf, Belegung und Mitarbeiter und liefert den Zeitraum. */
+async function slotPruefen(bedarf: Bedarf, datum: string, uhrzeit: string, e: Einstellungen): Promise<PersonSlot> {
+  const slot = (await slotsImBereich(bedarf, datum, plusTage(datum, 1), e)).get(datum)?.find((s) => zeit(s.beginn) === uhrzeit);
   if (!slot) throw new TerminFehler("Dieser Termin ist nicht mehr frei. Bitte wählen Sie eine andere Uhrzeit.");
   return slot;
 }
@@ -431,7 +444,19 @@ const ereignisDaten = (t: Termin) => ({
   leistung_ids: t.leistung_ids ?? (t.leistung_id ? [t.leistung_id] : []),
   kunde: t.kunde ? { id: t.kunde.id, name: t.kunde.name, email: t.kunde.email, telefon: t.kunde.telefon } : null,
   kennzeichen: t.fahrzeug?.kennzeichen ?? null,
+  mitarbeiter: t.mitarbeiter ? { id: t.mitarbeiter.id, name: t.mitarbeiter.name } : null,
 });
+
+/**
+ * Mitarbeiter über ihre Aufträge informieren (Push in der Team-App). Bescheid bekommt nur, wer einen
+ * bestätigten Termin hat: Anfragen sind noch nicht sicher und erscheinen dort auch nicht.
+ */
+async function personBenachrichtigen(profil: string | null | undefined, t: Termin, art: "neu" | "geaendert" | "entfaellt") {
+  if (!profil) return;
+  const titel = { neu: "Neuer Auftrag für dich", geaendert: "Auftrag geändert", entfaellt: "Auftrag entfällt" }[art];
+  const text = `${datumLangText(t.beginn)}, ${zeit(t.beginn)} Uhr · ${t.leistung_name}${t.fahrzeug ? ` · ${t.fahrzeug.kennzeichen}` : ""}`;
+  await pushSenden({ profile: [profil] }, { titel, text, url: "/team/woche", tag: `auftrag-${t.id}` });
+}
 
 // ---------------------------------------------------------------------------
 // Abläufe
@@ -457,45 +482,85 @@ export async function anfrageStellen(e: AnfrageEingabe): Promise<Termin> {
   if (!gewaehlt.length) throw new TerminFehler("Bitte mindestens eine Leistung wählen.");
   if (gewaehlt.length !== new Set(e.leistungIds).size) throw new TerminFehler("Eine der gewählten Leistungen kann nicht online angefragt werden.");
 
-  const slot = await slotPruefen({ dauer_min: gesamtDauer(gewaehlt) }, e.datum, e.uhrzeit, einst);
+  const slot = await slotPruefen({ dauer_min: gesamtDauer(gewaehlt), ids: gewaehlt.map((l) => l.id) }, e.datum, e.uhrzeit, einst);
   const kundeId = await kundeFindenOderAnlegen({ name: e.name, email: e.email, telefon: e.telefon });
   const fahrzeugId = await fahrzeugFindenOderAnlegen(e.kennzeichen, kundeId, e.fahrzeug);
 
-  const { data: id, error } = await db().rpc("termin_anlegen", {
-    p: {
-      beginn: slot.beginn.toISOString(),
-      ende: slot.ende.toISOString(),
-      belegt_bis: slot.bis.toISOString(),
-      leistung_id: gewaehlt[0].id,
-      leistung_ids: gewaehlt.map((l) => l.id),
-      leistung_name: gewaehlt.map((l) => l.name).join(", "),
-      kunde_id: kundeId,
-      fahrzeug_id: fahrzeugId,
-      notiz_kunde: e.notiz ?? "",
-      quelle: "website",
-      halten_bis: new Date(Date.now() + einst.buchung.haltenStd * 3600000).toISOString(),
-    },
-    p_kapazitaet: einst.buchung.kapazitaet,
-  });
-  if (error) dbFehler(error);
+  // Der am wenigsten Ausgelastete zuerst. Hat ihn gerade jemand anders bekommen (gleichzeitige Anfrage), der Nächste.
+  const versuche = slot.kandidaten.length ? slot.kandidaten : [{ profil: null, ende: slot.ende, bis: slot.bis }];
+  let id: string | null = null;
+  for (const k of versuche) {
+    const { data, error } = await db().rpc("termin_anlegen", {
+      p: {
+        beginn: slot.beginn.toISOString(),
+        ende: k.ende.toISOString(),
+        belegt_bis: k.bis.toISOString(),
+        leistung_id: gewaehlt[0].id,
+        leistung_ids: gewaehlt.map((l) => l.id),
+        leistung_name: gewaehlt.map((l) => l.name).join(", "),
+        kunde_id: kundeId,
+        fahrzeug_id: fahrzeugId,
+        notiz_kunde: e.notiz ?? "",
+        quelle: "website",
+        halten_bis: new Date(Date.now() + einst.buchung.haltenStd * 3600000).toISOString(),
+        zugewiesen_an: k.profil,
+      },
+      p_kapazitaet: einst.buchung.kapazitaet,
+    });
+    if (!error) {
+      id = data as string;
+      break;
+    }
+    if (!error.message.includes("PERSON_BELEGT")) dbFehler(error);
+  }
+  if (!id) throw new TerminFehler("Dieser Termin ist inzwischen vergeben. Bitte wählen Sie eine andere Uhrzeit.");
 
-  const termin = (await terminLaden(id as string))!;
+  const termin = (await terminLaden(id))!;
   after(async () => {
     await Promise.all([kundenMail(termin, "eingang"), betriebBenachrichtigen(termin, "neu"), melden("termin.angefragt", ereignisDaten(termin))]);
   });
   return termin;
 }
 
+/** Planungsdaten rund um einen Zeitraum: wer kommt in Frage, was ist schon belegt. */
+async function planungFuer(beginn: Date) {
+  const datum = berlinDatum(beginn);
+  const [personen, alle, aktiv] = await Promise.all([planPersonen(datum, datum, false), belegungenAm(datum), planungAktiv()]);
+  return { datum, personen, alle, aktiv };
+}
+
+/**
+ * Prüft, ob die Person den Termin machen kann, und wirft sonst eine PlanungsWarnung (außer bei `trotzdem`).
+ * Wer nicht in der Planung steht (deaktiviert), wird nicht geprüft.
+ */
+async function personPruefen(profil: string | null, t: { beginn: Date; ende: Date; bis: Date; leistungIds: string[]; id?: string }, trotzdem: boolean) {
+  if (!profil || trotzdem) return;
+  const { personen, alle } = await planungFuer(t.beginn);
+  const person = personen.find((p) => p.id === profil);
+  if (!person) return;
+  const gruende = konflikte(person, t, alle, await leistungNamen(t.leistungIds));
+  if (gruende.length) throw new PlanungsWarnung(gruende);
+}
+
+/** Wer frei ist und passt (nur wer Aufträge annimmt). null, wenn niemand oder die Planung aus ist. */
+async function automatischePerson(t: { beginn: Date; ende: Date; bis: Date; leistungIds: string[]; id?: string }, ausser: string[] = []): Promise<string | null> {
+  const datum = berlinDatum(t.beginn);
+  if (!(await planungAktiv())) return null;
+  const [personen, alle] = await Promise.all([planPersonen(datum, datum), belegungenAm(datum)]);
+  return besteFreiePerson(personen, t, alle, ausser)?.id ?? null;
+}
+
 /**
  * Termin direkt eintragen (Telefonkunde). Ist sofort bestätigt. Neben Leistungen aus der Preisliste kann eine
  * frei beschriebene Arbeit dazukommen; die Dauer ist dann von Hand anzugeben, sonst gilt die Summe.
+ * `mitarbeiter`: eine Person, null = niemand, „auto“ = wer frei ist und passt.
  */
 export async function terminEintragen(
   e: AnfrageEingabe & {
     leistungName?: string;
     dauerMin?: number;
     ueberbuchen?: boolean;
-    mitarbeiter?: string | null;
+    mitarbeiter?: string | null | "auto";
     /** Aus der Kartei gewählt: Der Termin hängt direkt an diesem Kunden (und Fahrzeug) */
     kundeId?: string | null;
     fahrzeugId?: string | null;
@@ -507,6 +572,10 @@ export async function terminEintragen(
   const frei = e.leistungName?.trim() ?? "";
   const dauer = e.dauerMin ?? (gewaehlt.length ? gesamtDauer(gewaehlt) : 60);
   const slot = zeitraum(e.datum, e.uhrzeit, dauer, einst.buchung.pufferMin);
+  const plan = { ...slot, leistungIds: gewaehlt.map((l) => l.id) };
+  const mitarbeiter = e.mitarbeiter === "auto" || e.mitarbeiter === undefined ? await automatischePerson(plan) : e.mitarbeiter;
+  // Vor Kunde und Fahrzeug: Passt die Person nicht, soll noch nichts angelegt sein.
+  if (e.mitarbeiter !== "auto") await personPruefen(mitarbeiter, plan, Boolean(e.ueberbuchen));
   const kontakt = { name: e.name, email: e.email, telefon: e.telefon };
   const kundeId = e.kundeId ? await gewaehlterKunde(e.kundeId, kontakt) : await kundeFindenOderAnlegen(kontakt);
   const fahrzeugId = await gewaehltesFahrzeug(e.fahrzeugId, e.kennzeichen, kundeId, e.fahrzeug);
@@ -524,28 +593,46 @@ export async function terminEintragen(
       fahrzeug_id: fahrzeugId,
       notiz_intern: e.notiz ?? "",
       quelle: "admin",
-      zugewiesen_an: e.mitarbeiter ?? null,
+      zugewiesen_an: mitarbeiter ?? null,
     },
     p_kapazitaet: einst.buchung.kapazitaet,
     p_ueberbuchen: Boolean(e.ueberbuchen),
   });
   if (error) dbFehler(error);
   const termin = (await terminLaden(id as string))!;
-  await verlauf("termin", termin.id, "Termin eingetragen", vonBenutzer);
+  await verlauf("termin", termin.id, `Termin eingetragen${termin.mitarbeiter ? ` für ${termin.mitarbeiter.name}` : ""}`, vonBenutzer);
   after(async () => {
-    await Promise.all([kundenMail(termin, "bestaetigt"), melden("termin.bestaetigt", ereignisDaten(termin))]);
+    await Promise.all([
+      kundenMail(termin, "bestaetigt"),
+      personBenachrichtigen(termin.zugewiesen_an, termin, "neu"),
+      melden("termin.bestaetigt", ereignisDaten(termin)),
+    ]);
   });
   return termin;
 }
 
+const leistungIdsVon = (t: Pick<Termin, "leistung_ids" | "leistung_id">) => t.leistung_ids ?? (t.leistung_id ? [t.leistung_id] : []);
+
 export async function bestaetigen(id: string, vonBenutzer: string, ueberbuchen = false): Promise<void> {
   const { buchung } = await einstellungen();
+  // Anfragen ohne Person (Planung war aus, Person fiel aus) bekommen beim Bestätigen jemanden, wenn möglich.
+  const vorher = await terminLaden(id);
+  if (vorher && vorher.status === "angefragt" && !vorher.zugewiesen_an) {
+    const zr = { beginn: new Date(vorher.beginn), ende: new Date(vorher.ende), bis: new Date(vorher.belegt_bis), leistungIds: leistungIdsVon(vorher), id };
+    const person = await automatischePerson(zr);
+    // Klappt das nicht (gerade vergeben), wird trotzdem bestätigt, nur eben ohne Person.
+    if (person) await umplanenRpc(id, zr, person, buchung.kapazitaet, false).catch(() => undefined);
+  }
   const { error } = await db().rpc("termin_bestaetigen", { p_id: id, p_kapazitaet: buchung.kapazitaet, p_ueberbuchen: ueberbuchen });
   if (error) dbFehler(error);
   const termin = (await terminLaden(id))!;
   await verlauf("termin", id, ueberbuchen ? "Bestätigt (trotz voller Werkstatt)" : "Bestätigt", vonBenutzer);
   after(async () => {
-    await Promise.all([kundenMail(termin, "bestaetigt"), melden("termin.bestaetigt", ereignisDaten(termin))]);
+    await Promise.all([
+      kundenMail(termin, "bestaetigt"),
+      personBenachrichtigen(termin.zugewiesen_an, termin, "neu"),
+      melden("termin.bestaetigt", ereignisDaten(termin)),
+    ]);
   });
 }
 
@@ -590,34 +677,130 @@ export async function stornieren(id: string, durch: { kunde: true } | { benutzer
     await Promise.all([
       kundenMail(neu, "storniert"),
       "kunde" in durch ? betriebBenachrichtigen(neu, "storniert") : Promise.resolve(),
+      termin.status === "bestaetigt" ? personBenachrichtigen(termin.zugewiesen_an, termin, "entfaellt") : Promise.resolve(),
       melden("termin.storniert", { ...ereignisDaten(neu), durch_kunde: "kunde" in durch }),
     ]);
   });
 }
 
-export async function verschieben(id: string, datum: string, uhrzeit: string, vonBenutzer: string, ueberbuchen = false): Promise<void> {
-  const termin = await terminLaden(id);
-  if (!termin) throw new TerminFehler("Termin nicht gefunden.");
-  const { buchung } = await einstellungen();
-  const dauer = Math.round((new Date(termin.ende).getTime() - new Date(termin.beginn).getTime()) / 60000);
-  const slot = zeitraum(datum, uhrzeit, dauer, buchung.pufferMin);
-  const { error } = await db().rpc("termin_verschieben", {
+type Zeitraum = { beginn: Date; ende: Date; bis: Date };
+
+async function umplanenRpc(id: string, z: Zeitraum, person: string | null, kapazitaet: number, ueberbuchen: boolean) {
+  const { error } = await db().rpc("termin_umplanen", {
     p_id: id,
-    p_beginn: slot.beginn.toISOString(),
-    p_ende: slot.ende.toISOString(),
-    p_bis: slot.bis.toISOString(),
-    p_kapazitaet: buchung.kapazitaet,
+    p_beginn: z.beginn.toISOString(),
+    p_ende: z.ende.toISOString(),
+    p_bis: z.bis.toISOString(),
+    p_person: person,
+    p_kapazitaet: kapazitaet,
     p_ueberbuchen: ueberbuchen,
   });
   if (error) dbFehler(error);
+}
+
+/**
+ * Zeit und/oder Mitarbeiter eines offenen Termins ändern (Verschieben, Zuteilen, Ziehen im Kalender). Die Dauer
+ * bleibt. Passt die Person nicht, gibt es eine PlanungsWarnung, außer bei `trotzdem`. Der Kunde bekommt nur
+ * bei einer neuen Uhrzeit eine Mail, die Mitarbeiter bei jeder Änderung einen Push.
+ */
+export async function umplanen(
+  id: string,
+  ziel: { datum?: string; uhrzeit?: string; mitarbeiter?: string | null },
+  vonBenutzer: string,
+  trotzdem = false,
+): Promise<Termin> {
+  const termin = await terminLaden(id);
+  if (!termin) throw new TerminFehler("Termin nicht gefunden.");
+  if (!["angefragt", "bestaetigt"].includes(termin.status)) throw new TerminFehler("Nur offene Termine lassen sich umplanen.");
+  const { buchung } = await einstellungen();
+  const alt = new Date(termin.beginn);
+  const datum = ziel.datum ?? berlinDatum(alt);
+  const uhr = ziel.uhrzeit ?? berlinUhrzeit(alt);
+  const dauer = Math.round((new Date(termin.ende).getTime() - alt.getTime()) / 60000);
+  const zeitGeaendert = datum !== berlinDatum(alt) || uhr !== berlinUhrzeit(alt);
+  const z = zeitGeaendert ? zeitraum(datum, uhr, dauer, buchung.pufferMin) : { beginn: alt, ende: new Date(termin.ende), bis: new Date(termin.belegt_bis) };
+  const person = ziel.mitarbeiter === undefined ? termin.zugewiesen_an : ziel.mitarbeiter;
+  const personGeaendert = person !== termin.zugewiesen_an;
+  if (!zeitGeaendert && !personGeaendert) return termin;
+
+  await personPruefen(person, { ...z, leistungIds: leistungIdsVon(termin), id }, trotzdem);
+  await umplanenRpc(id, z, person, buchung.kapazitaet, trotzdem);
   const neu = (await terminLaden(id))!;
-  await verlauf("termin", id, `Verschoben auf ${datumLangText(slot.beginn)}, ${zeit(slot.beginn)} Uhr`, vonBenutzer);
+
+  const schritte = [
+    zeitGeaendert ? `Verschoben auf ${datumLangText(z.beginn)}, ${zeit(z.beginn)} Uhr` : "",
+    personGeaendert ? (neu.mitarbeiter ? `Zugeteilt an ${neu.mitarbeiter.name}` : "Mitarbeiter entfernt") : "",
+  ].filter(Boolean);
+  await verlauf("termin", id, schritte.join(", ") + (trotzdem ? " (trotz Warnung)" : ""), vonBenutzer);
   after(async () => {
+    const bestaetigt = neu.status === "bestaetigt";
     await Promise.all([
-      neu.status === "bestaetigt" ? kundenMail(neu, "verschoben") : Promise.resolve(),
-      melden("termin.verschoben", ereignisDaten(neu)),
+      zeitGeaendert && bestaetigt ? kundenMail(neu, "verschoben") : Promise.resolve(),
+      bestaetigt && personGeaendert ? personBenachrichtigen(termin.zugewiesen_an, termin, "entfaellt") : Promise.resolve(),
+      bestaetigt ? personBenachrichtigen(neu.zugewiesen_an, neu, personGeaendert ? "neu" : "geaendert") : Promise.resolve(),
+      zeitGeaendert ? melden("termin.verschoben", ereignisDaten(neu)) : Promise.resolve(),
+      personGeaendert ? melden("termin.zugewiesen", { ...ereignisDaten(neu), vorher: termin.zugewiesen_an }) : Promise.resolve(),
     ]);
   });
+  return neu;
+}
+
+export async function verschieben(id: string, datum: string, uhrzeit: string, vonBenutzer: string, ueberbuchen = false): Promise<void> {
+  await umplanen(id, { datum, uhrzeit }, vonBenutzer, ueberbuchen);
+}
+
+/**
+ * Eine Person fällt aus (Urlaub genehmigt, krank, halber Tag frei): Ihre offenen Termine im Zeitraum gehen an
+ * passende freie Kollegen. Was sich nicht unterbringen lässt, verliert die Person und steht in der Verwaltung
+ * unter „ohne Mitarbeiter“. Liefert, wie viele umverteilt und wie viele offen sind.
+ */
+export async function nachAbwesenheitUmverteilen(
+  profil: string,
+  a: { von: string; bis: string; von_zeit?: string | null; bis_zeit?: string | null },
+  vonBenutzer: string | null,
+): Promise<{ umverteilt: number; offen: number }> {
+  // Ohne Planung wird von Hand zugeteilt; dann bleibt alles, wie es ist, statt Termine stillschweigend zu leeren.
+  if (!(await planungAktiv())) return { umverteilt: 0, offen: 0 };
+  const beginn = a.von_zeit ? berlin(a.von, a.von_zeit.slice(0, 5)) : berlin(a.von);
+  const ende = a.bis_zeit ? berlin(a.bis, a.bis_zeit.slice(0, 5)) : berlin(plusTage(a.bis, 1));
+  const { data } = await db()
+    .from("termine")
+    .select(TERMIN_FELDER)
+    .eq("zugewiesen_an", profil)
+    .in("status", ["angefragt", "bestaetigt"])
+    .lt("beginn", ende.toISOString())
+    .gt("ende", beginn.toISOString())
+    .gte("beginn", new Date().toISOString())
+    .order("beginn");
+  const { buchung } = await einstellungen();
+  let umverteilt = 0;
+  let offen = 0;
+  for (const t of (data ?? []) as Termin[]) {
+    const z = { beginn: new Date(t.beginn), ende: new Date(t.ende), bis: new Date(t.belegt_bis), leistungIds: leistungIdsVon(t), id: t.id };
+    const neuePerson = await automatischePerson(z, [profil]);
+    try {
+      await umplanenRpc(t.id, z, neuePerson, buchung.kapazitaet, false);
+    } catch {
+      await umplanenRpc(t.id, z, null, buchung.kapazitaet, true);
+    }
+    const neu = (await terminLaden(t.id))!;
+    if (neu.zugewiesen_an) umverteilt++;
+    else offen++;
+    await verlauf("termin", t.id, neu.mitarbeiter ? `Wegen Abwesenheit an ${neu.mitarbeiter.name} gegeben` : "Wegen Abwesenheit ohne Mitarbeiter", vonBenutzer);
+    after(async () => {
+      if (neu.status === "bestaetigt") await personBenachrichtigen(neu.zugewiesen_an, neu, "neu");
+      await melden("termin.zugewiesen", { ...ereignisDaten(neu), vorher: profil });
+    });
+  }
+  if (offen) {
+    after(() =>
+      pushSenden(
+        { rollen: ["inhaber", "buero"] },
+        { titel: "Termine ohne Mitarbeiter", text: `${offen} ${offen === 1 ? "Termin braucht" : "Termine brauchen"} wegen einer Abwesenheit jemand Neues.`, url: "/admin/kalender" },
+      ),
+    );
+  }
+  return { umverteilt, offen };
 }
 
 export async function erledigen(id: string, vonBenutzer: string, status: "erledigt" | "nicht_erschienen" = "erledigt"): Promise<void> {
@@ -648,6 +831,7 @@ export async function loeschen(id: string, vonBenutzer: string): Promise<void> {
   if (error) dbFehler(error);
   await db().from("verlauf").delete().eq("bezug_typ", "termin").eq("bezug_id", id);
   after(async () => {
+    if (termin.status === "bestaetigt" && new Date(termin.beginn).getTime() > Date.now()) await personBenachrichtigen(termin.zugewiesen_an, termin, "entfaellt");
     if (fotos?.length) await db().storage.from("auftragsfotos").remove(fotos.map((f) => f.pfad as string));
     await melden("termin.geloescht", { ...ereignisDaten(termin), geloescht_von: vonBenutzer });
   });

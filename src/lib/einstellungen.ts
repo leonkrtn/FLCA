@@ -64,6 +64,14 @@ export type Einstellungen = {
     einleitung: string;
     fusstext: string;
   };
+  /** Einstempeln in der Team-App nur in der Nähe der Werkstatt (Standort des Handys) */
+  standort: {
+    nurVorOrt: boolean;
+    lat: number | null;
+    lng: number | null;
+    /** Erlaubter Abstand zur Werkstatt in Metern */
+    radiusM: number;
+  };
   benachrichtigung: {
     /** Empfänger für „Neue Anfrage“, „Neue Bewerbung“; leer = Firmen-E-Mail */
     emails: string[];
@@ -169,6 +177,7 @@ export const STANDARD: Einstellungen = {
     einleitung: "vielen Dank für Ihre Anfrage. Für die gewünschten Arbeiten bieten wir Ihnen an:",
     fusstext: "Zeigt sich bei der Arbeit, dass mehr zu tun ist, melden wir uns vorher bei Ihnen. Ohne Ihre Zustimmung wird nichts zusätzlich berechnet.",
   },
+  standort: { nurVorOrt: false, lat: null, lng: null, radiusM: 150 },
   benachrichtigung: { emails: [] },
   automatik: {
     erinnerung: { aktiv: true },

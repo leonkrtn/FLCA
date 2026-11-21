@@ -19,12 +19,12 @@ export async function GET(request: NextRequest) {
   const auswahl = [...new Set(schluessel.split(",").map((x) => x.trim()).filter(Boolean))].slice(0, MAX_LEISTUNGEN + 1);
   if (auswahl.length > MAX_LEISTUNGEN) return NextResponse.json({ fehler: `Höchstens ${MAX_LEISTUNGEN} Leistungen` }, { status: 400 });
   const spalte = auswahl.every((x) => /^[0-9a-f-]{36}$/.test(x)) ? "id" : "slug";
-  const { data } = await db().from("leistungen").select("dauer_min, online_anfragbar").in(spalte, auswahl).eq("sichtbar", true);
+  const { data } = await db().from("leistungen").select("id, dauer_min, online_anfragbar").in(spalte, auswahl).eq("sichtbar", true);
   const gefunden = data ?? [];
   if (gefunden.length !== auswahl.length || gefunden.some((l) => !l.online_anfragbar)) {
     return NextResponse.json({ fehler: "Leistung nicht buchbar" }, { status: 404 });
   }
 
-  const ergebnis = await freieTermine({ dauer_min: gesamtDauer(gefunden) }, von, tage);
+  const ergebnis = await freieTermine({ dauer_min: gesamtDauer(gefunden), ids: gefunden.map((l) => l.id as string) }, von, tage);
   return NextResponse.json({ tage: ergebnis }, { headers: { "cache-control": "no-store" } });
 }

@@ -22,6 +22,7 @@ export function TerminFormular({
   vorgabe,
   kunde,
   zuletzt = [],
+  mitarbeiter,
 }: {
   aktion: (v: Ergebnis, fd: FormData) => Promise<Ergebnis>;
   leistungen: { id: string; name: string; dauer_min: number }[];
@@ -33,6 +34,8 @@ export function TerminFormular({
   vorgabe?: TerminVorgabe | null;
   kunde?: KundenWahl | null;
   zuletzt?: KundenTreffer[];
+  /** Vorauswahl Mitarbeiter (Klick in eine Spalte der Tagesansicht) */
+  mitarbeiter?: string;
 }) {
   const v = vorgabe;
   return (
@@ -46,10 +49,12 @@ export function TerminFormular({
         kompakt={kompakt}
         werte={{ name: v?.name, telefon: v?.telefon, email: v?.email, kennzeichen: v?.kennzeichen, fahrzeug: v?.fahrzeug }}
       />
-      {team.length ? <Auswahl label="Mitarbeiter" name="zugewiesen_an" wert={v?.mitarbeiter} leer="niemand" optionen={team.map((p) => [p.id, p.name])} /> : null}
+      {team.length ? (
+        <Auswahl label="Mitarbeiter" name="zugewiesen_an" wert={v?.mitarbeiter || mitarbeiter} leer="automatisch (wer frei ist)" optionen={[...team.map((p): [string, string] => [p.id, p.name || "ohne Namen"]), ["-", "niemand"]]} />
+      ) : null}
       <Textfeld label="Notiz" name="notiz" wert={v?.notiz} zeilen={2} className={kompakt ? "" : "sm:col-span-2"} />
       <label className={`flex items-center gap-2 text-sm text-grau ${kompakt ? "" : "sm:col-span-2"}`}>
-        <input type="checkbox" name="ueberbuchen" className="size-4 accent-tinte" /> auch eintragen, wenn die Werkstatt zu der Zeit voll ist
+        <input type="checkbox" name="ueberbuchen" className="size-4 accent-tinte" /> trotzdem eintragen, auch wenn die Werkstatt voll ist oder der Mitarbeiter nicht kann
       </label>
       <div className={kompakt ? "" : "sm:col-span-2"}>
         <Senden art="dunkel" className={kompakt ? "w-full" : ""}>Termin eintragen</Senden>
