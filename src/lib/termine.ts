@@ -47,6 +47,9 @@ export type Termin = {
   ende: string;
   belegt_bis: string;
   leistung_id: string | null;
+  /** Alle Leistungen des Termins (seit der Migration „mehrere_leistungen“, vorher fehlt das Feld). */
+  leistung_ids?: string[];
+  /** Namen aller Leistungen, mit Komma getrennt (bei frei eingetragener Arbeit auch deren Text). */
   leistung_name: string;
   notiz_kunde: string;
   notiz_intern: string;
@@ -91,6 +94,21 @@ export async function leistungen(nurSichtbar = true): Promise<Leistung[]> {
   if (nurSichtbar) q = q.eq("sichtbar", true);
   return pruefe<Leistung[]>(await q);
 }
+
+/** Höchstens so viele Leistungen pro Termin; mehr passt ohnehin nicht in einen Werkstatttag. */
+export const MAX_LEISTUNGEN = 8;
+
+/** Leistungen eines Termins in der Reihenfolge der Preisliste, doppelte und unbekannte fallen weg. */
+export async function terminLeistungen(ids: string[], nurOnline = false): Promise<Leistung[]> {
+  const eindeutig = [...new Set(ids.filter((id) => /^[0-9a-f-]{36}$/.test(id)))].slice(0, MAX_LEISTUNGEN);
+  if (!eindeutig.length) return [];
+  let q = db().from("leistungen").select("*").in("id", eindeutig).order("sortierung");
+  if (nurOnline) q = q.eq("sichtbar", true).eq("online_anfragbar", true);
+  return pruefe<Leistung[]>(await q).filter(istTerminLeistung);
+}
+
+/** Gesamtdauer: Die Arbeiten laufen nacheinander am selben Auto. */
+export const gesamtDauer = (l: Pick<Leistung, "dauer_min">[]) => l.reduce((s, x) => s + x.dauer_min, 0);
 
 export async function terminLaden(id: string): Promise<Termin | null> {
   const { data } = await db().from("termine").select(TERMIN_FELDER).eq("id", id).maybeSingle();
@@ -241,7 +259,7 @@ function terminLink(t: Pick<Termin, "token">) {
 
 function terminFakten(t: Termin, firma: Einstellungen["firma"]): [string, string][] {
   return [
-    ["Leistung", t.leistung_name],
+    [(t.leistung_ids?.length ?? 0) > 1 ? "Leistungen" : "Leistung", t.leistung_name],
     ["Wann", `${datumLangText(t.beginn)}, ${zeit(t.beginn)} Uhr`],
     ...(t.fahrzeug ? ([["Fahrzeug", [t.fahrzeug.kennzeichen, t.fahrzeug.marke_modell].filter(Boolean).join(", ")]] as [string, string][]) : []),
     ["Wo", `${firma.strasse}, ${firma.plz} ${firma.ort}`],
@@ -385,6 +403,7 @@ const ereignisDaten = (t: Termin) => ({
   beginn: t.beginn,
   ende: t.ende,
   leistung: t.leistung_name,
+  leistung_ids: t.leistung_ids ?? (t.leistung_id ? [t.leistung_id] : []),
   kunde: t.kunde ? { id: t.kunde.id, name: t.kunde.name, email: t.kunde.email, telefon: t.kunde.telefon } : null,
   kennzeichen: t.fahrzeug?.kennzeichen ?? null,
 });
@@ -394,7 +413,7 @@ const ereignisDaten = (t: Termin) => ({
 // ---------------------------------------------------------------------------
 
 export type AnfrageEingabe = {
-  leistungId: string;
+  leistungIds: string[];
   datum: string;
   uhrzeit: string;
   name: string;
@@ -409,10 +428,11 @@ export type AnfrageEingabe = {
 export async function anfrageStellen(e: AnfrageEingabe): Promise<Termin> {
   const einst = await einstellungen();
   if (!einst.buchung.aktiv) throw new TerminFehler("Online-Anfragen sind gerade pausiert. Bitte rufen Sie uns an.");
-  const { data: leistung } = await db().from("leistungen").select("*").eq("id", e.leistungId).eq("sichtbar", true).maybeSingle();
-  if (!leistung || !leistung.online_anfragbar) throw new TerminFehler("Diese Leistung kann nicht online angefragt werden.");
+  const gewaehlt = await terminLeistungen(e.leistungIds, true);
+  if (!gewaehlt.length) throw new TerminFehler("Bitte mindestens eine Leistung wählen.");
+  if (gewaehlt.length !== new Set(e.leistungIds).size) throw new TerminFehler("Eine der gewählten Leistungen kann nicht online angefragt werden.");
 
-  const slot = await slotPruefen(leistung, e.datum, e.uhrzeit, einst);
+  const slot = await slotPruefen({ dauer_min: gesamtDauer(gewaehlt) }, e.datum, e.uhrzeit, einst);
   const kundeId = await kundeFindenOderAnlegen({ name: e.name, email: e.email, telefon: e.telefon });
   const fahrzeugId = await fahrzeugFindenOderAnlegen(e.kennzeichen, kundeId, e.fahrzeug);
 
@@ -421,8 +441,9 @@ export async function anfrageStellen(e: AnfrageEingabe): Promise<Termin> {
       beginn: slot.beginn.toISOString(),
       ende: slot.ende.toISOString(),
       belegt_bis: slot.bis.toISOString(),
-      leistung_id: leistung.id,
-      leistung_name: leistung.name,
+      leistung_id: gewaehlt[0].id,
+      leistung_ids: gewaehlt.map((l) => l.id),
+      leistung_name: gewaehlt.map((l) => l.name).join(", "),
       kunde_id: kundeId,
       fahrzeug_id: fahrzeugId,
       notiz_kunde: e.notiz ?? "",
@@ -440,14 +461,18 @@ export async function anfrageStellen(e: AnfrageEingabe): Promise<Termin> {
   return termin;
 }
 
-/** Termin direkt eintragen (Telefonkunde). Ist sofort bestätigt. */
+/**
+ * Termin direkt eintragen (Telefonkunde). Ist sofort bestätigt. Neben Leistungen aus der Preisliste kann eine
+ * frei beschriebene Arbeit dazukommen; die Dauer ist dann von Hand anzugeben, sonst gilt die Summe.
+ */
 export async function terminEintragen(
-  e: Omit<AnfrageEingabe, "leistungId"> & { leistungId: string | null; leistungName?: string; dauerMin?: number; ueberbuchen?: boolean; mitarbeiter?: string | null },
+  e: AnfrageEingabe & { leistungName?: string; dauerMin?: number; ueberbuchen?: boolean; mitarbeiter?: string | null },
   vonBenutzer: string,
 ): Promise<Termin> {
   const einst = await einstellungen();
-  const { data: leistung } = e.leistungId ? await db().from("leistungen").select("*").eq("id", e.leistungId).maybeSingle() : { data: null };
-  const dauer = e.dauerMin ?? leistung?.dauer_min ?? 60;
+  const gewaehlt = await terminLeistungen(e.leistungIds);
+  const frei = e.leistungName?.trim() ?? "";
+  const dauer = e.dauerMin ?? (gewaehlt.length ? gesamtDauer(gewaehlt) : 60);
   const slot = zeitraum(e.datum, e.uhrzeit, dauer, einst.buchung.pufferMin);
   const kundeId = await kundeFindenOderAnlegen({ name: e.name, email: e.email, telefon: e.telefon });
   const fahrzeugId = await fahrzeugFindenOderAnlegen(e.kennzeichen, kundeId, e.fahrzeug);
@@ -458,8 +483,9 @@ export async function terminEintragen(
       beginn: slot.beginn.toISOString(),
       ende: slot.ende.toISOString(),
       belegt_bis: slot.bis.toISOString(),
-      leistung_id: leistung?.id ?? null,
-      leistung_name: leistung?.name ?? e.leistungName ?? "Termin",
+      leistung_id: gewaehlt[0]?.id ?? null,
+      leistung_ids: gewaehlt.map((l) => l.id),
+      leistung_name: [...gewaehlt.map((l) => l.name), frei].filter(Boolean).join(", ") || "Termin",
       kunde_id: kundeId,
       fahrzeug_id: fahrzeugId,
       notiz_intern: e.notiz ?? "",

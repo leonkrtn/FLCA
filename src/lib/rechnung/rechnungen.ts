@@ -81,37 +81,40 @@ export async function rechnungPerToken(token: string): Promise<Rechnung | null> 
   return data as Rechnung | null;
 }
 
-/** Entwurf aus einem Termin: Kunde, Fahrzeug und die Leistung mit ihrem Festpreis sind schon eingetragen. */
+/** Entwurf aus einem Termin: Kunde, Fahrzeug und jede Leistung mit ihrem Festpreis sind schon eingetragen. */
 export async function entwurfAusTermin(terminId: string, vonBenutzer: string): Promise<string> {
   const { data: vorhanden } = await db().from("rechnungen").select("id").eq("termin_id", terminId).in("status", ["entwurf", "gestellt", "bezahlt"]).limit(1).maybeSingle();
   if (vorhanden) return vorhanden.id;
 
+  // „*“ statt einzelner Spalten: leistung_ids gibt es erst nach der Migration „mehrere_leistungen“.
   const { data: t } = await db()
     .from("termine")
-    .select("id, beginn, leistung_id, leistung_name, km_stand, kunde:kunden(*), fahrzeug:fahrzeuge(kennzeichen, marke_modell, marke, modell, km_stand)")
+    .select("*, kunde:kunden(*), fahrzeug:fahrzeuge(kennzeichen, marke_modell, marke, modell, km_stand)")
     .eq("id", terminId)
     .single();
   if (!t) throw new Error("Termin nicht gefunden.");
   const kunde = t.kunde as unknown as Record<string, string> | null;
   const fahrzeug = t.fahrzeug as unknown as { kennzeichen: string; marke_modell: string; marke: string; modell: string; km_stand: number | null } | null;
+  const ids: string[] = (t.leistung_ids as string[] | undefined)?.length ? t.leistung_ids : t.leistung_id ? [t.leistung_id] : [];
 
-  const positionen: Position[] = [];
-  if (t.leistung_id) {
-    // Derselbe Preis wie auf der Website: Es gibt ihn nur einmal, in der Preisliste (brutto, rund). Im Beleg steht
-    // er netto, so genau, dass brutto wieder derselbe runde Betrag herauskommt. Bei „ab“-Preisen steht der
-    // Startwert drin und wird in der Rechnung angepasst.
-    const { data: leistung } = await db().from("leistungen").select("*").eq("id", t.leistung_id).maybeSingle();
-    positionen.push({
-      text: leistung?.name ?? t.leistung_name,
-      menge: 1,
-      einheit: leistung?.einheit ?? "Pauschal",
-      einzel_netto_cent: nettoAusBruttoPreis(leistung?.preis_cent ?? 0, Number(leistung?.mwst_satz ?? 19)),
-      mwst_satz: Number(leistung?.mwst_satz ?? 19),
-      artikel_id: leistung?.id ?? null,
-    });
-  } else {
-    positionen.push({ text: t.leistung_name, menge: 1, einheit: "Pauschal", einzel_netto_cent: 0, mwst_satz: 19 });
-  }
+  // Derselbe Preis wie auf der Website: Es gibt ihn nur einmal, in der Preisliste (brutto, rund). Im Beleg steht
+  // er netto, so genau, dass brutto wieder derselbe runde Betrag herauskommt. Bei „ab“-Preisen steht der
+  // Startwert drin und wird in der Rechnung angepasst. Reihenfolge wie im Termin.
+  const { data: gefunden } = ids.length ? await db().from("leistungen").select("*").in("id", ids) : { data: [] };
+  const leistungen = ids.map((id) => (gefunden ?? []).find((l) => l.id === id)).filter(Boolean);
+  const positionen: Position[] = leistungen.map((l) => ({
+    text: l.name,
+    menge: 1,
+    einheit: l.einheit ?? "Pauschal",
+    einzel_netto_cent: nettoAusBruttoPreis(l.preis_cent ?? 0, Number(l.mwst_satz ?? 19)),
+    mwst_satz: Number(l.mwst_satz ?? 19),
+    artikel_id: l.id,
+  }));
+  // Frei eingetragene Arbeit steht hinter den Namen der Leistungen in leistung_name (terminEintragen).
+  const namen = leistungen.map((l) => l.name).join(", ");
+  const name = String(t.leistung_name ?? "");
+  const frei = !namen ? name : name.startsWith(`${namen}, `) ? name.slice(namen.length + 2) : "";
+  if (frei || !positionen.length) positionen.push({ text: frei || name || "Arbeit", menge: 1, einheit: "Pauschal", einzel_netto_cent: 0, mwst_satz: 19 });
 
   return entwurfAnlegen(
     {

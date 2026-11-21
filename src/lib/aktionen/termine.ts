@@ -119,7 +119,7 @@ export async function eintragenAktion(basis: "/admin/termine" | "/app/termine", 
     const dauer = zahl(fd, "dauer");
     const t = await terminEintragen(
       {
-        leistungId: text(fd, "leistung", 40) || null,
+        leistungIds: fd.getAll("leistung").filter((x): x is string => typeof x === "string").map((x) => x.slice(0, 40)),
         leistungName: text(fd, "leistung_frei", 120) || undefined,
         dauerMin: dauer ? Math.round(dauer) : undefined,
         datum,
