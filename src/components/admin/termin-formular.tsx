@@ -1,4 +1,5 @@
 import { Formular, Senden } from "./formular";
+import { LeistungenWahl } from "./leistungen-wahl";
 import { Auswahl, Feld, Textfeld } from "./ui";
 import type { Ergebnis } from "@/lib/forms";
 
@@ -18,9 +19,7 @@ export function TerminFormular({
 }) {
   return (
     <Formular aktion={aktion} className={`grid gap-4 ${kompakt ? "" : "sm:grid-cols-2"}`}>
-      <Auswahl label="Leistung" name="leistung" leer="Andere (unten eintragen)" optionen={leistungen.map((l) => [l.id, `${l.name} (${l.dauer_min} min)`])} className={kompakt ? "" : "sm:col-span-2"} />
-      <Feld label="Andere Leistung" name="leistung_frei" placeholder="z. B. Bremsen vorne" />
-      <Feld label="Dauer in Minuten (nur bei anderer Leistung)" name="dauer" inputMode="numeric" placeholder="60" />
+      <LeistungenWahl leistungen={leistungen} kompakt={kompakt} />
       <Feld label="Datum" name="datum" typ="date" wert={datum} required />
       <Feld label="Uhrzeit" name="uhrzeit" typ="time" required />
       <Feld label="Name" name="name" required autoComplete="off" />
