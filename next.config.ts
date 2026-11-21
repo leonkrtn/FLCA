@@ -31,7 +31,7 @@ const nextConfig: NextConfig = {
     formats: ["image/avif", "image/webp"],
     remotePatterns: supabase ? [new URL(`${supabase}/storage/v1/object/public/website/**`)] : [],
   },
-  // Schriften und Logo für die Rechnungs-PDFs werden zur Laufzeit vom Dateisystem gelesen.
+  // Schriften für die Rechnungs-PDFs werden zur Laufzeit vom Dateisystem gelesen.
   outputFileTracingIncludes: {
     "/**": ["./src/fonts/*.ttf"],
   },
