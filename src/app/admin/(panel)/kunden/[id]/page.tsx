@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Formular, Senden } from "@/components/admin/formular";
+import { MarkeModell, type Typen } from "@/components/admin/marke-modell";
 import { NotizenAbschnitt } from "@/components/admin/notizen";
 import { Abschnitt, Feld, Kopf, Marke, Textfeld } from "@/components/admin/ui";
 import { fahrzeugSpeichern, kundeSpeichern } from "@/lib/aktionen/kunden";
@@ -13,18 +14,20 @@ import { darf } from "@/lib/rollen";
 import { TERMIN_TON } from "@/lib/status";
 import { db } from "@/lib/supabase/admin";
 import { STATUS_TEXT, type Termin } from "@/lib/termine";
+import { fahrzeugTypen, markeUndModell } from "@/lib/kunden";
 
 export default async function KundeDetail({ params }: { params: Promise<{ id: string }> }) {
   const b = await benutzerMitRecht("kunden");
   const { id } = await params;
   const { data: k } = await db().from("kunden").select("*").eq("id", id).maybeSingle();
   if (!k) notFound();
-  const [fz, tm, re, ei, kv] = await Promise.all([
+  const [fz, tm, re, ei, kv, typen] = await Promise.all([
     db().from("fahrzeuge").select("*").eq("kunde_id", id).order("erstellt_am"),
     db().from("termine").select("id, beginn, leistung_name, status, km_stand, fahrzeug:fahrzeuge(kennzeichen)").eq("kunde_id", id).order("beginn", { ascending: false }).limit(50),
     db().from("rechnungen").select("id, nummer, status, summe_brutto_cent, rechnungsdatum").eq("kunde_id", id).order("erstellt_am", { ascending: false }),
     db().from("einlagerungen").select("id, lagerplatz, saison, reifengroesse, eingelagert_am, ausgelagert_am, fahrzeug:fahrzeuge(kennzeichen)").eq("kunde_id", id).order("eingelagert_am", { ascending: false }),
     db().from("kostenvoranschlaege").select("id, nummer, status, gueltig_bis, summe_brutto_cent, datum").eq("kunde_id", id).order("erstellt_am", { ascending: false }),
+    fahrzeugTypen(),
   ]);
   // Bei genau einem Fahrzeug kommt es gleich mit auf den neuen Beleg.
   const einziges = fz.data?.length === 1 ? (fz.data[0].id as string) : null;
@@ -65,12 +68,12 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
                     <span className="zahlen font-semibold">{f.kennzeichen}</span> <span className="text-grau">{f.marke_modell}</span>
                     {f.km_stand ? <span className="zahlen ml-2 text-sm text-grau">{new Intl.NumberFormat("de-DE").format(f.km_stand)} km</span> : null}
                   </summary>
-                  <FahrzeugFormular kundeId={k.id} f={f} />
+                  <FahrzeugFormular kundeId={k.id} f={f} typen={typen} />
                 </details>
               ))}
               <details>
                 <summary className="cursor-pointer font-semibold">+ Fahrzeug hinzufügen</summary>
-                <FahrzeugFormular kundeId={k.id} />
+                <FahrzeugFormular kundeId={k.id} typen={typen} />
               </details>
             </div>
           </Abschnitt>
@@ -142,11 +145,12 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
   );
 }
 
-function FahrzeugFormular({ kundeId, f }: { kundeId: string; f?: Record<string, string | number | null> }) {
+function FahrzeugFormular({ kundeId, f, typen }: { kundeId: string; f?: Record<string, string | number | null>; typen: Typen }) {
+  const mm = f ? markeUndModell({ marke_modell: String(f.marke_modell ?? ""), marke: String(f.marke ?? ""), modell: String(f.modell ?? "") }) : { marke: "", modell: "" };
   return (
     <Formular aktion={fahrzeugSpeichern.bind(null, kundeId, (f?.id as string) ?? null)} className="mt-4 grid gap-3 sm:grid-cols-2">
       <Feld label="Kennzeichen" name="kennzeichen" wert={f?.kennzeichen} required />
-      <Feld label="Marke / Modell" name="marke_modell" wert={f?.marke_modell} />
+      <MarkeModell typen={typen} marke={mm.marke} modell={mm.modell} className="sm:col-span-2" />
       <Feld label="HSN" name="hsn" wert={f?.hsn} />
       <Feld label="TSN" name="tsn" wert={f?.tsn} />
       <Feld label="FIN" name="fin" wert={f?.fin} />

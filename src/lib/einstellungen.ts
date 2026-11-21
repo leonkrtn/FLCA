@@ -53,6 +53,10 @@ export type Einstellungen = {
     zahlungszielTage: number;
     fusstext: string;
     einleitung: string;
+    /** Stundensätze netto je Lohnart. Der erste ist der Standard für neue Lohnzeilen. */
+    stundensaetze: { name: string; netto_cent: number }[];
+    /** Standard-Aufschlag auf den Teile-Einkaufspreis in Prozent, je Position änderbar */
+    aufschlagProzent: number;
   };
   kostenvoranschlag: {
     /** So lange gilt ein Kostenvoranschlag ab dem Abschließen */
@@ -153,6 +157,11 @@ export const STANDARD: Einstellungen = {
     zahlungszielTage: 14,
     einleitung: "vielen Dank für Ihren Auftrag. Wir berechnen Ihnen folgende Leistungen:",
     fusstext: "Alle Arbeiten unter Meisterverantwortung. Gewährleistung nach unseren AGB.",
+    stundensaetze: [
+      { name: "Mechanik", netto_cent: 7500 },
+      { name: "Elektrik/Diagnose", netto_cent: 8500 },
+    ],
+    aufschlagProzent: 30,
   },
   kostenvoranschlag: {
     gueltigTage: 30,

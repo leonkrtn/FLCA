@@ -5,7 +5,8 @@ import { Abschnitt, Kopf, Marke } from "@/components/admin/ui";
 import { entwurfLoeschen } from "@/lib/aktionen/rechnungen";
 import { benutzerMitRecht } from "@/lib/auth";
 import { datumZeit } from "@/lib/format";
-import { preislisteFuerBelege, RECHNUNG_STATUS, rechnungLaden } from "@/lib/rechnung/rechnungen";
+import { editorDaten } from "@/lib/rechnung/editor-daten";
+import { RECHNUNG_STATUS, rechnungLaden } from "@/lib/rechnung/rechnungen";
 import { kundenSuchen } from "@/lib/kunden";
 import { db } from "@/lib/supabase/admin";
 
@@ -14,8 +15,8 @@ export default async function RechnungSeite({ params }: { params: Promise<{ id: 
   const { id } = await params;
   const r = await rechnungLaden(id);
   if (!r) notFound();
-  const [preisliste, zuletzt, { data: verlauf }] = await Promise.all([
-    preislisteFuerBelege(),
+  const [daten, zuletzt, { data: verlauf }] = await Promise.all([
+    r.status === "entwurf" ? editorDaten(r.fahrzeug) : null,
     r.status === "entwurf" ? kundenSuchen("", 6) : [],
     db().from("verlauf").select("text, erstellt_am").eq("bezug_typ", "rechnung").eq("bezug_id", id).order("erstellt_am", { ascending: false }),
   ]);
@@ -38,7 +39,7 @@ export default async function RechnungSeite({ params }: { params: Promise<{ id: 
             <BelegEditor
               art="rechnung"
               id={r.id}
-              preisliste={preisliste}
+              daten={daten!}
               zuletzt={zuletzt}
               start={{
                 kunde_id: r.kunde_id,

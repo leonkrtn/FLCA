@@ -7,7 +7,9 @@ import { mail } from "../email/vorlagen";
 import { mailer } from "../services/email";
 import { db, pruefe } from "../supabase/admin";
 import { berlinDatum, plusTage } from "../zeit";
-import { berechne, type Position } from "./berechnung";
+import { berechne, nettoAusBruttoPreis, type Position, vorzeichenWechseln } from "./berechnung";
+import { markeUndModell } from "../kunden";
+import { merken, type PaketWunsch } from "./preisgedaechtnis";
 import { rechnungPdf } from "./pdf";
 import { alsZugferd, eRechnungPruefen, istXRechnung, zugferdXml } from "./zugferd";
 
@@ -30,7 +32,8 @@ export type Rechnung = {
   termin_id: string | null;
   kunde_id: string | null;
   empfaenger: Empfaenger;
-  fahrzeug: { kennzeichen?: string; modell?: string; km?: number | null };
+  /** Bei Belegen vor der Trennung steht in modell der ganze Text („VW Golf“) und marke fehlt. */
+  fahrzeug: { kennzeichen?: string; marke?: string; modell?: string; km?: number | null };
   positionen: Position[];
   rechnungsdatum: string | null;
   leistungsdatum: string | null;
@@ -85,28 +88,29 @@ export async function entwurfAusTermin(terminId: string, vonBenutzer: string): P
 
   const { data: t } = await db()
     .from("termine")
-    .select("id, beginn, leistung_id, leistung_name, km_stand, kunde:kunden(*), fahrzeug:fahrzeuge(kennzeichen, marke_modell, km_stand)")
+    .select("id, beginn, leistung_id, leistung_name, km_stand, kunde:kunden(*), fahrzeug:fahrzeuge(kennzeichen, marke_modell, marke, modell, km_stand)")
     .eq("id", terminId)
     .single();
   if (!t) throw new Error("Termin nicht gefunden.");
   const kunde = t.kunde as unknown as Record<string, string> | null;
-  const fahrzeug = t.fahrzeug as unknown as { kennzeichen: string; marke_modell: string; km_stand: number | null } | null;
+  const fahrzeug = t.fahrzeug as unknown as { kennzeichen: string; marke_modell: string; marke: string; modell: string; km_stand: number | null } | null;
 
   const positionen: Position[] = [];
   if (t.leistung_id) {
-    // Derselbe Preis wie auf der Website: Es gibt ihn nur einmal, in der Preisliste. Bei „ab“-Preisen steht der
+    // Derselbe Preis wie auf der Website: Es gibt ihn nur einmal, in der Preisliste (brutto, rund). Im Beleg steht
+    // er netto, so genau, dass brutto wieder derselbe runde Betrag herauskommt. Bei „ab“-Preisen steht der
     // Startwert drin und wird in der Rechnung angepasst.
     const { data: leistung } = await db().from("leistungen").select("*").eq("id", t.leistung_id).maybeSingle();
     positionen.push({
       text: leistung?.name ?? t.leistung_name,
       menge: 1,
       einheit: leistung?.einheit ?? "Pauschal",
-      einzel_brutto_cent: leistung?.preis_cent ?? 0,
+      einzel_netto_cent: nettoAusBruttoPreis(leistung?.preis_cent ?? 0, Number(leistung?.mwst_satz ?? 19)),
       mwst_satz: Number(leistung?.mwst_satz ?? 19),
       artikel_id: leistung?.id ?? null,
     });
   } else {
-    positionen.push({ text: t.leistung_name, menge: 1, einheit: "Pauschal", einzel_brutto_cent: 0, mwst_satz: 19 });
+    positionen.push({ text: t.leistung_name, menge: 1, einheit: "Pauschal", einzel_netto_cent: 0, mwst_satz: 19 });
   }
 
   return entwurfAnlegen(
@@ -116,7 +120,7 @@ export async function entwurfAusTermin(terminId: string, vonBenutzer: string): P
       empfaenger: kunde
         ? { name: kunde.name, firma: kunde.firma, strasse: kunde.strasse, plz: kunde.plz, ort: kunde.ort, email: kunde.email, ust_id: kunde.ust_id, leitweg_id: kunde.leitweg_id }
         : { name: "" },
-      fahrzeug: { kennzeichen: fahrzeug?.kennzeichen, modell: fahrzeug?.marke_modell, km: t.km_stand ?? fahrzeug?.km_stand ?? null },
+      fahrzeug: { kennzeichen: fahrzeug?.kennzeichen, ...(fahrzeug ? markeUndModell(fahrzeug) : {}), km: t.km_stand ?? fahrzeug?.km_stand ?? null },
       positionen,
       leistungsdatum: berlinDatum(new Date(t.beginn)),
     },
@@ -161,8 +165,11 @@ export async function entwurfSpeichern(
   if (!data?.length) throw new Error("Nur Entwürfe lassen sich ändern. Für eine gestellte Rechnung bitte eine Stornorechnung erstellen.");
 }
 
-/** Vergibt die Nummer und friert die Rechnung ein. Danach ist sie unveränderlich. */
-export async function stellen(id: string, vonBenutzer: string): Promise<string> {
+/**
+ * Vergibt die Nummer und friert die Rechnung ein. Danach ist sie unveränderlich. Anschließend merken sich die
+ * Positionen ihren Preis für Marke + Modell des Fahrzeugs, dazu die benannten Pakete.
+ */
+export async function stellen(id: string, vonBenutzer: string, pakete: PaketWunsch[] = []): Promise<string> {
   const r = await rechnungLaden(id);
   if (!r) throw new Error("Rechnung nicht gefunden.");
   if (!r.empfaenger?.name?.trim()) throw new Error("Bitte einen Rechnungsempfänger eintragen.");
@@ -187,6 +194,11 @@ export async function stellen(id: string, vonBenutzer: string): Promise<string> 
   await verlauf("rechnung", id, `Gestellt als ${nummer}`, vonBenutzer);
   const neu = (await rechnungLaden(id))!;
   await melden("rechnung.gestellt", ereignisDaten(neu));
+  try {
+    await merken(neu, pakete);
+  } catch (e) {
+    console.error("Preise der Rechnung nicht gemerkt", id, e);
+  }
   return nummer as string;
 }
 
@@ -347,7 +359,7 @@ export async function stornieren(id: string, vonBenutzer: string): Promise<strin
       empfaenger: r.empfaenger,
       fahrzeug: r.fahrzeug,
       leistungsdatum: r.leistungsdatum,
-      positionen: r.positionen.map((p) => ({ ...p, einzel_brutto_cent: -p.einzel_brutto_cent })),
+      positionen: vorzeichenWechseln(r.positionen),
       hinweis: `Storno zu Rechnung ${r.nummer}`,
     },
     vonBenutzer,

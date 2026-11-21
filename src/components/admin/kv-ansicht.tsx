@@ -6,6 +6,7 @@ import type { Ort } from "@/lib/aktionen/belege";
 import { kvAntwortAktion, kvInRechnungAktion, kvKopierenAktion, kvVersendenAktion } from "@/lib/aktionen/kostenvoranschlaege";
 import { datum, datumZeit } from "@/lib/format";
 import { kvAbgelaufen, type Kostenvoranschlag } from "@/lib/rechnung/kostenvoranschlaege";
+import { fahrzeugText } from "@/lib/rechnung/aehnlich";
 
 /** Abgeschlossener Kostenvoranschlag: ansehen, senden, Antwort vermerken, in eine Rechnung übernehmen. */
 export function KvAnsicht({ k, ort }: { k: Kostenvoranschlag; ort: Ort }) {
@@ -45,7 +46,7 @@ export function KvAnsicht({ k, ort }: { k: Kostenvoranschlag; ort: Ort }) {
         {k.fahrzeug?.kennzeichen ? (
           <>
             <dt className="text-grau">Fahrzeug</dt>
-            <dd>{[k.fahrzeug.kennzeichen, k.fahrzeug.modell].filter(Boolean).join(", ")}</dd>
+            <dd>{[k.fahrzeug.kennzeichen, fahrzeugText(k.fahrzeug)].filter(Boolean).join(", ")}</dd>
           </>
         ) : null}
         <dt className="text-grau">Datum</dt>

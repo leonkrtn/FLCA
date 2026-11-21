@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { benutzerMitRecht } from "../auth";
 import { type Ergebnis, istEmail, ja, sicher, text } from "../forms";
-import { belegAus } from "../rechnung/eingabe";
+import { belegAus, paketeAus } from "../rechnung/eingabe";
 import { alsBezahlt, type Empfaenger, entwurfSpeichern, rechnungLaden, stellen, stornieren, versenden } from "../rechnung/rechnungen";
 import { db } from "../supabase/admin";
 import { berlinDatum, istDatum } from "../zeit";
@@ -20,13 +20,14 @@ function neuLaden(id: string) {
 export async function entwurfSpeichernAktion(id: string, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
   return sicher(null, async () => {
     await benutzerMitRecht("rechnungen");
-    const { datumOderNull, ...beleg } = belegAus(JSON.parse(String(fd.get("daten") ?? "{}")));
+    const roh = JSON.parse(String(fd.get("daten") ?? "{}"));
+    const { datumOderNull, ...beleg } = belegAus(roh);
     const empfaenger = beleg.empfaenger;
     await entwurfSpeichern(id, { ...beleg, leistungsdatum: datumOderNull("leistungsdatum") });
     neuLaden(id);
     if (fd.get("weiter") === "stellen") {
       const b = await benutzerMitRecht("rechnungen");
-      const nummer = await stellen(id, b.id);
+      const nummer = await stellen(id, b.id, paketeAus(roh.pakete));
       if (ja(fd, "senden") && empfaenger.email && istEmail(empfaenger.email)) {
         await versenden(id, empfaenger.email, b.id);
         neuLaden(id);

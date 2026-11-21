@@ -1,5 +1,5 @@
 import { euro } from "@/lib/format";
-import { berechne, type Position } from "@/lib/rechnung/berechnung";
+import { berechne, einzelpreis, type Position, rabattText, zeilenbetrag } from "@/lib/rechnung/berechnung";
 
 /** Positionen und Summen eines abgeschlossenen Belegs, schmal genug fürs Handy. */
 export function PositionenUebersicht({ positionen }: { positionen: Position[] }) {
@@ -10,12 +10,16 @@ export function PositionenUebersicht({ positionen }: { positionen: Position[] })
         {positionen.map((p, i) => (
           <li key={i} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 py-2">
             <span className="min-w-0 break-words">
-              {p.text}
-              <span className="block text-sm text-grau">
-                {String(p.menge).replace(".", ",")} {p.einheit} × {euro(p.einzel_brutto_cent)}
-              </span>
+              {p.rabatt ? rabattText(p) : p.text}
+              {p.rabatt ? null : (
+                <span className="block text-sm text-grau">
+                  {String(p.menge).replace(".", ",")} {p.einheit} × {euro(einzelpreis(p, s.preisart))}
+                  {s.preisart === "netto" ? " netto" : ""}
+                  {p.lohnart ? ` · ${p.lohnart}` : ""}
+                </span>
+              )}
             </span>
-            <span className="zahlen text-right">{euro(s.zeilenBrutto[i])}</span>
+            <span className="zahlen text-right">{euro(zeilenbetrag(s, i))}</span>
           </li>
         ))}
       </ul>

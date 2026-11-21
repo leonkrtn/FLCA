@@ -7,7 +7,7 @@ import { benutzerMitRecht } from "@/lib/auth";
 import { datumZeit } from "@/lib/format";
 import { kundenSuchen } from "@/lib/kunden";
 import { kvLaden, kvStatusText, kvTon } from "@/lib/rechnung/kostenvoranschlaege";
-import { preislisteFuerBelege } from "@/lib/rechnung/rechnungen";
+import { editorDaten } from "@/lib/rechnung/editor-daten";
 import { db } from "@/lib/supabase/admin";
 
 export const metadata = { title: "Kostenvoranschlag" };
@@ -18,8 +18,8 @@ export default async function KostenvoranschlagSeite({ params }: { params: Promi
   const k = await kvLaden(id);
   if (!k) notFound();
   const entwurf = k.status === "entwurf";
-  const [preisliste, zuletzt, { data: verlauf }] = await Promise.all([
-    entwurf ? preislisteFuerBelege() : [],
+  const [daten, zuletzt, { data: verlauf }] = await Promise.all([
+    entwurf ? editorDaten(k.fahrzeug) : null,
     entwurf ? kundenSuchen("", 6) : [],
     db().from("verlauf").select("text, erstellt_am").eq("bezug_typ", "kostenvoranschlag").eq("bezug_id", id).order("erstellt_am", { ascending: false }),
   ]);
@@ -42,7 +42,7 @@ export default async function KostenvoranschlagSeite({ params }: { params: Promi
             <BelegEditor
               art="kostenvoranschlag"
               id={k.id}
-              preisliste={preisliste}
+              daten={daten!}
               zuletzt={zuletzt}
               start={{
                 kunde_id: k.kunde_id,

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { benutzerMitRecht } from "../auth";
 import { alsBelegFahrzeug, alsEmpfaenger, kundeLaden, kundenSuchen, type KundenTreffer } from "../kunden";
 import { kvAnlegen } from "../rechnung/kostenvoranschlaege";
+import { type Gemerkt, gemerktFuer } from "../rechnung/preisgedaechtnis";
 import { entwurfAnlegen } from "../rechnung/rechnungen";
 import { berlinDatum } from "../zeit";
 
@@ -16,6 +17,12 @@ const PFAD: Record<BelegArt, string> = { rechnung: "rechnungen", kostenvoranschl
 export async function kundenSuchenAktion(q: string): Promise<KundenTreffer[]> {
   await benutzerMitRecht("kunden");
   return kundenSuchen(String(q ?? ""), 8);
+}
+
+/** Gemerkte Preise für ein anderes Auto, wenn im Editor Marke oder Modell geändert wird. */
+export async function gemerktLadenAktion(marke: string, modell: string): Promise<Gemerkt[]> {
+  await benutzerMitRecht("rechnungen");
+  return gemerktFuer(String(marke ?? "").slice(0, 60), String(modell ?? "").slice(0, 120));
 }
 
 /**

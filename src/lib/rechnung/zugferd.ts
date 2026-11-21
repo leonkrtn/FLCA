@@ -1,7 +1,7 @@
 import "server-only";
 import { AFRelationship, PDFDocument, PDFName, PDFString } from "pdf-lib";
 import type { Einstellungen } from "../einstellungen";
-import { berechne, type Position } from "./berechnung";
+import { berechne, istRabatt, type Position, vorzeichenWechseln } from "./berechnung";
 import { SRGB_ICC } from "./srgb";
 
 export type RechnungsDaten = {
@@ -64,8 +64,7 @@ export function eRechnungPruefen(r: Pick<RechnungsDaten, "empfaenger" | "firma" 
  */
 export function zugferdXml(r: RechnungsDaten): string {
   const xrechnung = istXRechnung(r);
-  const vorzeichen = r.storno ? -1 : 1;
-  const positionen = r.positionen.map((p) => ({ ...p, einzel_brutto_cent: p.einzel_brutto_cent * vorzeichen }));
+  const positionen = r.storno ? vorzeichenWechseln(r.positionen) : r.positionen;
   const s = berechne(positionen);
   const steuerId = r.firma.ustId
     ? `<ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">${esc(r.firma.ustId)}</ram:ID></ram:SpecifiedTaxRegistration>`
@@ -73,12 +72,16 @@ export function zugferdXml(r: RechnungsDaten): string {
       ? `<ram:SpecifiedTaxRegistration><ram:ID schemeID="FC">${esc(r.firma.steuernummer)}</ram:ID></ram:SpecifiedTaxRegistration>`
       : "";
 
+  // Rabattzeilen sind in der E-Rechnung keine Positionen, sondern ein Nachlass je Steuersatz auf Belegebene.
+  let nr = 0;
   const zeilen = positionen
     .map((p, i) => {
+      if (istRabatt(p)) return "";
+      nr++;
       const netto = s.zeilenNetto[i];
       const einzelNetto = p.menge === 0 ? 0 : netto / p.menge / 100;
       return `<ram:IncludedSupplyChainTradeLineItem>
-<ram:AssociatedDocumentLineDocument><ram:LineID>${i + 1}</ram:LineID></ram:AssociatedDocumentLineDocument>
+<ram:AssociatedDocumentLineDocument><ram:LineID>${nr}</ram:LineID></ram:AssociatedDocumentLineDocument>
 <ram:SpecifiedTradeProduct><ram:Name>${esc(p.text)}</ram:Name></ram:SpecifiedTradeProduct>
 <ram:SpecifiedLineTradeAgreement><ram:NetPriceProductTradePrice><ram:ChargeAmount>${einzelNetto.toFixed(4)}</ram:ChargeAmount></ram:NetPriceProductTradePrice></ram:SpecifiedLineTradeAgreement>
 <ram:SpecifiedLineTradeDelivery><ram:BilledQuantity unitCode="${EINHEITEN[p.einheit] ?? "C62"}">${p.menge}</ram:BilledQuantity></ram:SpecifiedLineTradeDelivery>
@@ -88,6 +91,15 @@ export function zugferdXml(r: RechnungsDaten): string {
 </ram:SpecifiedLineTradeSettlement>
 </ram:IncludedSupplyChainTradeLineItem>`;
     })
+    .filter(Boolean)
+    .join("\n");
+
+  const nachlaesse = s.gruppen
+    .filter((g) => g.rabatt !== 0)
+    .map(
+      (g) =>
+        `<ram:SpecifiedTradeAllowanceCharge><ram:ChargeIndicator><udt:Indicator>false</udt:Indicator></ram:ChargeIndicator><ram:ActualAmount>${betrag(g.rabatt)}</ram:ActualAmount><ram:Reason>Rabatt</ram:Reason><ram:CategoryTradeTax><ram:TypeCode>VAT</ram:TypeCode><ram:CategoryCode>S</ram:CategoryCode><ram:RateApplicablePercent>${g.satz}</ram:RateApplicablePercent></ram:CategoryTradeTax></ram:SpecifiedTradeAllowanceCharge>`,
+    )
     .join("\n");
 
   const e = r.empfaenger;
@@ -132,9 +144,11 @@ ${s.gruppen
       `<ram:ApplicableTradeTax><ram:CalculatedAmount>${betrag(g.steuer)}</ram:CalculatedAmount><ram:TypeCode>VAT</ram:TypeCode><ram:BasisAmount>${betrag(g.netto)}</ram:BasisAmount><ram:CategoryCode>S</ram:CategoryCode><ram:RateApplicablePercent>${g.satz}</ram:RateApplicablePercent></ram:ApplicableTradeTax>`,
   )
   .join("\n")}
+${nachlaesse}
 <ram:SpecifiedTradePaymentTerms><ram:Description>${r.storno ? "Wird erstattet" : r.faellig_am ? `Zahlbar bis ${r.faellig_am.slice(8, 10)}.${r.faellig_am.slice(5, 7)}.${r.faellig_am.slice(0, 4)} ohne Abzug` : "Zahlbar sofort ohne Abzug"}</ram:Description>${r.faellig_am ? `<ram:DueDateDateTime><udt:DateTimeString format="102">${tag(r.faellig_am)}</udt:DateTimeString></ram:DueDateDateTime>` : ""}</ram:SpecifiedTradePaymentTerms>
 <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
-<ram:LineTotalAmount>${betrag(s.netto)}</ram:LineTotalAmount>
+<ram:LineTotalAmount>${betrag(s.basis)}</ram:LineTotalAmount>
+${s.rabatt ? `<ram:AllowanceTotalAmount>${betrag(s.rabatt)}</ram:AllowanceTotalAmount>` : ""}
 <ram:TaxBasisTotalAmount>${betrag(s.netto)}</ram:TaxBasisTotalAmount>
 <ram:TaxTotalAmount currencyID="EUR">${betrag(s.steuer)}</ram:TaxTotalAmount>
 <ram:GrandTotalAmount>${betrag(s.brutto)}</ram:GrandTotalAmount>
