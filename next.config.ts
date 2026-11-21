@@ -54,7 +54,9 @@ const nextConfig: NextConfig = {
           { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=(), browsing-topics=()" },
+          // Mikrofon für „Sprechen“ in der Werkstatt-App. Gilt für die ganze Seite, nicht nur /app/sprechen:
+          // Die Regel hängt am zuerst geladenen Dokument, und die App wechselt Seiten ohne Neuladen.
+          { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(), browsing-topics=()" },
         ],
       },
       { source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache" }, { key: "Service-Worker-Allowed", value: "/" }] },

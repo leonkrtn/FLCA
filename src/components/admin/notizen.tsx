@@ -6,6 +6,7 @@ import type { Ergebnis } from "@/lib/forms";
 import { datumZeit } from "@/lib/format";
 import type { Benutzer } from "@/lib/auth";
 import { faellig, type Notiz, notizenLaden, WIEDERHOLUNG_TEXT } from "@/lib/notizen";
+import type { NotizVorgabe } from "@/lib/sprache/vorgabe";
 import { berlinDatum, berlinUhrzeit, jetztMs } from "@/lib/zeit";
 
 export type NotizBezug = { kunde?: { id: string; name: string } | null; termin?: { id: string; text: string } | null };
@@ -13,6 +14,7 @@ export type NotizBezug = { kunde?: { id: string; name: string } | null; termin?:
 /**
  * Formular für eine Notiz. Kunde oder Termin kommen von der Seite, auf der man „Notiz anlegen“ getippt hat,
  * und lassen sich hier nur lösen, nicht neu wählen. Erinnerung: leeres Datum = keine Erinnerung.
+ * `vorgabe` füllt eine neue Notiz vor (Sprechen in der Werkstatt-App).
  */
 export function NotizFormular({
   aktion,
@@ -20,22 +22,25 @@ export function NotizFormular({
   team,
   bezug,
   kompakt = false,
+  vorgabe,
 }: {
   aktion: (v: Ergebnis, fd: FormData) => Promise<Ergebnis>;
   notiz: Notiz | null;
   team: { id: string; name: string }[];
   bezug: NotizBezug;
   kompakt?: boolean;
+  vorgabe?: NotizVorgabe | null;
 }) {
   const am = notiz?.erinnern_am ? new Date(notiz.erinnern_am) : null;
+  const v = notiz ? null : vorgabe;
   return (
     <Formular aktion={aktion} className={`grid gap-4 ${kompakt ? "" : "sm:grid-cols-2"}`}>
-      <Feld label="Titel" name="titel" wert={notiz?.titel} placeholder="z. B. Reifen für Herrn Müller bestellen" className={kompakt ? "" : "sm:col-span-2"} maxLength={200} />
-      <Textfeld label="Notiz" name="text" wert={notiz?.text} zeilen={5} className={kompakt ? "" : "sm:col-span-2"} />
+      <Feld label="Titel" name="titel" wert={notiz?.titel ?? v?.titel} placeholder="z. B. Reifen für Herrn Müller bestellen" className={kompakt ? "" : "sm:col-span-2"} maxLength={200} />
+      <Textfeld label="Notiz" name="text" wert={notiz?.text ?? v?.text} zeilen={5} className={kompakt ? "" : "sm:col-span-2"} />
       <Auswahl
         label="Wer sieht die Notiz?"
         name="sichtbar"
-        wert={notiz?.sichtbar ?? "privat"}
+        wert={notiz?.sichtbar ?? (v?.sichtbar || "privat")}
         optionen={[
           ["privat", "Nur ich"],
           ["buero", "Büro (Inhaber und Büro)"],
@@ -57,12 +62,12 @@ export function NotizFormular({
       ) : null}
       <fieldset className={`grid gap-3 border-t border-linie pt-4 ${kompakt ? "grid-cols-2" : "sm:col-span-2 sm:grid-cols-4"}`}>
         <legend className="mb-2 font-semibold">Erinnerung per Push</legend>
-        <Feld label="Datum" name="datum" typ="date" wert={am ? berlinDatum(am) : ""} />
-        <Feld label="Uhrzeit" name="uhrzeit" typ="time" wert={am ? berlinUhrzeit(am) : ""} />
+        <Feld label="Datum" name="datum" typ="date" wert={am ? berlinDatum(am) : (v?.datum ?? "")} />
+        <Feld label="Uhrzeit" name="uhrzeit" typ="time" wert={am ? berlinUhrzeit(am) : (v?.uhrzeit ?? "")} />
         <Auswahl
           label="Wiederholen"
           name="wiederholung"
-          wert={notiz?.wiederholung ?? "keine"}
+          wert={notiz?.wiederholung ?? v?.wiederholung ?? "keine"}
           optionen={[
             ["keine", "Nicht wiederholen"],
             ["taeglich", "Täglich"],
@@ -70,7 +75,7 @@ export function NotizFormular({
             ["monatlich", "Monatlich"],
           ]}
         />
-        <Auswahl label="Erinnern an" name="erinnern_an" wert={notiz?.erinnern_an ?? ""} leer="Mich selbst" optionen={team.map((p) => [p.id, p.name || "ohne Namen"])} />
+        <Auswahl label="Erinnern an" name="erinnern_an" wert={notiz?.erinnern_an ?? v?.erinnernAn ?? ""} leer="Mich selbst" optionen={team.map((p) => [p.id, p.name || "ohne Namen"])} />
         <p className={`text-sm text-grau ${kompakt ? "col-span-2" : "sm:col-span-4"}`}>
           Ohne Datum keine Erinnerung. Ohne Uhrzeit um 8 Uhr. Der Push kommt zur eingestellten Minute.
         </p>
