@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -5,6 +6,7 @@ import { abmelden } from "@/app/login/actions";
 import { Logo } from "@/components/logo";
 import { AdminNav, type NavEintrag } from "@/components/admin/nav";
 import { benutzerMitRecht } from "@/lib/auth";
+import { erinnerungenNachholen } from "@/lib/automatik";
 import { einstellungen } from "@/lib/einstellungen";
 import { faelligeAnzahl } from "@/lib/notizen";
 import { darf, rollenName } from "@/lib/rollen";
@@ -15,6 +17,8 @@ export const metadata: Metadata = { title: { default: "Verwaltung", template: "%
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const b = await benutzerMitRecht();
   if (b.rolle === "mitarbeiter") redirect("/team");
+  // Fällige Erinnerungen nachholen, falls die Zeitsteuerung nicht anruft (nach der Antwort, bremst nichts)
+  after(() => erinnerungenNachholen().catch((e) => console.error("Erinnerungen nachholen fehlgeschlagen", e)));
   const e = await einstellungen();
   const zaehlen = (tabelle: string, spalte: string, wert: string) =>
     db().from(tabelle).select("id", { count: "exact", head: true }).eq(spalte, wert).then((r) => r.count ?? 0);

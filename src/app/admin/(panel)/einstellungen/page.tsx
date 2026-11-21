@@ -1,4 +1,5 @@
 import { Formular, Senden } from "@/components/admin/formular";
+import { TaktStatus } from "@/components/admin/takt-status";
 import { Abschnitt, Auswahl, Feld, Kopf, Reiter, Schalter, Tabelle, Textfeld } from "@/components/admin/ui";
 import {
   apiSchluesselAnlegen,
@@ -108,6 +109,9 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
 
       {bereich === "automatik" ? (
         <Abschnitt titel="Automatik">
+          <div className="mb-6">
+            <TaktStatus />
+          </div>
           <Formular aktion={automatikSpeichern} className="grid gap-6">
             <Schalter label="Erinnerung 24 Stunden vor dem Termin" name="erinnerung" an={e.automatik.erinnerung.aktiv} hilfe="Mail an den Kunden mit Anfahrt und Absagelink" />
             <div className="grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">

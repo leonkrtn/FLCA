@@ -1,9 +1,11 @@
+import { after } from "next/server";
 import type { Metadata, Viewport } from "next";
 import { Kalender, Liste, Mehr, Plus, Dokument } from "@/components/icons";
 import { TabLeiste } from "@/components/mobil/leiste";
 import { PushAbgleich } from "@/components/mobil/push-abgleich";
 import { StartAusrichtung } from "@/components/mobil/start-ausrichtung";
 import { benutzerMitRecht } from "@/lib/auth";
+import { erinnerungenNachholen } from "@/lib/automatik";
 import { db } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
@@ -25,6 +27,8 @@ export const viewport: Viewport = { themeColor: "#ecebe7", viewportFit: "cover" 
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   await benutzerMitRecht("termine");
+  // Fällige Erinnerungen nachholen, falls die Zeitsteuerung nicht anruft (nach der Antwort, bremst nichts)
+  after(() => erinnerungenNachholen().catch((e) => console.error("Erinnerungen nachholen fehlgeschlagen", e)));
   const { count } = await db().from("termine").select("id", { count: "exact", head: true }).eq("status", "angefragt");
   return (
     <div className="handy-app min-h-dvh bg-boden pb-[calc(4.5rem+env(safe-area-inset-bottom))]" data-leiste="dunkel">

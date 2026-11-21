@@ -2,6 +2,9 @@ import Link from "next/link";
 import { abmelden } from "@/app/login/actions";
 import { MobilKopf } from "@/components/mobil/teile";
 import { PushSchalter } from "@/components/mobil/push-schalter";
+import { Formular, Senden } from "@/components/admin/formular";
+import { TaktStatus } from "@/components/admin/takt-status";
+import { pushTest } from "@/lib/aktionen/push";
 import { benutzerMitRecht } from "@/lib/auth";
 import { rollenName } from "@/lib/rollen";
 import { db } from "@/lib/supabase/admin";
@@ -19,10 +22,14 @@ export default async function MehrSeite() {
         <section className="grid gap-2">
           <h2 className="font-semibold">Benachrichtigungen</h2>
           <p className="text-sm text-grau">
-            Push bei neuen Anfragen, Absagen, angenommenen Kostenvoranschlägen und Bewerbungen.{" "}
+            Push bei neuen Anfragen, Absagen, angenommenen Kostenvoranschlägen, Bewerbungen und Erinnerungen aus Notizen.{" "}
             {geraete ? `Eingeschaltet auf ${geraete === 1 ? "einem Gerät" : `${geraete} Geräten`}.` : "Noch auf keinem Gerät eingeschaltet."}
           </p>
           <PushSchalter />
+          <Formular aktion={pushTest}>
+            <Senden art="rahmen" className="w-full" vorab="Gesendet">Test-Push an mich</Senden>
+          </Formular>
+          <TaktStatus />
         </section>
         <nav className="grid grid-cols-1 gap-px bg-linie">
           {[

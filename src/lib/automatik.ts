@@ -141,6 +141,35 @@ export async function takt(): Promise<Bericht> {
       return `${alt?.length ?? 0} Bewerbungen gelöscht`;
     });
   }
+  // Spur für die Anzeige „Zeitsteuerung läuft“ in App und Verwaltung (und für den Rückfall unten)
+  await db().from("automatik_log").upsert({ art: "takt", bezug: "letzter", erstellt_am: new Date().toISOString() }, { onConflict: "art,bezug" });
   return bericht;
+}
+
+/** Wann der Takt zuletzt durchgelaufen ist; null = noch nie (Zeitsteuerung nicht eingerichtet). */
+export async function letzterTakt(): Promise<Date | null> {
+  const { data } = await db().from("automatik_log").select("erstellt_am").eq("art", "takt").eq("bezug", "letzter").maybeSingle();
+  return data ? new Date(data.erstellt_am as string) : null;
+}
+
+/** Läuft der Takt? Mehr als 25 Minuten ohne Lauf heißt: Die Zeitsteuerung ruft nicht (mehr) an. */
+export function taktLaeuft(zuletzt: Date | null, jetzt: number): boolean {
+  return Boolean(zuletzt && jetzt - zuletzt.getTime() < 25 * 60000);
+}
+
+let zuletztNachgeholt = 0;
+
+/**
+ * Rückfall, wenn die Zeitsteuerung nicht anruft: Beim Öffnen von App oder Verwaltung werden fällige
+ * Erinnerungen nachgeholt (höchstens einmal pro Minute und Server-Instanz). Läuft der Takt, tut das nichts;
+ * doppelt verschickt wird ohnehin nie (automatik_log).
+ */
+export async function erinnerungenNachholen(): Promise<void> {
+  const jetzt = Date.now();
+  if (jetzt - zuletztNachgeholt < 60000) return;
+  zuletztNachgeholt = jetzt;
+  const zuletzt = await letzterTakt();
+  if (zuletzt && jetzt - zuletzt.getTime() < 12 * 60000) return;
+  await erinnerungenSenden(einmalig);
 }
 
