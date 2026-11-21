@@ -1,6 +1,8 @@
 import "server-only";
+import { melden } from "./ereignisse";
+import { kennzeichen as kennzeichenFormat } from "./format";
 import { MARKEN, markeModellTrennen } from "./rechnung/aehnlich";
-import type { Empfaenger } from "./rechnung/rechnungen";
+import type { Empfaenger, Rechnung } from "./rechnung/rechnungen";
 import { db } from "./supabase/admin";
 
 export type KundenFahrzeug = { id: string; kennzeichen: string; marke_modell: string; marke: string; modell: string; km_stand: number | null };
@@ -114,4 +116,64 @@ export async function fahrzeugTypen(): Promise<FahrzeugTypen> {
   const modelle = [...paare.values()].sort((a, b) => a.marke.localeCompare(b.marke, "de") || a.modell.localeCompare(b.modell, "de"));
   const marken = [...new Map([...MARKEN, ...modelle.map((m) => m.marke)].map((m) => [m.toLowerCase(), m])).values()].sort((a, b) => a.localeCompare(b, "de"));
   return { marken, modelle };
+}
+
+const STAMM = ["firma", "email", "strasse", "plz", "ort", "ust_id", "leitweg_id"] as const;
+const gleich = (a?: string | null, b?: string | null) => (a ?? "").trim().toLowerCase() === (b ?? "").trim().toLowerCase();
+/** Für ilike ohne Platzhalter: % und _ im Namen sind Zeichen, keine Muster. */
+const genau = (s: string) => s.replace(/[\\%_]/g, (z) => `\\${z}`);
+
+/**
+ * Kunde zu einem Beleg ohne Kunden (Empfänger von Hand eingetippt, per Sprache ohne Treffer). Läuft beim
+ * Stellen bzw. Abschließen, nicht bei jedem Speichern des Entwurfs, damit halb getippte Namen nicht in der
+ * Kartei landen. Erst wird gesucht, damit niemand doppelt entsteht: gleiche E-Mail, sonst gleicher Name
+ * (bzw. Firma), der zur Adresse oder zum Kennzeichen passt. Gefunden: Leere Felder der Kartei werden
+ * ergänzt, nichts überschrieben. Sonst neu angelegt, mit Fahrzeug, wenn das Kennzeichen noch unbekannt ist
+ * (ein bekanntes Auto wird nicht umgehängt: Wer die Rechnung bekommt, muss nicht der Halter sein).
+ */
+export async function kundeAusBeleg(e: Empfaenger, f: Rechnung["fahrzeug"] | null | undefined): Promise<string | null> {
+  const name = e.name?.trim();
+  if (!name) return null;
+  const email = (e.email ?? "").trim().toLowerCase();
+  const kz = kennzeichenFormat(f?.kennzeichen ?? "");
+  const kzNorm = kz.replace(/[^A-ZÄÖÜ0-9]/g, "");
+  const { data: auto } = kzNorm ? await db().from("fahrzeuge").select("id, kunde_id").eq("kennzeichen_norm", kzNorm).maybeSingle() : { data: null };
+
+  type Treffer = { id: string } & Record<(typeof STAMM)[number] | "name", string>;
+  let kunde: Treffer | null = null;
+  if (email) {
+    const { data } = await db().from("kunden").select("id, name, " + STAMM.join(", ")).ilike("email", genau(email)).limit(1).maybeSingle();
+    kunde = data as unknown as Treffer | null;
+  }
+  if (!kunde) {
+    const { data } = await db().from("kunden").select("id, name, " + STAMM.join(", ")).ilike("name", genau(name)).limit(10);
+    const gleicheNamen = ((data ?? []) as unknown as Treffer[]).filter((k) => !e.firma || !k.firma || gleich(k.firma, e.firma));
+    // Passt die Adresse (oder gehört das Auto ihm), ist es derselbe; ohne Adresse im Beleg reicht ein eindeutiger Name
+    const passend = gleicheNamen.filter((k) => (auto?.kunde_id === k.id) || (e.strasse && gleich(k.strasse, e.strasse)) || (e.plz && gleich(k.plz, e.plz) && (!e.strasse || !k.strasse)));
+    kunde = passend.length === 1 ? passend[0] : !e.strasse && !e.plz && gleicheNamen.length === 1 ? gleicheNamen[0] : null;
+  }
+
+  let id: string;
+  if (kunde) {
+    id = kunde.id;
+    const ergaenzen = Object.fromEntries(STAMM.filter((k) => !kunde![k]?.trim() && (k === "email" ? email : e[k]?.trim())).map((k) => [k, k === "email" ? email : e[k]!.trim()]));
+    if (Object.keys(ergaenzen).length) await db().from("kunden").update(ergaenzen).eq("id", id);
+  } else {
+    const { data: neu, error } = await db()
+      .from("kunden")
+      .insert({ name, ...Object.fromEntries(STAMM.map((k) => [k, k === "email" ? email : (e[k] ?? "").trim()])) })
+      .select("id, nummer")
+      .single();
+    if (error || !neu) throw new Error(`Kunde konnte nicht angelegt werden: ${error?.message ?? "unbekannt"}`);
+    id = neu.id;
+    await melden("kunde.angelegt", { kunde_id: neu.id, nummer: neu.nummer, name, quelle: "beleg" });
+  }
+
+  if (kz && !auto) {
+    const markeModell = [f?.marke, f?.modell].filter(Boolean).join(" ").trim();
+    await db()
+      .from("fahrzeuge")
+      .insert({ kunde_id: id, kennzeichen: kz, marke_modell: markeModell, marke: f?.marke ?? "", modell: f?.modell ?? "", ...(f?.km ? { km_stand: f.km } : {}) });
+  }
+  return id;
 }

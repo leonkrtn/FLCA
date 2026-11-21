@@ -10,6 +10,7 @@ import { db, pruefe } from "../supabase/admin";
 import { berlinDatum, plusTage } from "../zeit";
 import { berechne, type Position } from "./berechnung";
 import { rechnungPdf } from "./pdf";
+import { kundeAusBeleg } from "../kunden";
 import { entwurfAnlegen, type Empfaenger, type Rechnung } from "./rechnungen";
 
 export type Kostenvoranschlag = {
@@ -106,11 +107,15 @@ export async function kvAbschliessen(id: string, vonBenutzer: string): Promise<s
   const k = await kvLaden(id);
   if (!k) throw new Error("Kostenvoranschlag nicht gefunden.");
   if (!k.empfaenger?.name?.trim()) throw new Error("Bitte einen Empfänger eintragen.");
+  // Vor dem Anlegen des Kunden: sonst entstünde er auch, wenn das Abschließen gleich danach scheitert
+  if (!k.positionen?.length) throw new Error("Der Kostenvoranschlag hat keine Positionen.");
   const { firma, kostenvoranschlag } = await einstellungen();
   const heute = berlinDatum();
+  // Empfänger ohne Kunden: jetzt in die Kartei (gefunden oder neu)
+  const kundeId = k.kunde_id ?? (await kundeAusBeleg(k.empfaenger, k.fahrzeug));
   await db()
     .from("kostenvoranschlaege")
-    .update({ datum: heute, gueltig_bis: k.gueltig_bis && k.gueltig_bis >= heute ? k.gueltig_bis : plusTage(heute, kostenvoranschlag.gueltigTage) })
+    .update({ kunde_id: kundeId, datum: heute, gueltig_bis: k.gueltig_bis && k.gueltig_bis >= heute ? k.gueltig_bis : plusTage(heute, kostenvoranschlag.gueltigTage) })
     .eq("id", id)
     .eq("status", "entwurf");
   const { data: nummer, error } = await db().rpc("kostenvoranschlag_abschliessen", { p_id: id, p_firma: firma });
