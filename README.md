@@ -39,18 +39,17 @@ Website, Terminvergabe, Werkstatt-Verwaltung, Rechnungen, Team und Karriere für
 1. Projekt anlegen, Region **Frankfurt (eu-central-1)**.
 2. Im SQL-Editor nacheinander ausführen:
    - `supabase/migrations/20261108100000_grundsystem.sql`
-   - Zeitsteuerung: `supabase/zeitsteuerung-einrichten.sql` (Adresse darin prüfen). Das Skript erzeugt ein neues `CRON_SECRET`, richtet den Takt jede Minute ein und zeigt das Geheimnis einmal an; diesen Wert in Vercel als `CRON_SECRET` eintragen und neu deployen. Jederzeit wiederholbar, etwa wenn das Geheimnis verloren ist. (Ersetzt `20261108100100_zeitsteuerung.sql` und `20261121130000_zeitsteuerung_minuetlich.sql`.)
    - `supabase/migrations/20261109100000_angebot.sql` (Leistungen und Rechnungspositionen in einer Liste)
    - `supabase/migrations/20261120100000_kostenvoranschlaege.sql` (Kostenvoranschläge mit eigenem Nummernkreis)
    - `supabase/migrations/20261121100000_termine_loeschen.sql` (Termine endgültig löschen, Auftragsnummern rücken nach)
    - `supabase/migrations/20261121110000_google_kalender_entfernen.sql` (Google-Kalender entfernt)
    - `supabase/migrations/20261121120000_notizen.sql` (Notizen mit Erinnerung per Push)
-   - `supabase/migrations/20261121130000_zeitsteuerung_minuetlich.sql` (Takt jede Minute statt alle 10 Minuten)
+   - Zuletzt die Zeitsteuerung: `supabase/zeitsteuerung-einrichten.sql` (Adresse darin prüfen, derzeit `https://flca.vercel.app`). Das Skript richtet den Takt jede Minute ein und zeigt in der Spalte `cron_secret_fuer_vercel` das Geheimnis; diesen Wert in Vercel als `CRON_SECRET` eintragen und neu deployen. Jederzeit wiederholbar. Ist das Geheimnis verloren, vorher `select cron.unschedule('flc-takt');` ausführen, dann gibt es ein neues. (Ersetzt `20261108100100_zeitsteuerung.sql` und `20261121130000_zeitsteuerung_minuetlich.sql`.)
 3. *Authentication → Sign In / Providers*: „Allow new users to sign up“ **aus** (Konten legt nur der Inhaber an), Provider „Email“ an.
 4. *Authentication → Emails → SMTP Settings*: eigenen SMTP eintragen, sonst schickt Supabase nur 2 Mails pro Stunde. Mit Resend: Host `smtp.resend.com`, Port 465, Benutzer `resend`, Passwort = Resend-API-Key, Absender wie `MAIL_FROM`.
 5. *Authentication → Emails → Templates*: In „Invite user“ und „Reset password“ den Link ersetzen durch
    `{{ .SiteURL }}/auth/bestaetigen?token_hash={{ .TokenHash }}&type=invite` bzw. `…&type=recovery`.
-   *URL Configuration*: Site URL = `https://flc-automotive.de`.
+   *URL Configuration*: Site URL = Adresse der Website, derzeit `https://flca.vercel.app` (später `https://flc-automotive.de`).
 6. Ersten Inhaber anlegen: *Authentication → Users → Add user* (Auto Confirm an), dann im SQL-Editor:
    ```sql
    update public.profile set rolle = 'inhaber', name = 'Flavio Ciurli' where email = 'info@flc-automotive.de';
@@ -71,13 +70,22 @@ Projekt aus dem Repo anlegen, Region ist über `vercel.json` Frankfurt. Umgebung
 
 | Variable | Woher |
 | --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | `https://flc-automotive.de` |
+| `NEXT_PUBLIC_SITE_URL` | derzeit `https://flca.vercel.app`, später `https://flc-automotive.de` |
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` | Supabase → Project Settings → API Keys |
 | `RESEND_API_KEY`, `MAIL_FROM` | Resend |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | `npx web-push generate-vapid-keys` |
-| `CRON_SECRET` | zufällig, z. B. `openssl rand -hex 32`; derselbe Wert wie in der Zeitsteuerungs-Migration |
+| `CRON_SECRET` | aus `supabase/zeitsteuerung-einrichten.sql` (Spalte `cron_secret_fuer_vercel`) |
 
 Der kostenlose Hobby-Tarif ist laut Vercel nur für nicht-kommerzielle Nutzung. Für den Livegang auf **Pro** wechseln. Der kostenlose Supabase-Tarif pausiert Projekte nach einer Woche ohne Aktivität; der Minutentakt hält es wach, für den Betrieb trotzdem Pro empfehlen (tägliche Backups).
+
+### Umzug auf die eigene Domain
+
+Die Website läuft derzeit unter `https://flca.vercel.app`. Beim Wechsel auf `https://flc-automotive.de`:
+
+1. Vercel: Domain hinzufügen, `NEXT_PUBLIC_SITE_URL` auf `https://flc-automotive.de` setzen, neu deployen.
+2. Supabase: *Authentication → URL Configuration* → Site URL ändern.
+3. Supabase-SQL-Editor: in `supabase/zeitsteuerung-einrichten.sql` die Adresse ändern und ausführen. Das Geheimnis bleibt gleich, `CRON_SECRET` in Vercel muss nicht angefasst werden.
+4. Die Web-Apps auf den Handys einmal vom Home-Bildschirm löschen und unter der neuen Adresse neu hinzufügen (Push neu einschalten).
 
 ### 5. In der Verwaltung
 

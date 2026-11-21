@@ -1,22 +1,26 @@
--- Zeitsteuerung (neu) einrichten, mit neu erzeugtem CRON_SECRET.
+-- Zeitsteuerung einrichten: Supabase ruft jede Minute <adresse>/api/cron/takt auf.
 --
--- Für den Fall, dass das CRON_SECRET unbekannt ist (Vercel zeigt geheime Variablen nicht mehr an) oder die
--- Zeitsteuerung nie eingerichtet wurde. Ersetzt 20261108100100_zeitsteuerung.sql und
--- 20261121130000_zeitsteuerung_minuetlich.sql, beliebig oft ausführbar.
+-- Beliebig oft ausführbar. Ersetzt 20261108100100_zeitsteuerung.sql und
+-- 20261121130000_zeitsteuerung_minuetlich.sql.
 --
--- So geht's:
---   1. Unten die Adresse prüfen: dieselbe, unter der die Website läuft (ohne Schrägstrich am Ende).
---   2. Im Supabase-SQL-Editor ausführen. Das Ergebnis zeigt in der Spalte „cron_secret_fuer_vercel“ das
---      neue Geheimnis.
---   3. Diesen Wert in Vercel unter Settings → Environment Variables bei CRON_SECRET eintragen (alten Wert
---      überschreiben) und neu deployen. Erst danach nimmt die Website die Aufrufe an.
---   4. Nach ein, zwei Minuten zeigt die Werkstatt-App unter „Mehr“: „Zeitsteuerung läuft“.
+-- Geheimnis (CRON_SECRET): Gibt es den Job schon mit einem Geheimnis aus diesem Skript, bleibt es; sonst
+-- wird ein neues erzeugt. Das Ergebnis zeigt es immer in der Spalte „cron_secret_fuer_vercel“.
+--
+-- Erstes Einrichten (oder Geheimnis verloren):
+--   1. Ausführen und den Wert aus „cron_secret_fuer_vercel“ kopieren.
+--   2. In Vercel unter Settings → Environment Variables bei CRON_SECRET eintragen (alten Wert überschreiben)
+--      und neu deployen. Erst danach nimmt die Website die Aufrufe an.
+--   3. Nach ein, zwei Minuten zeigt die Werkstatt-App unter „Mehr“: „Zeitsteuerung läuft“.
+--
+-- Umzug auf die eigene Domain: unten die Adresse auf 'https://flc-automotive.de' ändern und erneut
+-- ausführen. Das Geheimnis bleibt dasselbe, in Vercel ist dafür nichts zu ändern.
+--
+-- Ganz neues Geheimnis erzwingen: vorher  select cron.unschedule('flc-takt');  ausführen.
 
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
 
-select cron.unschedule('flc-takt') where exists (select 1 from cron.job where jobname = 'flc-takt');
-
+-- cron.schedule mit einem vorhandenen Namen ändert den Job, statt einen zweiten anzulegen.
 select
   cron.schedule(
     'flc-takt',
@@ -27,10 +31,16 @@ select
       einstellung.geheimnis
     )
   ) as job,
+  einstellung.adresse as aufgerufen_wird,
   einstellung.geheimnis as cron_secret_fuer_vercel
 from (
   select
-    'https://flc-automotive.de' as adresse,
-    -- 64 zufällige Hex-Zeichen aus zwei UUIDs (ohne zusätzliche Erweiterung)
-    replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '') as geheimnis
+    -- Adresse der Website, ohne Schrägstrich am Ende. Später: 'https://flc-automotive.de'
+    'https://flca.vercel.app' as adresse,
+    coalesce(
+      -- Geheimnis aus dem bestehenden Job (64 Hex-Zeichen, wie dieses Skript sie erzeugt)
+      (select substring(command from '[0-9a-f]{64}') from cron.job where jobname = 'flc-takt'),
+      -- sonst neu: 64 zufällige Hex-Zeichen aus zwei UUIDs
+      replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '')
+    ) as geheimnis
 ) as einstellung;
