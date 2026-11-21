@@ -1,9 +1,9 @@
 import { writeFileSync } from "node:fs";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, PDFName } from "pdf-lib";
 import { describe, expect, it } from "vitest";
 import { STANDARD } from "../einstellungen";
 import { rechnungPdf } from "./pdf";
-import { alsZugferd, zugferdXml } from "./zugferd";
+import { alsZugferd, eRechnungPruefen, istXRechnung, zugferdXml } from "./zugferd";
 
 const firma = { ...STANDARD.firma, steuernummer: "035 123 45678", iban: "DE89 3704 0044 0532 0130 00", bic: "COBADEFFXXX", bank: "Commerzbank" };
 const daten = {
@@ -33,5 +33,42 @@ describe("Rechnungs-PDF mit E-Rechnung", () => {
     expect(dok.getPageCount()).toBe(1);
     expect(Buffer.from(hybrid).includes(Buffer.from("factur-x.xml"))).toBe(true);
     expect(xml).toContain("<ram:GrandTotalAmount>96.46</ram:GrandTotalAmount>");
+    // PDF/A-3: Farbprofil und Metadaten mit Factur-X-Stufe
+    expect(dok.catalog.has(PDFName.of("OutputIntents"))).toBe(true);
+    expect(Buffer.from(hybrid).includes(Buffer.from("<fx:ConformanceLevel>EN 16931</fx:ConformanceLevel>"))).toBe(true);
   }, 30000);
+});
+
+describe("E-Rechnung und XRechnung", () => {
+  const behoerde = { ...daten, empfaenger: { ...daten.empfaenger, name: "Stadt Dietzenbach", leitweg_id: "991-12345-67" } };
+
+  it("ohne Leitweg-ID: EN 16931, keine Käuferreferenz, Zahlungsbedingung und Verwendungszweck", () => {
+    const xml = zugferdXml(daten);
+    expect(istXRechnung(daten)).toBe(false);
+    expect(xml).toContain("<ram:ID>urn:cen.eu:en16931:2017</ram:ID>");
+    expect(xml).not.toContain("BuyerReference");
+    expect(xml).toContain("<ram:Description>Zahlbar bis 22.11.2026 ohne Abzug</ram:Description>");
+    expect(xml).toContain("<ram:PaymentReference>RE-2026-0001</ram:PaymentReference>");
+  });
+
+  it("mit Leitweg-ID: XRechnung 3.0 mit Leitweg-ID und Geschäftsprozess", () => {
+    const xml = zugferdXml(behoerde);
+    expect(istXRechnung(behoerde)).toBe(true);
+    expect(xml).toContain("urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0");
+    expect(xml).toContain("<ram:BuyerReference>991-12345-67</ram:BuyerReference>");
+    expect(xml).toContain("urn:fdc:peppol.eu:2017:poacc:billing:01:1.0");
+    writeFileSync("/tmp/xrechnung-test.xml", xml);
+  });
+
+  it("prüft Pflichtangaben, bei Behörden strenger", () => {
+    expect(eRechnungPruefen(daten)).toEqual([]);
+    expect(eRechnungPruefen(behoerde)).toEqual([]);
+    const ohne = { ...behoerde, empfaenger: { name: "Stadt", leitweg_id: "991-1" }, firma: { ...firma, iban: "", steuernummer: "", ustId: "" } };
+    const fehlt = eRechnungPruefen(ohne).join(" | ");
+    expect(fehlt).toContain("Steuernummer");
+    expect(fehlt).toContain("IBAN");
+    expect(fehlt).toContain("Straße, PLZ und Ort der Behörde");
+    expect(fehlt).toContain("E-Mail-Adresse der Behörde");
+    expect(eRechnungPruefen({ ...daten, positionen: [] })).toContain("mindestens eine Position");
+  });
 });

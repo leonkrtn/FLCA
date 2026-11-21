@@ -9,10 +9,13 @@ import { berlinDatum } from "@/lib/zeit";
 
 /** Gestellte Rechnung: nur noch ansehen, senden, Zahlung vermerken, stornieren. */
 export function RechnungAnsicht({ r, basis, pdfHref }: { r: Rechnung; basis: "/admin/rechnungen" | "/app/rechnungen"; pdfHref: string }) {
+  // Mit Leitweg-ID (Behörde) ist die E-Rechnung eine XRechnung, sonst ZUGFeRD EN 16931 (siehe zugferd.ts).
+  const xrechnung = Boolean(r.empfaenger.leitweg_id?.trim());
   return (
     <div className="grid gap-6">
       <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         <a href={pdfHref} target="_blank" className="knopf knopf-dunkel">PDF öffnen</a>
+        <a href={`/admin/rechnungen/${r.id}/xml`} className="knopf knopf-rahmen">{xrechnung ? "XRechnung (XML)" : "E-Rechnung (XML)"}</a>
         {r.status === "gestellt" ? (
           <Formular aktion={bezahltAktion.bind(null, r.id)} className="contents">
             <input type="hidden" name="am" value={berlinDatum()} />
@@ -27,6 +30,8 @@ export function RechnungAnsicht({ r, basis, pdfHref }: { r: Rechnung; basis: "/a
       <dl className="grid gap-y-1 text-sm sm:grid-cols-[10rem_minmax(0,1fr)]">
         <dt className="text-grau">Empfänger</dt>
         <dd>{[r.empfaenger.firma, r.empfaenger.name].filter(Boolean).join(", ")}</dd>
+        <dt className="text-grau">E-Rechnung</dt>
+        <dd>{xrechnung ? `XRechnung 3.0, Leitweg-ID ${r.empfaenger.leitweg_id}` : "ZUGFeRD / Factur-X (EN 16931), im PDF eingebettet"}</dd>
         <dt className="text-grau">Rechnungsdatum</dt>
         <dd>{datum(r.rechnungsdatum)}</dd>
         <dt className="text-grau">Fällig</dt>
