@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Formular, Senden } from "@/components/admin/formular";
 import { Marke } from "@/components/admin/ui";
 import { AuftragKnoepfe } from "@/components/mobil/auftrag";
@@ -6,6 +7,7 @@ import { stempeln } from "@/lib/aktionen/team";
 import { benutzerMitRecht } from "@/lib/auth";
 import { einstellungen } from "@/lib/einstellungen";
 import { datumLangText, zeit } from "@/lib/format";
+import { faelligeAnzahl } from "@/lib/notizen";
 import { db } from "@/lib/supabase/admin";
 import { TERMIN_FELDER, type Termin } from "@/lib/termine";
 import { berlin, berlinDatum, plusTage, wochentag } from "@/lib/zeit";
@@ -19,11 +21,12 @@ export default async function TeamHeute() {
   const b = await benutzerMitRecht("werkstatt");
   const { module } = await einstellungen();
   const heute = berlinDatum();
-  const [{ data: auftraege }, { data: zeiten }, { data: offen }, { data: abw }] = await Promise.all([
+  const [{ data: auftraege }, { data: zeiten }, { data: offen }, { data: abw }, erinnerungen] = await Promise.all([
     db().from("termine").select(TERMIN_FELDER).eq("zugewiesen_an", b.id).in("status", ["bestaetigt", "erledigt"]).gte("beginn", berlin(heute).toISOString()).lt("beginn", berlin(plusTage(heute, 1)).toISOString()).order("beginn"),
     db().from("arbeitszeiten").select("beginn, ende").eq("profil_id", b.id).eq("wochentag", wochentag(heute)).order("beginn"),
     db().from("zeiteintraege").select("beginn").eq("profil_id", b.id).is("ende", null).maybeSingle(),
     db().from("abwesenheiten").select("art").eq("profil_id", b.id).lte("von", heute).gte("bis", heute).eq("status", "genehmigt").maybeSingle(),
+    faelligeAnzahl(b),
   ]);
   const zeiterfassung = module.zeiterfassung && b.zeiterfassung;
   const monat = zeiterfassung ? await monatszeiten(b.id, heute.slice(0, 7)) : null;
@@ -32,6 +35,12 @@ export default async function TeamHeute() {
     <>
       <MobilKopf titel={`Hallo${b.name ? ` ${b.name.split(" ")[0]}` : ""}`} unter={datumLangText(heute)} />
       <div className="grid gap-2 p-2">
+        {erinnerungen ? (
+          <Link href="/team/notizen" className="flex items-center justify-between gap-3 bg-kreide px-4 py-3 font-semibold text-tinte">
+            {erinnerungen === 1 ? "1 Erinnerung fällig" : `${erinnerungen} Erinnerungen fällig`}
+            <span aria-hidden>→</span>
+          </Link>
+        ) : null}
         <Karte>
           <p className="text-sm text-grau">Deine Zeit heute</p>
           <p className="zahlen text-2xl">

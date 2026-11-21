@@ -18,6 +18,7 @@ export default async function TeamMehr() {
           <p className="text-sm text-grau">Push, wenn dein Urlaub genehmigt ist oder sich etwas an deinen Aufträgen ändert.</p>
           <PushSchalter />
         </section>
+        <Link href="/team/notizen" className="knopf knopf-rahmen w-full">Meine Erinnerungen</Link>
         {b.rolle !== "mitarbeiter" ? (
           <Link href="/app" className="knopf knopf-rahmen w-full">Zur Werkstatt-App</Link>
         ) : null}

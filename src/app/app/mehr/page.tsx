@@ -26,6 +26,7 @@ export default async function MehrSeite() {
         </section>
         <nav className="grid grid-cols-1 gap-px bg-linie">
           {[
+            ["/app/notizen", "Notizen und Erinnerungen"],
             ["/app/anfragen", "Alle Anfragen"],
             ["/admin/kalender", "Wochenkalender"],
             ["/admin/kunden", "Kunden"],

@@ -6,6 +6,7 @@ import { Logo } from "@/components/logo";
 import { AdminNav, type NavEintrag } from "@/components/admin/nav";
 import { benutzerMitRecht } from "@/lib/auth";
 import { einstellungen } from "@/lib/einstellungen";
+import { faelligeAnzahl } from "@/lib/notizen";
 import { darf, rollenName } from "@/lib/rollen";
 import { db } from "@/lib/supabase/admin";
 
@@ -17,16 +18,18 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const e = await einstellungen();
   const zaehlen = (tabelle: string, spalte: string, wert: string) =>
     db().from(tabelle).select("id", { count: "exact", head: true }).eq(spalte, wert).then((r) => r.count ?? 0);
-  const [anfragen, abwesenheiten, bewerbungen] = await Promise.all([
+  const [anfragen, abwesenheiten, bewerbungen, erinnerungen] = await Promise.all([
     zaehlen("termine", "status", "angefragt"),
     darf(b.rolle, "team") ? zaehlen("abwesenheiten", "status", "beantragt") : 0,
     darf(b.rolle, "karriere") ? zaehlen("bewerbungen", "status", "neu") : 0,
+    darf(b.rolle, "notizen") ? faelligeAnzahl(b) : 0,
   ]);
 
   const alle: (NavEintrag & { recht: Parameters<typeof darf>[1]; modul?: keyof typeof e.module })[] = [
     { href: "/admin", text: "Übersicht", recht: "termine" },
     { href: "/admin/kalender", text: "Kalender", recht: "termine", gruppe: "Werkstatt" },
     { href: "/admin/termine", text: "Termine", recht: "termine", anzahl: anfragen },
+    { href: "/admin/notizen", text: "Notizen", recht: "notizen", anzahl: erinnerungen },
     { href: "/admin/kunden", text: "Kunden", recht: "kunden" },
     { href: "/admin/einlagerung", text: "Einlagerung", recht: "einlagerung", modul: "einlagerung" },
     { href: "/admin/rechnungen", text: "Rechnungen", recht: "rechnungen", gruppe: "Geld" },

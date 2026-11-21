@@ -4,6 +4,8 @@ import { PushHinweis } from "@/components/mobil/push-abgleich";
 import { Karte, MobilKopf } from "@/components/mobil/teile";
 import { benutzerMitRecht } from "@/lib/auth";
 import { datumLangText, zeit } from "@/lib/format";
+import { faelligeAnzahl } from "@/lib/notizen";
+import { darf } from "@/lib/rollen";
 import { TERMIN_TON } from "@/lib/status";
 import { db } from "@/lib/supabase/admin";
 import { STATUS_TEXT, TERMIN_FELDER, type Termin } from "@/lib/termine";
@@ -12,17 +14,20 @@ import { berlin, berlinDatum, istDatum, plusTage } from "@/lib/zeit";
 export const metadata = { title: "Heute" };
 
 export default async function Heute({ searchParams }: { searchParams: Promise<{ tag?: string }> }) {
-  await benutzerMitRecht("termine");
+  const b = await benutzerMitRecht("termine");
   const { tag: t } = await searchParams;
   const heute = berlinDatum();
   const tag = istDatum(t) ? t : heute;
-  const { data } = await db()
-    .from("termine")
-    .select(TERMIN_FELDER)
-    .in("status", ["angefragt", "bestaetigt", "erledigt", "nicht_erschienen"])
-    .gte("beginn", berlin(tag).toISOString())
-    .lt("beginn", berlin(plusTage(tag, 1)).toISOString())
-    .order("beginn");
+  const [{ data }, erinnerungen] = await Promise.all([
+    db()
+      .from("termine")
+      .select(TERMIN_FELDER)
+      .in("status", ["angefragt", "bestaetigt", "erledigt", "nicht_erschienen"])
+      .gte("beginn", berlin(tag).toISOString())
+      .lt("beginn", berlin(plusTage(tag, 1)).toISOString())
+      .order("beginn"),
+    darf(b.rolle, "notizen") ? faelligeAnzahl(b) : 0,
+  ]);
   const termine = (data ?? []) as Termin[];
   const name = tag === heute ? "Heute" : tag === plusTage(heute, 1) ? "Morgen" : datumLangText(tag);
   return (
@@ -38,6 +43,12 @@ export default async function Heute({ searchParams }: { searchParams: Promise<{ 
         }
       />
       <PushHinweis />
+      {erinnerungen ? (
+        <Link href="/app/notizen?ansicht=erinnerungen" className="flex items-center justify-between gap-3 border-b border-linie bg-kreide px-4 py-3 font-semibold text-tinte">
+          {erinnerungen === 1 ? "1 Erinnerung fällig" : `${erinnerungen} Erinnerungen fällig`}
+          <span aria-hidden>→</span>
+        </Link>
+      ) : null}
       <div className="grid grid-cols-1 gap-px bg-linie">
         {termine.map((x) => (
           <Karte key={x.id} href={`/app/termine/${x.id}`}>

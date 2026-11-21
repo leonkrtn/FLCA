@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Formular, Senden } from "@/components/admin/formular";
+import { NotizenAbschnitt } from "@/components/admin/notizen";
 import { TerminAktionen } from "@/components/admin/termin-aktionen";
 import { TerminLoeschen } from "@/components/admin/termin-loeschen";
 import { Abschnitt, Auswahl, Feld, Kopf, Marke, Textfeld } from "@/components/admin/ui";
@@ -8,13 +9,14 @@ import { ablehnenAktion, absagenAktion, bestaetigenAktion, detailsSpeichern, erl
 import { benutzerMitRecht } from "@/lib/auth";
 import { datumLangText, datumZeit, euro, telHref, zeit } from "@/lib/format";
 import { RECHNUNG_STATUS } from "@/lib/rechnung/rechnungen";
+import { darf } from "@/lib/rollen";
 import { TERMIN_TON } from "@/lib/status";
 import { terminZusatz } from "@/lib/termin-daten";
 import { STATUS_TEXT, terminLaden } from "@/lib/termine";
 import { berlinDatum, berlinUhrzeit } from "@/lib/zeit";
 
 export default async function TerminDetail({ params }: { params: Promise<{ id: string }> }) {
-  await benutzerMitRecht("termine");
+  const b = await benutzerMitRecht("termine");
   const { id } = await params;
   const t = await terminLaden(id);
   if (!t) notFound();
@@ -84,6 +86,8 @@ export default async function TerminDetail({ params }: { params: Promise<{ id: s
               </div>
             ) : null}
           </Abschnitt>
+
+          {darf(b.rolle, "notizen") ? <NotizenAbschnitt b={b} terminId={t.id} /> : null}
 
           <Abschnitt titel="Verlauf">
             <ul className="space-y-2 text-sm">

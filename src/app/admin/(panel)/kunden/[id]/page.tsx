@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Formular, Senden } from "@/components/admin/formular";
+import { NotizenAbschnitt } from "@/components/admin/notizen";
 import { Abschnitt, Feld, Kopf, Marke, Textfeld } from "@/components/admin/ui";
 import { fahrzeugSpeichern, kundeSpeichern } from "@/lib/aktionen/kunden";
 import { belegAnlegen } from "@/lib/aktionen/belege";
@@ -8,12 +9,13 @@ import { benutzerMitRecht } from "@/lib/auth";
 import { datum, datumZeit, euro } from "@/lib/format";
 import { kvStatusText, type Kostenvoranschlag } from "@/lib/rechnung/kostenvoranschlaege";
 import { RECHNUNG_STATUS } from "@/lib/rechnung/rechnungen";
+import { darf } from "@/lib/rollen";
 import { TERMIN_TON } from "@/lib/status";
 import { db } from "@/lib/supabase/admin";
 import { STATUS_TEXT, type Termin } from "@/lib/termine";
 
 export default async function KundeDetail({ params }: { params: Promise<{ id: string }> }) {
-  await benutzerMitRecht("kunden");
+  const b = await benutzerMitRecht("kunden");
   const { id } = await params;
   const { data: k } = await db().from("kunden").select("*").eq("id", id).maybeSingle();
   if (!k) notFound();
@@ -89,6 +91,7 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
         </div>
       </div>
       <div className="grid gap-x-8 lg:grid-cols-2">
+        {darf(b.rolle, "notizen") ? <NotizenAbschnitt b={b} kundeId={k.id} /> : null}
         <Abschnitt titel="Termine">
           <ul className="divide-y divide-linie text-sm">
             {termine.map((t) => (

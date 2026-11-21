@@ -26,6 +26,8 @@ Website, Terminvergabe, Werkstatt-Verwaltung, Rechnungen, Team und Karriere für
 
 **Werkstatt-App.** Das „+“ in der Leiste öffnet eine kurze Auswahl: Termin, Kostenvoranschlag, Rechnung oder Kunde (mit erstem Fahrzeug) anlegen.
 
+**Notizen.** In der Verwaltung, in der Werkstatt-App (auch über das „+“) und an Kunden und Terminen. Jede Notiz ist „nur ich“ oder „Büro“ (Inhaber und Büro) und kann eine Erinnerung haben: Datum und Uhrzeit, einmalig oder täglich, wöchentlich, monatlich, an sich selbst oder eine andere Person (Mitarbeiter sehen ihre Erinnerungen in der Team-App). Der 10-Minuten-Takt schickt den Push; fällige Erinnerungen stehen bis „Erledigt“ oben in der App und zählen im Menü.
+
 **Team.** Arbeitszeiten je Person, Urlaub beantragen und genehmigen, krank melden, Zeiterfassung (pro Person einschaltbar), Aufträge zuweisen, Status und Fotos aus der Team-App.
 
 **Offen für mehr.** Jede fachliche Änderung erzeugt ein Ereignis (`termin.angefragt`, `rechnung.bezahlt` …, Liste in `src/lib/ereignisse.ts`). Ereignisse gehen an Webhooks (HMAC-signiert, mit Wiederholungen) und sind über `GET /api/v1/ereignisse?nach=<id>` abrufbar. Externe Dienste (Mail, Push) stecken hinter Schnittstellen in `src/lib/services/`; ein anderer Anbieter ist eine neue Datei, kein Umbau.
@@ -42,6 +44,7 @@ Website, Terminvergabe, Werkstatt-Verwaltung, Rechnungen, Team und Karriere für
    - `supabase/migrations/20261120100000_kostenvoranschlaege.sql` (Kostenvoranschläge mit eigenem Nummernkreis)
    - `supabase/migrations/20261121100000_termine_loeschen.sql` (Termine endgültig löschen, Auftragsnummern rücken nach)
    - `supabase/migrations/20261121110000_google_kalender_entfernen.sql` (Google-Kalender entfernt)
+   - `supabase/migrations/20261121120000_notizen.sql` (Notizen mit Erinnerung per Push)
 3. *Authentication → Sign In / Providers*: „Allow new users to sign up“ **aus** (Konten legt nur der Inhaber an), Provider „Email“ an.
 4. *Authentication → Emails → SMTP Settings*: eigenen SMTP eintragen, sonst schickt Supabase nur 2 Mails pro Stunde. Mit Resend: Host `smtp.resend.com`, Port 465, Benutzer `resend`, Passwort = Resend-API-Key, Absender wie `MAIL_FROM`.
 5. *Authentication → Emails → Templates*: In „Invite user“ und „Reset password“ den Link ersetzen durch
