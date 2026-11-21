@@ -543,7 +543,15 @@ export async function stornieren(id: string, durch: { kunde: true } | { benutzer
       throw new TerminFehler(`Absagen ist online nur bis ${buchung.stornoFristStd} Stunden vorher möglich. Bitte rufen Sie uns an.`);
     }
   }
-  await db().from("termine").update({ status: "storniert", halten_bis: null, absage_grund: grund }).eq("id", id);
+  // Die Bedingung steht im Update selbst: Hat jemand den Termin inzwischen erledigt oder abgelehnt, bleibt er so.
+  const { data, error } = await db()
+    .from("termine")
+    .update({ status: "storniert", halten_bis: null, absage_grund: grund })
+    .eq("id", id)
+    .in("status", ["angefragt", "bestaetigt"])
+    .select("id");
+  if (error) throw error;
+  if (!data?.length) throw new TerminFehler("Dieser Termin kann nicht mehr abgesagt werden.");
   const neu = (await terminLaden(id))!;
   await verlauf("termin", id, "kunde" in durch ? "Vom Kunden abgesagt" : `Abgesagt${grund ? `: ${grund}` : ""}`, "kunde" in durch ? null : durch.benutzer);
   after(async () => {
@@ -581,7 +589,15 @@ export async function verschieben(id: string, datum: string, uhrzeit: string, vo
 }
 
 export async function erledigen(id: string, vonBenutzer: string, status: "erledigt" | "nicht_erschienen" = "erledigt"): Promise<void> {
-  await db().from("termine").update({ status, auftrag_status: "fertig" }).eq("id", id).in("status", ["bestaetigt", "angefragt"]);
+  const { data, error } = await db()
+    .from("termine")
+    .update({ status, auftrag_status: "fertig" })
+    .eq("id", id)
+    .in("status", ["bestaetigt", "angefragt"])
+    .select("id");
+  if (error) throw error;
+  // Sonst stünde „Erledigt“ bei einem Doppelklick zweimal im Verlauf und Webhooks bekämen termin.erledigt doppelt
+  if (!data?.length) throw new TerminFehler("Der Termin wurde in der Zwischenzeit schon bearbeitet.");
   const termin = (await terminLaden(id))!;
   await verlauf("termin", id, status === "erledigt" ? "Erledigt" : "Kunde nicht erschienen", vonBenutzer);
   if (status === "erledigt") after(() => melden("termin.erledigt", ereignisDaten(termin)));

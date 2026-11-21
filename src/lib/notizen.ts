@@ -124,6 +124,9 @@ export async function erinnerungenSenden(einmalig: (art: string, bezug: string) 
     .select("id, titel, text, sichtbar, kunde_id, termin_id, erinnern_am, wiederholung, erinnern_an, erstellt_von, erinnert_am, kunde:kunden(name)")
     .is("erledigt_am", null)
     .lte("erinnern_am", jetzt.toISOString())
+    // Schon erinnerte, nicht erledigte Notizen bleiben in dieser Menge. Jüngste zuerst, damit sie neue
+    // Erinnerungen nicht hinter die Grenze von 200 drängen.
+    .order("erinnern_am", { ascending: false })
     .limit(200);
   if (error) throw new Error(error.message);
   let gesendet = 0;

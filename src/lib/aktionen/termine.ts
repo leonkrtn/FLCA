@@ -117,6 +117,8 @@ export async function eintragenAktion(basis: "/admin/termine" | "/app/termine", 
     if (!istDatum(datum) || !/^\d{2}:\d{2}$/.test(uhrzeit)) return { status: "fehler", meldung: "Bitte Datum und Uhrzeit angeben." };
     if (!name) return { status: "fehler", meldung: "Bitte einen Namen angeben." };
     const dauer = zahl(fd, "dauer");
+    // Sonst scheitert es erst an der Prüfung in der Datenbank (ende > beginn), mit deren Fehlertext
+    if (dauer !== null && Math.round(dauer) < 1) return { status: "fehler", meldung: "Die Dauer muss mindestens eine Minute sein." };
     const t = await terminEintragen(
       {
         leistungIds: fd.getAll("leistung").filter((x): x is string => typeof x === "string").map((x) => x.slice(0, 40)),

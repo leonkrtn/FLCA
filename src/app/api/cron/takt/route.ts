@@ -7,9 +7,12 @@ import { db } from "@/lib/supabase/admin";
 export const maxDuration = 60;
 
 function erlaubt(request: Request): boolean {
-  const gegeben = request.headers.get("x-cron-secret") ?? request.headers.get("authorization")?.replace(/^Bearer /, "") ?? "";
-  if (!ENV.cronSecret || gegeben.length !== ENV.cronSecret.length) return false;
-  return timingSafeEqual(Buffer.from(gegeben), Buffer.from(ENV.cronSecret));
+  const gegeben = Buffer.from(request.headers.get("x-cron-secret") ?? request.headers.get("authorization")?.replace(/^Bearer /, "") ?? "");
+  const erwartet = Buffer.from(ENV.cronSecret);
+  // Bytes vergleichen, nicht Zeichen: Bei Sonderzeichen wären die Längen sonst verschieden und
+  // timingSafeEqual würfe einen Fehler (500 statt 401).
+  if (!ENV.cronSecret || gegeben.length !== erwartet.length) return false;
+  return timingSafeEqual(gegeben, erwartet);
 }
 
 /** Aufruf jede Minute aus Supabase (POST, x-cron-secret) und täglich aus Vercel Cron (GET, Bearer). */

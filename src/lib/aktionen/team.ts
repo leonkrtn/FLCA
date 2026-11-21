@@ -160,7 +160,10 @@ export async function auftragStatus(terminId: string, _v: Ergebnis, fd: FormData
     if (!["offen", "in_arbeit", "fertig"].includes(status)) return { status: "fehler", meldung: "Ungültig." };
     let q = db().from("termine").update({ auftrag_status: status }).eq("id", terminId);
     if (b.rolle === "mitarbeiter") q = q.eq("zugewiesen_an", b.id);
-    await q;
+    // Ohne geänderte Zeile (fremder Auftrag, falsche ID) keine Meldung „Auftrag fertig“ an das Büro
+    const { data, error } = await q.select("id");
+    if (error) throw new Error(error.message);
+    if (!data?.length) return { status: "fehler", meldung: "Das ist nicht Ihr Auftrag." };
     if (status === "fertig") await pushSenden({ rollen: ["inhaber", "buero"] }, { titel: "Auftrag fertig", text: `${b.name}: Auftrag abgeschlossen`, url: `/app/termine/${terminId}` });
     neu();
     revalidatePath("/app", "layout");

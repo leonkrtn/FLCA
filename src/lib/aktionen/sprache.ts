@@ -25,6 +25,9 @@ import { berlinDatum } from "../zeit";
 export async function spracheUebernehmen(_v: Ergebnis, fd: FormData): Promise<Ergebnis> {
   let ziel = "";
   const e = await sicher(fd, async () => {
+    // Erst anmelden, dann lesen: Das Erkennen der Art lädt schon die Preisliste. Welches Recht nötig ist,
+    // steht erst nach dem Erkennen fest und wird unten je Art geprüft.
+    await benutzerMitRecht();
     // Begrenzt, weil Notiz und Termin über die Adresse des Formulars vorausgefüllt werden
     const satz = text(fd, "text", 1500);
     if (!satz) return { status: "fehler", meldung: "Bitte erst etwas sagen oder eintippen." };

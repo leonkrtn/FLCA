@@ -91,7 +91,16 @@ export async function rechnungPerToken(token: string): Promise<Rechnung | null> 
 
 /** Entwurf aus einem Termin: Kunde, Fahrzeug und jede Leistung mit ihrem Festpreis sind schon eingetragen. */
 export async function entwurfAusTermin(terminId: string, vonBenutzer: string): Promise<string> {
-  const { data: vorhanden } = await db().from("rechnungen").select("id").eq("termin_id", terminId).in("status", ["entwurf", "gestellt", "bezahlt"]).limit(1).maybeSingle();
+  // Stornorechnungen zählen nicht: Sie tragen dieselbe termin_id und stehen auf „gestellt“, sonst führte
+  // „Rechnung erstellen“ nach einem Storno immer wieder zur Stornorechnung statt zu einem neuen Entwurf.
+  const { data: vorhanden } = await db()
+    .from("rechnungen")
+    .select("id")
+    .eq("termin_id", terminId)
+    .in("status", ["entwurf", "gestellt", "bezahlt"])
+    .is("storno_zu", null)
+    .limit(1)
+    .maybeSingle();
   if (vorhanden) return vorhanden.id;
 
   // „*“ statt einzelner Spalten: leistung_ids gibt es erst nach der Migration „mehrere_leistungen“.
