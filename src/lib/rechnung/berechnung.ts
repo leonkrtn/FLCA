@@ -32,6 +32,8 @@ export type Position = {
   aufschlag?: number | null;
   /** Rabattzeile: gilt für alle anderen Positionen des Belegs, Prozent oder fester Nettobetrag. */
   rabatt?: Rabatt | null;
+  /** Preis stammt aus einem Angebot (Titel). Solche Preise merkt sich das Preisgedächtnis nicht. */
+  angebot?: string | null;
 };
 
 export type Steuergruppe = {

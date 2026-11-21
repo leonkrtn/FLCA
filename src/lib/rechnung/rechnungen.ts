@@ -7,6 +7,8 @@ import { mail } from "../email/vorlagen";
 import { mailer } from "../services/email";
 import { db, pruefe } from "../supabase/admin";
 import { berlinDatum, plusTage } from "../zeit";
+import { laufendeAngebote } from "../angebote/daten";
+import { angeboteAnwenden, type GebuchterAngebotsPreis } from "../angebote/preise";
 import { berechne, nettoAusBruttoPreis, type Position, vorzeichenWechseln } from "./berechnung";
 import { kundeAusBeleg, markeUndModell } from "../kunden";
 import { merken, type PaketWunsch } from "./preisgedaechtnis";
@@ -60,22 +62,37 @@ export const RECHNUNG_STATUS: Record<Rechnung["status"], string> = {
   storniert: "Storniert",
 };
 
-export type PreislistenPosition = { id: string; name: string; einheit: string; preis_brutto_cent: number; mwst_satz: number; sprachnamen: string[] };
+export type PreislistenPosition = {
+  id: string;
+  name: string;
+  einheit: string;
+  /** Geltender Preis: während eines Angebots der Angebotspreis. */
+  preis_brutto_cent: number;
+  mwst_satz: number;
+  sprachnamen: string[];
+  /** Titel des laufenden Angebots, sonst null. Ein Angebotspreis hat Vorrang vor gemerkten Preisen. */
+  angebot: string | null;
+  listen_brutto_cent: number;
+};
 
-/** Auswahl „Aus der Preisliste“ im Rechnungseditor: alles Aktive, Leistungen und Teile, in der Reihenfolge der Preisliste. */
+/**
+ * Auswahl „Aus der Preisliste“ im Rechnungseditor: alles Aktive, Leistungen und Teile, in der Reihenfolge der
+ * Preisliste. Laufende Angebote sind schon eingerechnet (Stichtag: heute, der Tag, an dem der Beleg entsteht).
+ */
 export async function preislisteFuerBelege(): Promise<PreislistenPosition[]> {
-  const { data } = await db().from("leistungen").select("*").order("sortierung");
-  return (data ?? [])
-    .filter((l) => l.aktiv !== false)
-    .map((l) => ({
-      id: l.id,
-      name: l.name,
-      einheit: l.einheit ?? "Pauschal",
-      preis_brutto_cent: l.preis_cent ?? 0,
-      mwst_satz: Number(l.mwst_satz ?? 19),
-      // Vor der Migration „sprachnamen“ fehlt die Spalte
-      sprachnamen: Array.isArray(l.sprachnamen) ? l.sprachnamen : [],
-    }));
+  const [{ data }, angebote] = await Promise.all([db().from("leistungen").select("*").order("sortierung"), laufendeAngebote()]);
+  const aktiv = (data ?? []).filter((l) => l.aktiv !== false);
+  return angeboteAnwenden(aktiv, angebote, berlinDatum()).map((l) => ({
+    id: l.id,
+    name: l.name,
+    einheit: l.einheit ?? "Pauschal",
+    preis_brutto_cent: l.preis_cent ?? 0,
+    mwst_satz: Number(l.mwst_satz ?? 19),
+    // Vor der Migration „sprachnamen“ fehlt die Spalte
+    sprachnamen: Array.isArray(l.sprachnamen) ? l.sprachnamen : [],
+    angebot: l.angebot && l.preis_cent !== null ? l.angebot.titel : null,
+    listen_brutto_cent: l.angebot?.listen_cent ?? l.preis_cent ?? 0,
+  }));
 }
 
 export async function rechnungLaden(id: string): Promise<Rechnung | null> {
@@ -118,15 +135,21 @@ export async function entwurfAusTermin(terminId: string, vonBenutzer: string): P
   // er netto, so genau, dass brutto wieder derselbe runde Betrag herauskommt. Bei „ab“-Preisen steht der
   // Startwert drin und wird in der Rechnung angepasst. Reihenfolge wie im Termin.
   const { data: gefunden } = ids.length ? await db().from("leistungen").select("*").in("id", ids) : { data: [] };
+  // Wurde die Leistung während eines Angebots angefragt, gilt der damals festgehaltene Angebotspreis.
   const leistungen = ids.map((id) => (gefunden ?? []).find((l) => l.id === id)).filter(Boolean);
-  const positionen: Position[] = leistungen.map((l) => ({
-    text: l.name,
-    menge: 1,
-    einheit: l.einheit ?? "Pauschal",
-    einzel_netto_cent: nettoAusBruttoPreis(l.preis_cent ?? 0, Number(l.mwst_satz ?? 19)),
-    mwst_satz: Number(l.mwst_satz ?? 19),
-    artikel_id: l.id,
-  }));
+  const angebotPreise = (t.angebot_preise ?? {}) as Record<string, GebuchterAngebotsPreis>;
+  const positionen: Position[] = leistungen.map((l) => {
+    const a = angebotPreise[l.id]?.cent != null ? angebotPreise[l.id] : null;
+    return {
+      text: l.name,
+      menge: 1,
+      einheit: l.einheit ?? "Pauschal",
+      einzel_netto_cent: nettoAusBruttoPreis(a?.cent ?? l.preis_cent ?? 0, Number(l.mwst_satz ?? 19)),
+      mwst_satz: Number(l.mwst_satz ?? 19),
+      artikel_id: l.id,
+      ...(a && { angebot: a.titel }),
+    };
+  });
   // Frei eingetragene Arbeit steht hinter den Namen der Leistungen in leistung_name (terminEintragen).
   const namen = leistungen.map((l) => l.name).join(", ");
   const name = String(t.leistung_name ?? "");

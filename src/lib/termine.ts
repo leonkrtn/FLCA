@@ -14,6 +14,8 @@ import { arbeitsende, type Belegung, freieSlots, type Slot } from "./slots";
 import { db, pruefe } from "./supabase/admin";
 import { berlin, berlinDatum, berlinUhrzeit, minuten, plusTage, uhrzeit as uhrzeitAus, wochentag } from "./zeit";
 import { markeModellTrennen } from "./rechnung/aehnlich";
+import { angebotsPreiseFesthalten } from "./angebote/daten";
+import type { AngebotsPreis, GebuchterAngebotsPreis } from "./angebote/preise";
 
 export type Leistung = {
   id: string;
@@ -38,6 +40,8 @@ export type Leistung = {
   aktiv?: boolean;
   /** Weitere Namen, unter denen die Spracheingabe den Eintrag erkennt (seit der Migration „sprachnamen“). */
   sprachnamen?: string[];
+  /** Nur für die Anzeige (Website): laufendes Angebot. preis_cent ist dann schon der Angebotspreis. */
+  angebot?: AngebotsPreis | null;
 };
 
 /** Was als Termin eingetragen werden kann: Leistungen, keine Teile, nichts Ausgeblendetes. */
@@ -64,6 +68,8 @@ export type Termin = {
   auftrag_status: "offen" | "in_arbeit" | "fertig";
   km_stand: number | null;
   absage_grund: string;
+  /** Am Tag der Anfrage geltende Angebotspreise je Leistung (seit der Migration „angebote“). */
+  angebot_preise?: Record<string, GebuchterAngebotsPreis>;
   erstellt_am: string;
   /** Seit der Migration „gegenvorschlag“: War die Wunschzeit frei, ursprüngliche Wunschzeit, offener Vorschlag */
   wunschzeit_frei?: boolean;
@@ -592,6 +598,7 @@ export async function anfrageStellen(e: AnfrageEingabe): Promise<Termin> {
   }
   if (!id) throw new TerminFehler("Die Anfrage konnte gerade nicht gespeichert werden. Bitte noch einmal versuchen.");
   if (warEng) await db().from("termine").update({ wunschzeit_frei: false }).eq("id", id);
+  await angebotsPreiseFesthalten(id, gewaehlt);
 
   const termin = (await terminLaden(id))!;
   after(async () => {
@@ -677,6 +684,7 @@ export async function terminEintragen(
     p_ueberbuchen: Boolean(e.ueberbuchen),
   });
   if (error) dbFehler(error);
+  await angebotsPreiseFesthalten(id as string, gewaehlt);
   const termin = (await terminLaden(id as string))!;
   await verlauf("termin", termin.id, `Termin eingetragen${termin.mitarbeiter ? ` für ${termin.mitarbeiter.name}` : ""}`, vonBenutzer);
   after(async () => {

@@ -1,8 +1,11 @@
 import "server-only";
 import { cache } from "react";
+import { laufendeAngebote } from "./angebote/daten";
+import { angeboteAnwenden } from "./angebote/preise";
 import { KONFIGURIERT } from "./env";
 import { db, websiteDatei } from "./supabase/admin";
 import type { Leistung } from "./termine";
+import { berlinDatum } from "./zeit";
 
 /**
  * Inhalte der öffentlichen Website. Ohne Datenbank (lokale Vorschau, Build ohne Zugangsdaten) gelten die
@@ -42,15 +45,19 @@ export const KATEGORIEN: Record<string, string> = {
   schutz: "Rostschutz",
 };
 
+/**
+ * Leistungen der Website mit laufenden Angeboten: preis_cent ist der geltende Preis, angebot nennt den
+ * Listenpreis für den durchgestrichenen Betrag. Die Website zeigt also nie einen Preis, den es nicht gibt.
+ */
 export const oeffentlicheLeistungen = cache(async (): Promise<Leistung[]> => {
-  if (!KONFIGURIERT.supabaseAdmin) return START_LEISTUNGEN.map((l) => ({ ...l, id: l.slug }));
-  const { data, error } = await db().from("leistungen").select("*").eq("sichtbar", true).order("sortierung");
+  if (!KONFIGURIERT.supabaseAdmin) return START_LEISTUNGEN.map((l) => ({ ...l, id: l.slug, angebot: null }));
+  const [{ data, error }, angebote] = await Promise.all([db().from("leistungen").select("*").eq("sichtbar", true).order("sortierung"), laufendeAngebote()]);
   // Noch nicht migriert oder Datenbank kurz weg: lieber die Startdaten zeigen als eine Fehlerseite.
   if (error) {
     console.error("Leistungen konnten nicht geladen werden", error.message);
-    return START_LEISTUNGEN.map((l) => ({ ...l, id: l.slug }));
+    return START_LEISTUNGEN.map((l) => ({ ...l, id: l.slug, angebot: null }));
   }
-  return data as Leistung[];
+  return angeboteAnwenden(data as Leistung[], angebote, berlinDatum());
 });
 
 export type Bewertung = { id: string; name: string; text: string; sterne: number; quelle: string };

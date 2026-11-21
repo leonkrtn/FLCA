@@ -15,6 +15,9 @@ type LeistungKurz = {
   preis_ab: boolean;
   dauer_min: number;
   kategorie: string;
+  /** Laufendes Angebot: preis_cent ist schon der Angebotspreis, listen_cent der durchgestrichene. */
+  listen_cent: number | null;
+  angebot: string | null;
 };
 /** slots: frei; anfragbar: belegt, aber anfragbar (Zusage oder Gegenvorschlag vom Betrieb) */
 type Tag = { datum: string; slots: string[]; anfragbar?: string[] };
@@ -23,6 +26,19 @@ const KATEGORIEN: Record<string, string> = { reifen: "Reifen", service: "Service
 
 const preisText = (cent: number | null, ab: boolean) =>
   cent === null ? "auf Anfrage" : `${ab ? "ab " : ""}${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(cent / 100)} €`;
+
+/** Preis, bei einem Angebot mit dem alten Preis durchgestrichen davor. */
+function Preis({ l }: { l: LeistungKurz }) {
+  if (l.listen_cent === null || l.preis_cent === null || l.listen_cent === l.preis_cent) return <>{preisText(l.preis_cent, l.preis_ab)}</>;
+  return (
+    <>
+      <span className="sr-only">statt </span>
+      <s className="mr-1.5 font-normal opacity-60">{preisText(l.listen_cent, l.preis_ab)}</s>
+      <span className="sr-only">jetzt </span>
+      {preisText(l.preis_cent, l.preis_ab)}
+    </>
+  );
+}
 
 /** Summe der Preise. Fehlt bei einer Leistung der Preis oder ist er ein „ab“-Preis, ist die Summe ein Mindestpreis. */
 const summenPreis = (l: LeistungKurz[]) => {
@@ -215,9 +231,14 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="font-semibold">{l.name}</span>
-                          <span className={`block text-sm ${an ? "opacity-70" : "text-grau"}`}>{dauerText(l.dauer_min)}</span>
+                          <span className={`block text-sm ${an ? "opacity-70" : "text-grau"}`}>
+                            {dauerText(l.dauer_min)}
+                            {l.angebot ? <span className="zahlen font-semibold text-tinte"> · {l.angebot}</span> : null}
+                          </span>
                         </span>
-                        <span className={`zahlen shrink-0 text-right ${l.preis_cent === null ? `text-sm ${an ? "opacity-70" : "text-grau"}` : "font-semibold"}`}>{preisText(l.preis_cent, l.preis_ab)}</span>
+                        <span className={`zahlen shrink-0 text-right ${l.preis_cent === null ? `text-sm ${an ? "opacity-70" : "text-grau"}` : "font-semibold"}`}>
+                          <Preis l={l} />
+                        </span>
                       </label>
                     );
                   })}
@@ -448,7 +469,9 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
                     {gewaehlt.map((l) => (
                       <li key={l.id} className="flex justify-between gap-3">
                         <span className="font-semibold">{l.name}</span>
-                        <span className={`zahlen shrink-0 ${l.preis_cent === null ? "text-sm text-grau" : ""}`}>{preisText(l.preis_cent, l.preis_ab)}</span>
+                        <span className={`zahlen shrink-0 ${l.preis_cent === null ? "text-sm text-grau" : ""}`}>
+                          <Preis l={l} />
+                        </span>
                       </li>
                     ))}
                   </ul>
