@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { type NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/supabase/admin";
-import { freieTermine } from "@/lib/termine";
+import { freieTermine, gesamtDauer, MAX_LEISTUNGEN } from "@/lib/termine";
 import { istDatum } from "@/lib/zeit";
 
 /**
@@ -60,9 +60,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     case "frei": {
       const von = q.get("von") ?? "";
       if (!istDatum(von)) return fehler(400, "von=JJJJ-MM-TT fehlt");
-      const { data: l } = await db().from("leistungen").select("dauer_min").eq("slug", q.get("leistung") ?? "").maybeSingle();
-      if (!l) return fehler(404, "Leistung unbekannt");
-      return NextResponse.json({ daten: await freieTermine(l, von, Math.min(Number(q.get("tage")) || 7, 31)) });
+      // Mehrere Leistungen mit Komma: leistung=radwechsel,oelwechsel (Dauer ist die Summe)
+      const slugs = [...new Set((q.get("leistung") ?? "").split(",").map((x) => x.trim()).filter(Boolean))].slice(0, MAX_LEISTUNGEN);
+      const { data: l } = slugs.length ? await db().from("leistungen").select("dauer_min").in("slug", slugs) : { data: [] };
+      if (!l?.length || l.length !== slugs.length) return fehler(404, "Leistung unbekannt");
+      return NextResponse.json({ daten: await freieTermine({ dauer_min: gesamtDauer(l) }, von, Math.min(Number(q.get("tage")) || 7, 31)) });
     }
     default:
       return fehler(404, "Unbekannt. Verfügbar: termine, kunden, rechnungen, ereignisse, frei");

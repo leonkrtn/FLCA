@@ -9,7 +9,7 @@ import { datumLangText, zeit } from "@/lib/format";
 export async function anfrageSenden(_vorher: Ergebnis, formData: FormData): Promise<Ergebnis> {
   return sicher(formData, async () => {
     const eingabe = {
-      leistungId: text(formData, "leistung", 40),
+      leistungIds: formData.getAll("leistung").filter((x): x is string => typeof x === "string").map((x) => x.slice(0, 40)),
       datum: text(formData, "datum", 10),
       uhrzeit: text(formData, "uhrzeit", 5),
       name: text(formData, "name", 120),
@@ -21,6 +21,7 @@ export async function anfrageSenden(_vorher: Ergebnis, formData: FormData): Prom
     };
 
     const fehler: Record<string, string> = {};
+    if (!eingabe.leistungIds.length) fehler.zeit = "Bitte zuerst eine Leistung wählen.";
     if (!eingabe.name) fehler.name = "Bitte Ihren Namen angeben.";
     if (!istTelefon(eingabe.telefon)) fehler.telefon = "Bitte eine Telefonnummer angeben, unter der wir Sie erreichen.";
     if (!istEmail(eingabe.email)) fehler.email = "Bitte eine gültige E-Mail-Adresse angeben. Dorthin schicken wir die Bestätigung.";
@@ -28,7 +29,7 @@ export async function anfrageSenden(_vorher: Ergebnis, formData: FormData): Prom
     if (!/^[\p{L}\d][\p{L}\d -]{1,14}$/u.test(eingabe.kennzeichen) || !/\d/.test(eingabe.kennzeichen)) {
       fehler.kennzeichen = "Bitte das Kennzeichen angeben, z. B. OF-AB 123.";
     }
-    if (!istDatum(eingabe.datum) || !/^\d{2}:\d{2}$/.test(eingabe.uhrzeit)) fehler.zeit = "Bitte einen Termin auswählen.";
+    if (!istDatum(eingabe.datum) || !/^\d{2}:\d{2}$/.test(eingabe.uhrzeit)) fehler.zeit ??= "Bitte einen Termin auswählen.";
     if (Object.keys(fehler).length) return { status: "fehler", fehler, werte: werteAus(formData), versuch: Date.now() };
 
     if (istSpam(formData)) return { status: "ok", daten: { spam: true } };

@@ -7,18 +7,18 @@ Website, Terminvergabe, Werkstatt-Verwaltung, Rechnungen, Team und Karriere für
 | Bereich | Adresse | Für wen |
 | --- | --- | --- |
 | Website | `/`, `/leistungen`, `/galerie`, `/karriere`, `/impressum`, `/datenschutz`, `/agb` | Kunden |
-| Terminanfrage | `/termin` | Kunden: Leistung → freie Zeit → Name, Telefon, E-Mail, Kennzeichen |
+| Terminanfrage | `/termin` | Kunden: eine oder mehrere Leistungen → freie Zeit → Name, Telefon, E-Mail, Kennzeichen |
 | Kundenlink | `/t/<token>` (Termin ansehen, absagen), `/r/<token>` (Rechnungs-PDF), `/k/<token>` (Kostenvoranschlag ansehen, annehmen) | Kunden, ohne Login |
 | Verwaltung | `/admin` | Inhaber und Büro, am Rechner |
 | Werkstatt-App | `/app` | Inhaber und Büro, als Web-App auf dem Handy |
 | Team-App | `/team` | Mitarbeiter, als Web-App auf dem Handy |
 | Schnittstelle | `/api/v1/…`, Webhooks | n8n, Make, Zapier, eigene Skripte |
 
-**Termine.** Kunden sehen nur Zeiten, die frei sind: Öffnungszeiten minus bestätigte Termine minus offene Anfragen. Wie viele Autos gleichzeitig gehen, steht in den Einstellungen. Eine Anfrage hält ihren Termin 48 Stunden (einstellbar), bis sie angenommen oder abgelehnt wird. Doppelbuchungen verhindert die Datenbank selbst (`termin_anlegen` mit Sperre), nicht nur die Oberfläche. Alle Termine stehen im Wochenkalender der Verwaltung; einen externen Kalender gibt es nicht.
+**Termine.** Kunden sehen nur Zeiten, die frei sind: Öffnungszeiten minus bestätigte Termine minus offene Anfragen. Wie viele Autos gleichzeitig gehen, steht in den Einstellungen. Ein Termin kann mehrere Leistungen haben (Website, Verwaltung und Werkstatt-App); sie werden nacheinander erledigt, die Dauer ist die Summe, belegt wird ein Arbeitsplatz. Eine Anfrage hält ihren Termin 48 Stunden (einstellbar), bis sie angenommen oder abgelehnt wird. Doppelbuchungen verhindert die Datenbank selbst (`termin_anlegen` mit Sperre), nicht nur die Oberfläche. Alle Termine stehen im Wochenkalender der Verwaltung; einen externen Kalender gibt es nicht.
 
 **Preisliste.** Eine Liste für alles mit Preis: Leistungen (mit Dauer, auf der Website, online buchbar oder nicht) und Teile, Material, Zuschläge (nur für Rechnungen). Jeder Preis steht nur dort; Website, Terminbuchung und die Rechnung zum Termin lesen ihn von da.
 
-**Rechnungen.** Entwurf aus dem Termin (Leistung mit Festpreis ist schon eingetragen), Positionen aus der Preisliste oder frei, Preise brutto. Beim Stellen bekommt die Rechnung eine lückenlose Nummer und ist danach unveränderlich (Datenbank-Trigger). Korrektur nur über eine Stornorechnung. Das PDF (PDF/A-3) enthält einen GiroCode und die E-Rechnung als `factur-x.xml` (ZUGFeRD, Profil EN 16931). Steht beim Empfänger eine Leitweg-ID (Behörde), wird daraus eine XRechnung 3.0; die reine XML gibt es dann zusätzlich als Mail-Anhang und als Download für die Rechnungsportale von Bund und Ländern. Vor dem Stellen prüft das System die Pflichtangaben der E-Rechnung. DATEV-Export als ZIP (Buchungsstapel + PDFs) unter Rechnungen oder automatisch am Monatsersten an den Steuerberater.
+**Rechnungen.** Entwurf aus dem Termin (jede Leistung mit ihrem Festpreis ist schon eingetragen), Positionen aus der Preisliste oder frei, Preise brutto. Beim Stellen bekommt die Rechnung eine lückenlose Nummer und ist danach unveränderlich (Datenbank-Trigger). Korrektur nur über eine Stornorechnung. Das PDF (PDF/A-3) enthält einen GiroCode und die E-Rechnung als `factur-x.xml` (ZUGFeRD, Profil EN 16931). Steht beim Empfänger eine Leitweg-ID (Behörde), wird daraus eine XRechnung 3.0; die reine XML gibt es dann zusätzlich als Mail-Anhang und als Download für die Rechnungsportale von Bund und Ländern. Vor dem Stellen prüft das System die Pflichtangaben der E-Rechnung. DATEV-Export als ZIP (Buchungsstapel + PDFs) unter Rechnungen oder automatisch am Monatsersten an den Steuerberater.
 
 **Kostenvoranschläge.** Wie eine Rechnung aufgebaut (Positionen aus der Preisliste oder frei, Preise brutto). Beim Abschließen gibt es eine eigene Nummer (`KV-`) und der Inhalt ist eingefroren; für Änderungen „Als neuen Entwurf kopieren“. Der Kunde bekommt PDF und Link per Mail und nimmt online an oder lehnt ab (Push an Inhaber und Büro), alternativ vermerkt man seine Antwort von Hand. „In Rechnung übernehmen“ legt einen Rechnungsentwurf mit denselben Positionen an. Gültigkeit, Einleitung und Fußtext unter *Einstellungen → Rechnungen*.
 
@@ -44,6 +44,7 @@ Website, Terminvergabe, Werkstatt-Verwaltung, Rechnungen, Team und Karriere für
    - `supabase/migrations/20261121100000_termine_loeschen.sql` (Termine endgültig löschen, Auftragsnummern rücken nach)
    - `supabase/migrations/20261121110000_google_kalender_entfernen.sql` (Google-Kalender entfernt)
    - `supabase/migrations/20261121120000_notizen.sql` (Notizen mit Erinnerung per Push)
+   - `supabase/migrations/20261121140000_mehrere_leistungen.sql` (mehrere Leistungen pro Termin)
    - Zuletzt die Zeitsteuerung: `supabase/zeitsteuerung-einrichten.sql` (Adresse darin prüfen, derzeit `https://flca.vercel.app`). Das Skript richtet den Takt jede Minute ein und zeigt in der Spalte `cron_secret_fuer_vercel` das Geheimnis; diesen Wert in Vercel als `CRON_SECRET` eintragen und neu deployen. Jederzeit wiederholbar. Ist das Geheimnis verloren, vorher `select cron.unschedule('flc-takt');` ausführen, dann gibt es ein neues. (Ersetzt `20261108100100_zeitsteuerung.sql` und `20261121130000_zeitsteuerung_minuetlich.sql`.)
 3. *Authentication → Sign In / Providers*: „Allow new users to sign up“ **aus** (Konten legt nur der Inhaber an), Provider „Email“ an.
 4. *Authentication → Emails → SMTP Settings*: eigenen SMTP eintragen, sonst schickt Supabase nur 2 Mails pro Stunde. Mit Resend: Host `smtp.resend.com`, Port 465, Benutzer `resend`, Passwort = Resend-API-Key, Absender wie `MAIL_FROM`.
@@ -109,7 +110,7 @@ npm run lint
 - `termine?status=bestaetigt&von=2026-12-01&bis=2026-12-08`
 - `kunden`, `rechnungen?status=gestellt`
 - `ereignisse?nach=<letzte id>` zum Abholen neuer Ereignisse
-- `frei?leistung=radwechsel&von=2026-12-01&tage=7` freie Startzeiten
+- `frei?leistung=radwechsel&von=2026-12-01&tage=7` freie Startzeiten; mehrere Leistungen mit Komma (`leistung=radwechsel,oelwechsel`), dann gilt die Summe der Dauern
 
 Webhook-Signatur prüfen (Node):
 

@@ -23,6 +23,19 @@ const KATEGORIEN: Record<string, string> = { reifen: "Reifen", service: "Service
 const preisText = (cent: number | null, ab: boolean) =>
   cent === null ? "auf Anfrage" : `${ab ? "ab " : ""}${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(cent / 100)} €`;
 
+/** Summe der Preise. Fehlt bei einer Leistung der Preis oder ist er ein „ab“-Preis, ist die Summe ein Mindestpreis. */
+const summenPreis = (l: LeistungKurz[]) => {
+  const bekannt = l.filter((x) => x.preis_cent !== null);
+  if (!bekannt.length) return "auf Anfrage";
+  return preisText(
+    bekannt.reduce((s, x) => s + (x.preis_cent ?? 0), 0),
+    bekannt.length < l.length || l.some((x) => x.preis_ab),
+  );
+};
+
+/** Wie MAX_LEISTUNGEN in src/lib/termine.ts (dort wird geprüft, hier nur die Auswahl begrenzt). */
+const MAX_LEISTUNGEN = 8;
+
 const dauerText = (min: number) => (min >= 420 ? "ganzer Tag" : min >= 60 ? `ca. ${String(Math.round((min / 60) * 2) / 2).replace(".", ",")} Std.` : `ca. ${min} Min.`);
 
 const heute = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin" }).format(new Date());
@@ -49,8 +62,9 @@ function Schritt({ nummer, titel, aktiv, children, id }: { nummer: number; titel
 }
 
 export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: LeistungKurz[]; vorauswahl: string | null; telefon: string }) {
-  const [leistungId, setLeistungId] = useState<string | null>(vorauswahl);
+  const [ids, setIds] = useState<string[]>(vorauswahl ? [vorauswahl] : []);
   // Mit Vorauswahl (Link von der Startseite) ist die Liste zugeklappt, damit es am Telefon direkt mit dem Tag weitergeht.
+  // Weitere Leistungen kommen über „ändern oder hinzufügen“ dazu.
   const [listeOffen, setListeOffen] = useState(!vorauswahl);
   const [tage, setTage] = useState<Tag[]>([]);
   const [laedt, setLaedt] = useState(false);
@@ -59,43 +73,63 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
   const [uhrzeit, setUhrzeit] = useState<string | null>(null);
   const [zustand, aktion, sendet] = useActionState(anfrageSenden, LEER);
   const start = useRef(0);
-  const leistung = leistungen.find((l) => l.id === leistungId) ?? null;
+  // Jede Änderung der Auswahl lädt neu; ältere Antworten, die später ankommen, werden verworfen.
+  const anfrage = useRef(0);
+  const gewaehlt = leistungen.filter((l) => ids.includes(l.id));
+  const dauer = gewaehlt.reduce((s, l) => s + l.dauer_min, 0);
+  const namen = gewaehlt.map((l) => l.name).join(", ");
 
   useEffect(() => {
     start.current = Date.now();
   }, []);
 
-  async function laden(id: string, von: string, anhaengen: boolean) {
+  async function laden(auswahl: string[], von: string, anhaengen: boolean) {
+    const nummer = ++anfrage.current;
     setLaedt(true);
     setLadeFehler("");
     try {
-      const res = await fetch(`/api/termine/frei?leistung=${id}&von=${von}&tage=14`, { cache: "no-store" });
+      const res = await fetch(`/api/termine/frei?leistung=${auswahl.join(",")}&von=${von}&tage=14`, { cache: "no-store" });
       if (!res.ok) throw new Error();
       const json = (await res.json()) as { tage: Tag[] };
+      if (nummer !== anfrage.current) return;
       setTage((alt) => (anhaengen ? [...alt, ...json.tage] : json.tage));
       if (!anhaengen) {
         const erster = json.tage.find((t) => t.slots.length);
         setDatum(erster?.datum ?? null);
       }
     } catch {
-      setLadeFehler("Die freien Termine konnten nicht geladen werden. Bitte die Seite neu laden oder anrufen.");
+      if (nummer === anfrage.current) setLadeFehler("Die freien Termine konnten nicht geladen werden. Bitte die Seite neu laden oder anrufen.");
     } finally {
-      setLaedt(false);
+      if (nummer === anfrage.current) setLaedt(false);
     }
   }
 
-  function waehlen(id: string) {
-    setLeistungId(id);
-    setListeOffen(false);
+  /** Neue Auswahl: Die Dauer ändert sich, also gelten die bisherigen Zeiten nicht mehr. */
+  function auswahlSetzen(neu: string[]) {
+    setIds(neu);
     setTage([]);
     setDatum(null);
     setUhrzeit(null);
-    void laden(id, heute(), false);
+    if (neu.length) void laden(neu, heute(), false);
+    else {
+      anfrage.current++;
+      setLaedt(false);
+      setLadeFehler("");
+    }
+  }
+
+  function umschalten(id: string) {
+    auswahlSetzen(ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]);
+  }
+
+  function weiter() {
+    setListeOffen(false);
+    requestAnimationFrame(() => document.getElementById("schritt-termin")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
   // Vorauswahl aus dem Link (/termin?leistung=radwechsel): Zeiten nach dem ersten Rendern laden.
   useEffect(() => {
-    if (vorauswahl) void Promise.resolve().then(() => laden(vorauswahl, heute(), false));
+    if (vorauswahl) void Promise.resolve().then(() => laden([vorauswahl], heute(), false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -133,50 +167,49 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
   return (
     <div className="grid gap-10 lg:grid-cols-12">
       <div className="space-y-12 lg:col-span-8">
-        <Schritt nummer={1} titel="Leistung" aktiv={!leistung} id="schritt-leistung">
-          {leistung && !listeOffen ? (
+        <Schritt nummer={1} titel="Leistungen" aktiv={!gewaehlt.length || listeOffen} id="schritt-leistung">
+          {gewaehlt.length && !listeOffen ? (
             <div className="flex min-h-16 items-center justify-between gap-4 rounded-md bg-flaeche px-4 py-3 ring-1 ring-tinte/40">
               <span className="min-w-0">
-                <span className="font-semibold">{leistung.name}</span>
+                <span className="font-semibold">{namen}</span>
                 <span className="block text-sm text-grau">
-                  {dauerText(leistung.dauer_min)} · <span className="zahlen">{preisText(leistung.preis_cent, leistung.preis_ab)}</span>
+                  {dauerText(dauer)} · <span className="zahlen">{summenPreis(gewaehlt)}</span>
                 </span>
               </span>
               <button type="button" onClick={() => setListeOffen(true)} className="knopf knopf-rahmen knopf-klein shrink-0">
-                ändern
+                {gewaehlt.length < MAX_LEISTUNGEN ? "ändern oder hinzufügen" : "ändern"}
               </button>
             </div>
           ) : (
+          <>
+          <p className="mb-5 text-grau">Mehreres auf einmal? Wählen Sie alles, was gemacht werden soll. Wir erledigen es in einem Termin nacheinander.</p>
           <div className="grid gap-8 md:grid-cols-2">
             {gruppen.map((g) => (
               <fieldset key={g.name}>
                 <legend className="mb-2 text-sm font-semibold text-grau">{g.name}</legend>
                 <div className="grid gap-2">
                   {g.eintraege.map((l) => {
-                    const gewaehlt = l.id === leistungId;
+                    const an = ids.includes(l.id);
+                    const voll = !an && ids.length >= MAX_LEISTUNGEN;
                     return (
                       <label
                         key={l.id}
-                        className={`flex min-h-16 cursor-pointer items-center justify-between gap-4 rounded-md px-4 py-3 ring-1 transition-colors ${
-                          gewaehlt ? "bg-white/[0.08] ring-grau" : "bg-flaeche ring-linie hover:ring-grau-hell"
+                        className={`flex min-h-16 items-center gap-3 rounded-md px-4 py-3 ring-1 transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-tinte ${
+                          an ? "bg-white/[0.08] ring-grau" : voll ? "cursor-not-allowed bg-flaeche opacity-50 ring-linie" : "cursor-pointer bg-flaeche ring-linie hover:ring-grau-hell"
                         }`}
                       >
-                        <input
-                          type="radio"
-                          name="leistung-wahl"
-                          value={l.id}
-                          checked={gewaehlt}
-                          onChange={() => {
-                            waehlen(l.id);
-                            requestAnimationFrame(() => document.getElementById("schritt-termin")?.scrollIntoView({ behavior: "smooth", block: "start" }));
-                          }}
-                          className="sr-only"
-                        />
-                        <span className="min-w-0">
-                          <span className="font-semibold">{l.name}</span>
-                          <span className={`block text-sm ${gewaehlt ? "opacity-70" : "text-grau"}`}>{dauerText(l.dauer_min)}</span>
+                        <input type="checkbox" name="leistung-wahl" value={l.id} checked={an} disabled={voll} onChange={() => umschalten(l.id)} className="sr-only" />
+                        <span
+                          aria-hidden
+                          className={`flex size-5 shrink-0 items-center justify-center rounded-[4px] border transition-colors ${an ? "border-tinte bg-tinte text-boden" : "border-grau"}`}
+                        >
+                          {an ? <Haken className="size-3.5" /> : null}
                         </span>
-                        <span className={`zahlen shrink-0 text-right ${l.preis_cent === null ? `text-sm ${gewaehlt ? "opacity-70" : "text-grau"}` : "font-semibold"}`}>{preisText(l.preis_cent, l.preis_ab)}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="font-semibold">{l.name}</span>
+                          <span className={`block text-sm ${an ? "opacity-70" : "text-grau"}`}>{dauerText(l.dauer_min)}</span>
+                        </span>
+                        <span className={`zahlen shrink-0 text-right ${l.preis_cent === null ? `text-sm ${an ? "opacity-70" : "text-grau"}` : "font-semibold"}`}>{preisText(l.preis_cent, l.preis_ab)}</span>
                       </label>
                     );
                   })}
@@ -184,11 +217,28 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
               </fieldset>
             ))}
           </div>
+          {gewaehlt.length ? (
+            <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 mt-6 flex flex-wrap items-center justify-between gap-3 rounded-md bg-flaeche px-4 py-3 ring-1 ring-grau md:bottom-4">
+              <span className="min-w-0 text-sm">
+                <span className="font-semibold">
+                  {gewaehlt.length} {gewaehlt.length === 1 ? "Leistung" : "Leistungen"}
+                </span>
+                <span className="text-grau">
+                  {" "}
+                  · {dauerText(dauer)} · <span className="zahlen">{summenPreis(gewaehlt)}</span>
+                </span>
+              </span>
+              <button type="button" onClick={weiter} className="knopf knopf-dunkel knopf-klein shrink-0">
+                Weiter zu den Zeiten
+              </button>
+            </div>
+          ) : null}
+          </>
           )}
         </Schritt>
 
-        <Schritt nummer={2} titel="Tag und Uhrzeit" aktiv={Boolean(leistung) && !uhrzeit} id="schritt-termin">
-          {!leistung ? (
+        <Schritt nummer={2} titel="Tag und Uhrzeit" aktiv={gewaehlt.length > 0 && !uhrzeit} id="schritt-termin">
+          {!gewaehlt.length ? (
             <p className="text-grau">Wählen Sie zuerst eine Leistung, dann zeigen wir die freien Zeiten.</p>
           ) : (
             <div aria-busy={laedt}>
@@ -225,7 +275,7 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
                 {tage.length && !laedt ? (
                   <button
                     type="button"
-                    onClick={() => leistung && laden(leistung.id, plusTage(tage.at(-1)!.datum, 1), true)}
+                    onClick={() => ids.length && laden(ids, plusTage(tage.at(-1)!.datum, 1), true)}
                     disabled={laedt}
                     className="w-[4.5rem] shrink-0 rounded-md border border-dashed border-linie text-sm text-grau hover:border-tinte hover:text-tinte"
                   >
@@ -272,13 +322,15 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
                 </p>
               ) : !laedt && tage.length ? (
                 <p className="mt-4 text-grau">
-                  In diesem Zeitraum ist nichts mehr frei. Tippen Sie auf „weitere Tage“ oder rufen Sie an: {telefon}
+                  In diesem Zeitraum ist nichts mehr frei.{" "}
+                  {gewaehlt.length > 1 ? "Mehrere Leistungen brauchen zusammen länger, vielleicht passt es mit weniger auf einmal. " : ""}
+                  Tippen Sie auf „weitere Tage“ oder rufen Sie an: {telefon}
                 </p>
               ) : null}
               {fehler.zeit ? (
                 <p className="mt-4 font-semibold text-fehler">
                   {fehler.zeit}{" "}
-                  <button type="button" onClick={() => leistung && waehlen(leistung.id)} className="underline">
+                  <button type="button" onClick={() => auswahlSetzen(ids)} className="underline">
                     Freie Zeiten neu laden
                   </button>
                 </p>
@@ -297,7 +349,9 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
             className="grid gap-5 sm:grid-cols-2"
             noValidate
           >
-            <input type="hidden" name="leistung" value={leistung?.id ?? ""} />
+            {ids.map((id) => (
+              <input key={id} type="hidden" name="leistung" value={id} />
+            ))}
             <input type="hidden" name="datum" value={datum ?? ""} />
             <input type="hidden" name="uhrzeit" value={uhrzeit ?? ""} />
             <div className="absolute -left-[9999px]" aria-hidden>
@@ -369,13 +423,35 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
           <p className="mb-4 text-sm font-semibold uppercase tracking-[0.12em] text-grau">Ihre Anfrage</p>
           <dl className="space-y-4">
             <div>
-              <dt className="text-sm text-grau">Leistung</dt>
-              <dd className="font-semibold">{leistung?.name ?? "–"}</dd>
+              <dt className="text-sm text-grau">{gewaehlt.length > 1 ? "Leistungen" : "Leistung"}</dt>
+              {gewaehlt.length ? (
+                <dd>
+                  <ul className="space-y-1">
+                    {gewaehlt.map((l) => (
+                      <li key={l.id} className="flex justify-between gap-3">
+                        <span className="font-semibold">{l.name}</span>
+                        <span className={`zahlen shrink-0 ${l.preis_cent === null ? "text-sm text-grau" : ""}`}>{preisText(l.preis_cent, l.preis_ab)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </dd>
+              ) : (
+                <dd className="font-semibold">–</dd>
+              )}
             </div>
-            <div>
-              <dt className="text-sm text-grau">Preis</dt>
-              <dd className="zahlen">{leistung ? preisText(leistung.preis_cent, leistung.preis_ab) : "–"}</dd>
-            </div>
+            {gewaehlt.length > 1 ? (
+              <div>
+                <dt className="text-sm text-grau">Zusammen</dt>
+                <dd className="zahlen">
+                  {summenPreis(gewaehlt)} · {dauerText(dauer)}
+                </dd>
+              </div>
+            ) : gewaehlt.length ? (
+              <div>
+                <dt className="text-sm text-grau">Dauer</dt>
+                <dd>{dauerText(dauer)}</dd>
+              </div>
+            ) : null}
             <div>
               <dt className="text-sm text-grau">Termin</dt>
               <dd className="zahlen">{datum && uhrzeit ? `${tm.format(alsDatum(datum))} · ${uhrzeit} Uhr` : "–"}</dd>
@@ -385,10 +461,10 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
       </aside>
 
       {/* Telefon: Zusammenfassung über der festen Leiste, sobald eine Zeit gewählt ist */}
-      {leistung && uhrzeit ? (
-        <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 border-t border-linie bg-flaeche px-4 py-2 text-sm md:hidden">
-          <span className="font-semibold">{leistung.name}</span>
-          <span className="zahlen ml-2 text-grau">
+      {gewaehlt.length && uhrzeit ? (
+        <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 flex gap-2 border-t border-linie bg-flaeche px-4 py-2 text-sm md:hidden">
+          <span className="min-w-0 truncate font-semibold">{namen}</span>
+          <span className="zahlen shrink-0 text-grau">
             {tm.format(alsDatum(datum!))} · {uhrzeit}
           </span>
         </div>
