@@ -21,4 +21,5 @@ export const KONFIGURIERT = {
   supabaseAdmin: Boolean(ENV.supabaseUrl && ENV.supabaseSecretKey),
   email: Boolean(ENV.resendApiKey && ENV.mailFrom),
   push: Boolean(ENV.vapidPublicKey && ENV.vapidPrivateKey),
+  cron: Boolean(ENV.cronSecret),
 };
