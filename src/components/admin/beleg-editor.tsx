@@ -2,6 +2,7 @@
 
 import { useActionState, useId, useMemo, useState, useTransition } from "react";
 import { Kreuz } from "@/components/icons";
+import { DateiKnopf } from "@/components/mobil/datei-knopf";
 import { type BelegArt, gemerktLadenAktion } from "@/lib/aktionen/belege";
 import { kvEntwurfSpeichernAktion } from "@/lib/aktionen/kostenvoranschlaege";
 import { entwurfSpeichernAktion } from "@/lib/aktionen/rechnungen";
@@ -736,7 +737,7 @@ export function BelegEditor({
       {/* In der Handy-App sitzt die Tab-Leiste unten, die Knopfleiste klebt deshalb darüber statt dahinter. */}
       <div className={`sticky ${kompakt ? "bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))]" : "bottom-0"} z-10 -mx-4 grid grid-cols-[auto_auto_minmax(0,1fr)] items-center max-[359px]:grid-cols-2 gap-2 border-t border-linie bg-weiss px-4 py-3 md:static md:mx-0 md:flex md:flex-wrap md:gap-3 md:border-0 md:bg-transparent md:p-0`}>
         <button type="submit" name="weiter" value="" disabled={laeuft} className="knopf knopf-rahmen px-3 md:px-5">Speichern</button>
-        <button type="submit" form={vorschauId} className="knopf knopf-rahmen px-3 md:px-5">Vorschau</button>
+        <DateiKnopf art="datei" formular={vorschauId} className="knopf knopf-rahmen px-3 md:px-5">Vorschau</DateiKnopf>
         <button
           type={art === "rechnung" ? "button" : "submit"}
           name={art === "rechnung" ? undefined : "weiter"}

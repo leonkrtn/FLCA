@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Formular, Senden } from "./formular";
+import { DateiKnopf } from "@/components/mobil/datei-knopf";
 import { PositionenUebersicht } from "./positionen-uebersicht";
 import { Feld } from "./ui";
 import { bezahltAktion, stornoAktion, unbezahltAktion, versendenAktion } from "@/lib/aktionen/rechnungen";
@@ -14,8 +15,8 @@ export function RechnungAnsicht({ r, basis, pdfHref }: { r: Rechnung; basis: "/a
   return (
     <div className="grid gap-6">
       <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-        <a href={pdfHref} target="_blank" className="knopf knopf-dunkel">PDF öffnen</a>
-        <a href={`/admin/rechnungen/${r.id}/xml`} className="knopf knopf-rahmen">{xrechnung ? "XRechnung (XML)" : "E-Rechnung (XML)"}</a>
+        <DateiKnopf art="datei" href={pdfHref} className="knopf knopf-dunkel">PDF öffnen</DateiKnopf>
+        <DateiKnopf art="datei" href={`/admin/rechnungen/${r.id}/xml`} className="knopf knopf-rahmen">{xrechnung ? "XRechnung (XML)" : "E-Rechnung (XML)"}</DateiKnopf>
         {r.status === "gestellt" ? (
           <Formular aktion={bezahltAktion.bind(null, r.id)} className="contents">
             <input type="hidden" name="am" value={berlinDatum()} />
