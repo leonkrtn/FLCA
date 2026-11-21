@@ -7,7 +7,6 @@ import { datumLangText, kennzeichen as kennzeichenFormat, telHref, zeit } from "
 import { ics } from "./ics";
 import { mail } from "./email/vorlagen";
 import { mailer } from "./services/email";
-import { abgleichWennAlt, kalender } from "./services/kalender";
 import { pushSenden } from "./services/push";
 import { type Belegung, freieSlots, type Slot } from "./slots";
 import { db, pruefe } from "./supabase/admin";
@@ -53,7 +52,6 @@ export type Termin = {
   quelle: string;
   token: string;
   halten_bis: string | null;
-  google_event_id: string | null;
   zugewiesen_an: string | null;
   auftrag_status: "offen" | "in_arbeit" | "fertig";
   km_stand: number | null;
@@ -108,27 +106,18 @@ export async function terminPerToken(token: string): Promise<Termin | null> {
 // Freie Termine
 // ---------------------------------------------------------------------------
 
-async function belegungen(von: Date, bis: Date, kapazitaet: number): Promise<Belegung[]> {
-  const [termine, extern] = await Promise.all([
-    db()
-      .from("termine")
-      .select("beginn, belegt_bis, status, halten_bis")
-      .in("status", ["angefragt", "bestaetigt"])
-      .lt("beginn", bis.toISOString())
-      .gt("belegt_bis", von.toISOString()),
-    db().from("kalender_belegungen").select("beginn, ende, ganztaegig").lt("beginn", bis.toISOString()).gt("ende", von.toISOString()),
-  ]);
+/** Belegte Zeiten: bestätigte Termine und Anfragen, deren Haltezeit noch läuft (wie belegung_max in der Datenbank). */
+async function belegungen(von: Date, bis: Date): Promise<Belegung[]> {
+  const termine = await db()
+    .from("termine")
+    .select("beginn, belegt_bis, status, halten_bis")
+    .in("status", ["angefragt", "bestaetigt"])
+    .lt("beginn", bis.toISOString())
+    .gt("belegt_bis", von.toISOString());
   const jetzt = Date.now();
-  return [
-    ...pruefe<{ beginn: string; belegt_bis: string; status: string; halten_bis: string | null }[]>(termine)
-      .filter((t) => t.status === "bestaetigt" || !t.halten_bis || new Date(t.halten_bis).getTime() > jetzt)
-      .map((t) => ({ beginn: new Date(t.beginn).getTime(), bis: new Date(t.belegt_bis).getTime(), gewicht: 1 })),
-    ...pruefe<{ beginn: string; ende: string; ganztaegig: boolean }[]>(extern).map((k) => ({
-      beginn: new Date(k.beginn).getTime(),
-      bis: new Date(k.ende).getTime(),
-      gewicht: k.ganztaegig ? kapazitaet : 1,
-    })),
-  ];
+  return pruefe<{ beginn: string; belegt_bis: string; status: string; halten_bis: string | null }[]>(termine)
+    .filter((t) => t.status === "bestaetigt" || !t.halten_bis || new Date(t.halten_bis).getTime() > jetzt)
+    .map((t) => ({ beginn: new Date(t.beginn).getTime(), bis: new Date(t.belegt_bis).getTime(), gewicht: 1 }));
 }
 
 export type Tagesangebot = { datum: string; slots: string[] };
@@ -141,7 +130,6 @@ export async function freieTermine(
   e?: Einstellungen,
 ): Promise<Tagesangebot[]> {
   const { buchung, oeffnungszeiten } = e ?? (await einstellungen());
-  await abgleichWennAlt(5);
   const heute = berlinDatum();
   const letzter = plusTage(heute, buchung.maxTage);
   const start = vonDatum < heute ? heute : vonDatum;
@@ -149,7 +137,7 @@ export async function freieTermine(
   const bisDatum = ende > letzter ? plusTage(letzter, 1) : ende;
   if (start > letzter) return [];
 
-  const alle = await belegungen(berlin(start), berlin(bisDatum), buchung.kapazitaet);
+  const alle = await belegungen(berlin(start), berlin(bisDatum));
   const fruehestens = new Date(Date.now() + buchung.vorlaufStd * 3600000);
   const ergebnis: Tagesangebot[] = [];
   for (let d = start; d < bisDatum; d = plusTage(d, 1)) {
@@ -174,7 +162,7 @@ export async function freieTermine(
 /** Prüft eine gewünschte Startzeit gegen Öffnungszeiten, Vorlauf und Belegung und liefert den Zeitraum. */
 async function slotPruefen(leistung: Pick<Leistung, "dauer_min">, datum: string, uhrzeit: string, e: Einstellungen): Promise<Slot> {
   const fenster = e.oeffnungszeiten[String(wochentag(datum)) as keyof Einstellungen["oeffnungszeiten"]] ?? [];
-  const alle = await belegungen(berlin(datum), berlin(plusTage(datum, 1)), e.buchung.kapazitaet);
+  const alle = await belegungen(berlin(datum), berlin(plusTage(datum, 1)));
   const slot = freieSlots({
     datum,
     fenster,
@@ -388,47 +376,6 @@ async function betriebBenachrichtigen(t: Termin, art: "neu" | "storniert") {
   ]);
 }
 
-function kalenderEintrag(t: Termin) {
-  return {
-    id: t.id,
-    titel: [t.leistung_name, t.fahrzeug?.kennzeichen, t.kunde?.name].filter(Boolean).join(" · "),
-    beschreibung: [
-      t.kunde?.telefon && `Telefon: ${t.kunde.telefon}`,
-      t.fahrzeug?.marke_modell && `Fahrzeug: ${t.fahrzeug.marke_modell}`,
-      t.notiz_kunde && `Notiz: ${t.notiz_kunde}`,
-      `Im System: ${ENV.siteUrl}/admin/termine/${t.id}`,
-    ]
-      .filter(Boolean)
-      .join("\n"),
-    beginn: new Date(t.beginn),
-    ende: new Date(t.ende),
-  };
-}
-
-async function inKalenderEintragen(t: Termin) {
-  try {
-    if (t.google_event_id) {
-      await kalender().aendern(t.google_event_id, kalenderEintrag(t));
-    } else {
-      const eventId = await kalender().eintragen(kalenderEintrag(t));
-      if (eventId) await db().from("termine").update({ google_event_id: eventId }).eq("id", t.id);
-    }
-  } catch (error) {
-    console.error(`Termin ${t.nummer} konnte nicht in den Kalender eingetragen werden`, error);
-    await verlauf("termin", t.id, "Eintrag im Google-Kalender fehlgeschlagen, wird beim nächsten Abgleich nicht wiederholt. Bitte prüfen.");
-  }
-}
-
-async function ausKalenderEntfernen(t: Termin) {
-  if (!t.google_event_id) return;
-  try {
-    await kalender().entfernen(t.google_event_id);
-    await db().from("termine").update({ google_event_id: null }).eq("id", t.id);
-  } catch (error) {
-    console.error(`Termin ${t.nummer} konnte nicht aus dem Kalender entfernt werden`, error);
-  }
-}
-
 const ereignisDaten = (t: Termin) => ({
   termin_id: t.id,
   nummer: t.nummer,
@@ -491,7 +438,7 @@ export async function anfrageStellen(e: AnfrageEingabe): Promise<Termin> {
   return termin;
 }
 
-/** Termin direkt eintragen (Telefonkunde). Ist sofort bestätigt und steht im Kalender. */
+/** Termin direkt eintragen (Telefonkunde). Ist sofort bestätigt. */
 export async function terminEintragen(
   e: Omit<AnfrageEingabe, "leistungId"> & { leistungId: string | null; leistungName?: string; dauerMin?: number; ueberbuchen?: boolean; mitarbeiter?: string | null },
   vonBenutzer: string,
@@ -524,7 +471,6 @@ export async function terminEintragen(
   const termin = (await terminLaden(id as string))!;
   await verlauf("termin", termin.id, "Termin eingetragen", vonBenutzer);
   after(async () => {
-    await inKalenderEintragen(termin);
     await Promise.all([kundenMail(termin, "bestaetigt"), melden("termin.bestaetigt", ereignisDaten(termin))]);
   });
   return termin;
@@ -537,7 +483,6 @@ export async function bestaetigen(id: string, vonBenutzer: string, ueberbuchen =
   const termin = (await terminLaden(id))!;
   await verlauf("termin", id, ueberbuchen ? "Bestätigt (trotz voller Werkstatt)" : "Bestätigt", vonBenutzer);
   after(async () => {
-    await inKalenderEintragen(termin);
     await Promise.all([kundenMail(termin, "bestaetigt"), melden("termin.bestaetigt", ereignisDaten(termin))]);
   });
 }
@@ -572,7 +517,6 @@ export async function stornieren(id: string, durch: { kunde: true } | { benutzer
   const neu = (await terminLaden(id))!;
   await verlauf("termin", id, "kunde" in durch ? "Vom Kunden abgesagt" : `Abgesagt${grund ? `: ${grund}` : ""}`, "kunde" in durch ? null : durch.benutzer);
   after(async () => {
-    await ausKalenderEntfernen(termin);
     await Promise.all([
       kundenMail(neu, "storniert"),
       "kunde" in durch ? betriebBenachrichtigen(neu, "storniert") : Promise.resolve(),
@@ -599,7 +543,6 @@ export async function verschieben(id: string, datum: string, uhrzeit: string, vo
   const neu = (await terminLaden(id))!;
   await verlauf("termin", id, `Verschoben auf ${datumLangText(slot.beginn)}, ${zeit(slot.beginn)} Uhr`, vonBenutzer);
   after(async () => {
-    if (neu.status === "bestaetigt") await inKalenderEintragen(neu);
     await Promise.all([
       neu.status === "bestaetigt" ? kundenMail(neu, "verschoben") : Promise.resolve(),
       melden("termin.verschoben", ereignisDaten(neu)),
@@ -612,6 +555,24 @@ export async function erledigen(id: string, vonBenutzer: string, status: "erledi
   const termin = (await terminLaden(id))!;
   await verlauf("termin", id, status === "erledigt" ? "Erledigt" : "Kunde nicht erschienen", vonBenutzer);
   if (status === "erledigt") after(() => melden("termin.erledigt", ereignisDaten(termin)));
+}
+
+/**
+ * Löscht einen Termin endgültig, mit Fotos und Verlauf. Die späteren Auftragsnummern
+ * rücken nach (termin_loeschen). Rechnungen zum Termin bleiben, sie verlieren nur den Verweis. Der Kunde
+ * bekommt keine Mail: Wer ihm Bescheid geben will, sagt den Termin vorher ab.
+ */
+export async function loeschen(id: string, vonBenutzer: string): Promise<void> {
+  const termin = await terminLaden(id);
+  if (!termin) throw new TerminFehler("Termin nicht gefunden.");
+  const { data: fotos } = await db().from("termin_fotos").select("pfad").eq("termin_id", id);
+  const { error } = await db().rpc("termin_loeschen", { p_id: id });
+  if (error) dbFehler(error);
+  await db().from("verlauf").delete().eq("bezug_typ", "termin").eq("bezug_id", id);
+  after(async () => {
+    if (fotos?.length) await db().storage.from("auftragsfotos").remove(fotos.map((f) => f.pfad as string));
+    await melden("termin.geloescht", { ...ereignisDaten(termin), geloescht_von: vonBenutzer });
+  });
 }
 
 /** Erinnerung 24 Stunden vorher (aus dem Takt aufgerufen). */

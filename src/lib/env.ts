@@ -11,8 +11,6 @@ export const ENV = {
   supabaseSecretKey: process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   mailFrom: process.env.MAIL_FROM ?? "",
-  googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
-  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
   vapidPublicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "",
   vapidPrivateKey: process.env.VAPID_PRIVATE_KEY ?? "",
   cronSecret: process.env.CRON_SECRET ?? "",
@@ -22,6 +20,5 @@ export const KONFIGURIERT = {
   supabase: Boolean(ENV.supabaseUrl && ENV.supabasePublishableKey),
   supabaseAdmin: Boolean(ENV.supabaseUrl && ENV.supabaseSecretKey),
   email: Boolean(ENV.resendApiKey && ENV.mailFrom),
-  google: Boolean(ENV.googleClientId && ENV.googleClientSecret),
   push: Boolean(ENV.vapidPublicKey && ENV.vapidPrivateKey),
 };

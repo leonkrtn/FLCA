@@ -6,7 +6,6 @@ import { benutzerMitRecht } from "../auth";
 import { type Einstellungen, einstellungen, einstellungenSpeichern, type Fenster } from "../einstellungen";
 import { EREIGNIS_TYPEN, signatur } from "../ereignisse";
 import { type Ergebnis, ja, sicher, text, zahl } from "../forms";
-import { kalender } from "../services/kalender";
 import { db } from "../supabase/admin";
 
 const alles = () => revalidatePath("/", "layout");
@@ -158,45 +157,6 @@ export async function rechtstexteSpeichern(_v: Ergebnis, fd: FormData): Promise<
     revalidatePath("/datenschutz");
     revalidatePath("/agb");
     return { status: "ok", meldung: "Gespeichert." };
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Google Kalender
-// ---------------------------------------------------------------------------
-
-export async function kalenderAbgleichen(_v: Ergebnis): Promise<Ergebnis> {
-  return sicher(null, async () => {
-    await benutzerMitRecht("einstellungen");
-    const { anzahl } = await kalender().abgleichen();
-    await kalender().beobachten();
-    revalidatePath("/admin", "layout");
-    return { status: "ok", meldung: `Abgeglichen: ${anzahl} fremde Einträge in den nächsten Wochen.` };
-  });
-}
-
-export async function kalenderIdSpeichern(_v: Ergebnis, fd: FormData): Promise<Ergebnis> {
-  return sicher(fd, async () => {
-    await benutzerMitRecht("einstellungen");
-    await db().from("kalender_verbindung").update({ kalender_id: text(fd, "kalender_id", 200) || "primary" }).eq("id", 1);
-    await kalender().beobachten(true);
-    await kalender().abgleichen();
-    revalidatePath("/admin/einstellungen");
-    return { status: "ok", meldung: "Gespeichert und abgeglichen." };
-  });
-}
-
-export async function kalenderTrennen(_v: Ergebnis): Promise<Ergebnis> {
-  return sicher(null, async () => {
-    await benutzerMitRecht("einstellungen");
-    const { data } = await db().from("kalender_verbindung").select("refresh_token").eq("id", 1).single();
-    if (data?.refresh_token) {
-      await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(data.refresh_token)}`, { method: "POST" }).catch(() => undefined);
-    }
-    await db().from("kalender_verbindung").update({ refresh_token: null, kanal_id: null, kanal_resource_id: null, kanal_token: null, kanal_ablauf: null, konto_email: "", verbunden_am: null }).eq("id", 1);
-    await db().from("kalender_belegungen").delete().neq("event_id", "");
-    revalidatePath("/admin", "layout");
-    return { status: "ok", meldung: "Getrennt. Termine leben jetzt nur noch im System." };
   });
 }
 

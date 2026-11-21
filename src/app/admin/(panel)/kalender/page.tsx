@@ -12,8 +12,8 @@ export const metadata = { title: "Kalender" };
 const STUNDE_PX = 56;
 
 /**
- * Wochenansicht Mo–Sa. Termine aus dem System und fremde Einträge aus Google stehen nebeneinander;
- * überlappende Termine bekommen Spalten (gierige Zuordnung), damit nichts verdeckt wird.
+ * Wochenansicht Mo–Sa der Termine. Überlappende Termine bekommen Spalten (gierige Zuordnung), damit
+ * nichts verdeckt wird.
  */
 export default async function KalenderSeite({ searchParams }: { searchParams: Promise<{ woche?: string }> }) {
   await benutzerMitRecht("termine");
@@ -28,27 +28,24 @@ export default async function KalenderSeite({ searchParams }: { searchParams: Pr
   const startStunde = Math.floor(Math.min(...alleFenster.map(([a]) => minuten(a)), 8 * 60) / 60);
   const endStunde = Math.ceil(Math.max(...alleFenster.map(([, b]) => minuten(b)), 18 * 60) / 60);
 
-  const [{ data: termine }, { data: extern }] = await Promise.all([
-    db().from("termine").select(TERMIN_FELDER).in("status", ["angefragt", "bestaetigt", "erledigt"]).gte("beginn", von.toISOString()).lt("beginn", bis.toISOString()).order("beginn"),
-    db().from("kalender_belegungen").select("*").lt("beginn", bis.toISOString()).gt("ende", von.toISOString()),
-  ]);
+  const { data: termine } = await db()
+    .from("termine")
+    .select(TERMIN_FELDER)
+    .in("status", ["angefragt", "bestaetigt", "erledigt"])
+    .gte("beginn", von.toISOString())
+    .lt("beginn", bis.toISOString())
+    .order("beginn");
 
-  type Block = { id: string; beginn: Date; ende: Date; titel: string; unter: string; art: "angefragt" | "bestaetigt" | "erledigt" | "extern"; href?: string; spalte?: number; spalten?: number };
-  const bloecke: Block[] = [
-    ...((termine ?? []) as Termin[]).map((t) => ({
-      id: t.id,
-      beginn: new Date(t.beginn),
-      ende: new Date(t.ende),
-      titel: t.leistung_name,
-      unter: [t.fahrzeug?.kennzeichen, t.kunde?.name].filter(Boolean).join(" · "),
-      art: t.status as Block["art"],
-      href: `/admin/termine/${t.id}`,
-    })),
-    ...(extern ?? [])
-      .filter((k) => !k.ganztaegig)
-      .map((k) => ({ id: k.event_id, beginn: new Date(k.beginn), ende: new Date(k.ende), titel: k.titel || "Belegt", unter: "Google Kalender", art: "extern" as const })),
-  ];
-  const ganztaegig = (extern ?? []).filter((k) => k.ganztaegig);
+  type Block = { id: string; beginn: Date; ende: Date; titel: string; unter: string; art: "angefragt" | "bestaetigt" | "erledigt"; href: string; spalte?: number; spalten?: number };
+  const bloecke: Block[] = ((termine ?? []) as Termin[]).map((t) => ({
+    id: t.id,
+    beginn: new Date(t.beginn),
+    ende: new Date(t.ende),
+    titel: t.leistung_name,
+    unter: [t.fahrzeug?.kennzeichen, t.kunde?.name].filter(Boolean).join(" · "),
+    art: t.status as Block["art"],
+    href: `/admin/termine/${t.id}`,
+  }));
 
   const proTag = tage.map((d) => {
     const liste = bloecke.filter((b) => berlinDatum(b.beginn) === d).sort((a, b) => a.beginn.getTime() - b.beginn.getTime());
@@ -60,14 +57,13 @@ export default async function KalenderSeite({ searchParams }: { searchParams: Pr
       b.spalte = s;
     }
     for (const b of liste) b.spalten = enden.length;
-    return { datum: d, liste, sperre: ganztaegig.filter((k) => berlinDatum(new Date(k.beginn)) <= d && berlinDatum(new Date(new Date(k.ende).getTime() - 1)) >= d) };
+    return { datum: d, liste };
   });
 
   const farbe: Record<Block["art"], string> = {
     bestaetigt: "bg-tinte text-weiss",
     angefragt: "bg-kreide text-tinte",
     erledigt: "bg-linie text-grau",
-    extern: "bg-weiss text-grau border border-dashed border-grau-hell",
   };
   const heute = berlinDatum();
 
@@ -85,9 +81,6 @@ export default async function KalenderSeite({ searchParams }: { searchParams: Pr
           {proTag.map((t) => (
             <div key={t.datum} className={`border-b-2 px-2 py-2 text-sm font-semibold ${t.datum === heute ? "border-rot" : "border-tinte"}`}>
               {datumKurzText(t.datum)}
-              {t.sperre.map((s) => (
-                <span key={s.event_id} className="mt-1 block truncate bg-boden px-1 text-xs font-normal">{s.titel || "ganztägig belegt"}</span>
-              ))}
             </div>
           ))}
           <div className="relative" style={{ height: (endStunde - startStunde) * STUNDE_PX }}>
@@ -126,10 +119,8 @@ export default async function KalenderSeite({ searchParams }: { searchParams: Pr
                   );
                   const stil = { top, height: hoehe, left: `calc(${(b.spalte ?? 0) * breite}% + 2px)`, width: `calc(${breite}% - 4px)` };
                   const klasse = `absolute overflow-hidden rounded-sm px-1.5 py-1 text-xs leading-tight ${farbe[b.art]}`;
-                  return b.href ? (
+                  return (
                     <Link key={b.id} href={b.href} className={`${klasse} hover:ring-2 hover:ring-rot`} style={stil}>{inhalt}</Link>
-                  ) : (
-                    <div key={b.id} className={klasse} style={stil}>{inhalt}</div>
                   );
                 })}
               </div>
@@ -140,7 +131,6 @@ export default async function KalenderSeite({ searchParams }: { searchParams: Pr
       <p className="mt-3 flex flex-wrap gap-4 text-sm text-grau">
         <span><span className="mr-1 inline-block size-3 bg-tinte align-middle" />bestätigt</span>
         <span><span className="mr-1 inline-block size-3 bg-kreide align-middle" />angefragt</span>
-        <span><span className="mr-1 inline-block size-3 border border-dashed border-grau-hell align-middle" />aus Google</span>
       </p>
     </>
   );

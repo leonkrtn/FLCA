@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TerminAktionen } from "@/components/admin/termin-aktionen";
+import { TerminLoeschen } from "@/components/admin/termin-loeschen";
 import { Marke } from "@/components/admin/ui";
 import { Karte, MobilKopf } from "@/components/mobil/teile";
 import { ablehnenAktion, absagenAktion, bestaetigenAktion, erledigtAktion, rechnungAusTermin, verschiebenAktion } from "@/lib/aktionen/termine";
@@ -61,6 +62,9 @@ export default async function AppTermin({ params }: { params: Promise<{ id: stri
               <button className="knopf knopf-dunkel w-full">Rechnung erstellen</button>
             </form>
           )}
+        </Karte>
+        <Karte>
+          <TerminLoeschen id={t.id} nummer={t.nummer} status={t.status} ziel="/app" gross />
         </Karte>
       </div>
     </>

@@ -2,13 +2,15 @@ import Link from "next/link";
 
 /**
  * Kopf der Handy-Apps. Titel immer einzeilig, Unterzeile immer reserviert: Beim Wechsel zwischen den
- * Tabs bleibt der Inhalt darunter an derselben Stelle stehen. Voll deckend statt halbdurchsichtig: Dann
- * scheint beim Scrollen nichts durch, und iOS 26 erkennt ihn als Leiste am oberen Rand und führt seine
- * Farbe unter der Statusleiste weiter, statt den obersten Inhalt weichzuzeichnen.
+ * Tabs bleibt der Inhalt darunter an derselben Stelle stehen.
+ *
+ * Voll deckend und mit dem Abstand für die Statusleiste im Kopf selbst (nicht in der Hülle darum): So
+ * reicht er bis an den oberen Rand, iOS 26 erkennt ihn als Leiste und führt seine Farbe unter der Uhr
+ * weiter, statt Titel und Knöpfe weichzuzeichnen. Beim Scrollen läuft nichts zwischen Uhr und Kopf durch.
  */
 export function MobilKopf({ titel, unter, zurueck, aktion }: { titel: string; unter?: React.ReactNode; zurueck?: string; aktion?: React.ReactNode }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-linie bg-boden px-4 pb-3 pt-3">
+    <header className="sticky top-0 z-30 border-b border-linie bg-boden px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))]">
       {zurueck ? (
         <Link href={zurueck} className="mb-1 inline-block text-sm text-grau">
           ← zurück

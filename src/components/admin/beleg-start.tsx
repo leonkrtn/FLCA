@@ -7,12 +7,13 @@ import type { KundenTreffer } from "@/lib/kunden";
 import { KundenSuche } from "./kunden-suche";
 
 /**
- * Erster Schritt einer neuen Rechnung bzw. eines Kostenvoranschlags: Kunde wählen, dann öffnet sich der
- * Entwurf mit Empfänger und Fahrzeug. „Ohne Kunde“ für Laufkundschaft, die nicht in der Kartei steht.
+ * Erster Schritt einer neuen Rechnung bzw. eines Kostenvoranschlags: Kunde wählen (bei mehreren Autos danach
+ * das Fahrzeug), dann öffnet sich der Entwurf mit Empfänger und Fahrzeug. „Ohne Kunde“ für Laufkundschaft, die nicht in der Kartei steht.
  */
 export function BelegStart({ art, ort, zuletzt }: { art: BelegArt; ort: Ort; zuletzt: KundenTreffer[] }) {
   const [laeuft, starten] = useTransition();
   const [fehler, setFehler] = useState("");
+  const [fahrzeugwahl, setFahrzeugwahl] = useState(false);
   const anlegen = (kundeId: string | null, fahrzeugId: string | null) =>
     starten(async () => {
       setFehler("");
@@ -27,8 +28,9 @@ export function BelegStart({ art, ort, zuletzt }: { art: BelegArt; ort: Ort; zul
 
   return (
     <div className="grid min-w-0 grid-cols-1 gap-4">
-      <KundenSuche zuletzt={zuletzt} autoFocus={ort === "admin"} gesperrt={laeuft} onWahl={(w) => anlegen(w.kunde.id, w.fahrzeug?.id ?? null)} />
-      <div className="flex flex-wrap items-center gap-3">
+      <KundenSuche zuletzt={zuletzt} autoFocus={ort === "admin"} gesperrt={laeuft} onWahl={(w) => anlegen(w.kunde.id, w.fahrzeug?.id ?? null)} onFahrzeugwahl={setFahrzeugwahl} />
+      {/* Während der Fahrzeugwahl wäre „Ohne Kunde weiter“ neben „Ohne Fahrzeug weiter“ verwirrend. */}
+      <div className={`flex flex-wrap items-center gap-3 ${fahrzeugwahl ? "hidden" : ""}`}>
         <button type="button" disabled={laeuft} onClick={() => anlegen(null, null)} className="knopf knopf-rahmen">
           Ohne Kunde weiter
         </button>

@@ -14,7 +14,7 @@ export default async function AppRechnung({ params }: { params: Promise<{ id: st
   const [preisliste, zuletzt] = await Promise.all([preislisteFuerBelege(), r.status === "entwurf" ? kundenSuchen("", 6) : []]);
   return (
     <>
-      <MobilKopf titel={r.nummer ? `Rechnung ${r.nummer}` : "Rechnung"} unter={RECHNUNG_STATUS[r.status]} zurueck={r.termin_id ? `/app/termine/${r.termin_id}` : "/app/rechnungen"} />
+      <MobilKopf titel={r.storno_zu ? `Stornorechnung ${r.nummer}` : r.nummer ? `Rechnung ${r.nummer}` : "Rechnungsentwurf"} unter={RECHNUNG_STATUS[r.status]} zurueck={r.termin_id ? `/app/termine/${r.termin_id}` : "/app/rechnungen"} />
       <div className="bg-weiss p-4">
         {r.status === "entwurf" ? (
           <BelegEditor

@@ -15,6 +15,7 @@ export const EREIGNIS_TYPEN = {
   "termin.storniert": "Ein Termin wurde storniert",
   "termin.verschoben": "Ein Termin wurde verschoben",
   "termin.erledigt": "Ein Auftrag wurde abgeschlossen",
+  "termin.geloescht": "Ein Termin wurde endgültig gelöscht (spätere Auftragsnummern rücken nach)",
   "rechnung.gestellt": "Eine Rechnung wurde gestellt",
   "rechnung.versendet": "Eine Rechnung wurde per E-Mail versendet",
   "rechnung.bezahlt": "Eine Rechnung wurde als bezahlt markiert",

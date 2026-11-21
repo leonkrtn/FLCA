@@ -1,0 +1,37 @@
+import { Formular, Senden } from "@/components/admin/formular";
+import { loeschenAktion } from "@/lib/aktionen/termine";
+
+/**
+ * „Termin löschen“ mit Rückfrage. Ist ein Termin noch angefragt oder bestätigt, erinnert die Frage an
+ * „Absagen“: Nur das schickt dem Kunden eine Mail, das Löschen geschieht still.
+ */
+export function TerminLoeschen({
+  id,
+  nummer,
+  status,
+  ziel,
+  gross = false,
+}: {
+  id: string;
+  nummer: number;
+  status: string;
+  ziel: "/admin/termine" | "/app";
+  /** Handy-App: volle Breite in normaler Knopfgröße */
+  gross?: boolean;
+}) {
+  const steht = ["angefragt", "bestaetigt"].includes(status);
+  const frage = [
+    `Termin Nr. ${nummer} endgültig löschen?`,
+    "Fotos und Verlauf werden mitgelöscht, die späteren Auftragsnummern rücken um eins nach. Rechnungen zum Termin bleiben erhalten.",
+    steht ? "Der Kunde bekommt keine Nachricht. Soll er Bescheid bekommen, den Termin vorher absagen." : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  return (
+    <Formular aktion={loeschenAktion.bind(null, ziel, id)} bestaetigen={frage}>
+      <Senden art="rahmen" klein={!gross} className={`text-fehler ${gross ? "w-full" : ""}`}>
+        Termin löschen
+      </Senden>
+    </Formular>
+  );
+}

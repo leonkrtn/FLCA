@@ -12,12 +12,11 @@ export const metadata = { title: "Übersicht" };
 export default async function Uebersicht() {
   const b = await benutzerMitRecht("termine");
   const heute = berlinDatum();
-  const [heuteRes, anfragenRes, offenRes, abwRes, kalRes] = await Promise.all([
+  const [heuteRes, anfragenRes, offenRes, abwRes] = await Promise.all([
     db().from("termine").select(TERMIN_FELDER).in("status", ["bestaetigt", "erledigt", "angefragt"]).gte("beginn", berlin(heute).toISOString()).lt("beginn", berlin(plusTage(heute, 1)).toISOString()).order("beginn"),
     db().from("termine").select(TERMIN_FELDER).eq("status", "angefragt").order("beginn").limit(8),
     db().from("rechnungen").select("summe_brutto_cent, faellig_am").eq("status", "gestellt"),
     db().from("abwesenheiten").select("id, art, von, bis, status, profil:profile(name)").lte("von", heute).gte("bis", heute).neq("status", "abgelehnt"),
-    db().from("kalender_verbindung").select("refresh_token, letzter_fehler").eq("id", 1).maybeSingle(),
   ]);
   const heuteTermine = (heuteRes.data ?? []) as Termin[];
   const anfragen = (anfragenRes.data ?? []) as Termin[];
@@ -28,13 +27,6 @@ export default async function Uebersicht() {
   return (
     <>
       <Kopf titel={`Hallo${b.name ? ` ${b.name.split(" ")[0]}` : ""}.`} unter={datumLangText(heute)} />
-      {kalRes.data && !kalRes.data.refresh_token ? (
-        <p className="mb-6 border-l-2 border-kreide bg-weiss px-4 py-3">
-          Der Google-Kalender ist noch nicht verbunden. <Link href="/admin/einstellungen?bereich=kalender" className="font-semibold underline">Jetzt verbinden</Link>
-        </p>
-      ) : kalRes.data?.letzter_fehler ? (
-        <p className="mb-6 border-l-2 border-rot bg-weiss px-4 py-3">{kalRes.data.letzter_fehler}</p>
-      ) : null}
       <div className="grid gap-x-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div>
           <Abschnitt titel={`Heute in der Werkstatt (${heuteTermine.length})`} aktion={<Link href="/admin/kalender" className="text-sm underline">Woche ansehen</Link>}>
