@@ -47,7 +47,7 @@ export async function anfrageSenden(_vorher: Ergebnis, formData: FormData): Prom
       const termin = await anfrageStellen(eingabe);
       return {
         status: "ok",
-        daten: { token: termin.token, leistung: termin.leistung_name, wann: `${datumLangText(termin.beginn)}, ${zeit(termin.beginn)} Uhr`, email: eingabe.email },
+        daten: { token: termin.token, leistung: termin.leistung_name, wann: `${datumLangText(termin.beginn)}, ${zeit(termin.beginn)} Uhr`, email: eingabe.email, frei: termin.wunschzeit_frei !== false },
       };
     } catch (error) {
       if (error instanceof TerminFehler) return { status: "fehler", meldung: error.message, fehler: { zeit: error.message }, werte: werteAus(formData), versuch: Date.now() };

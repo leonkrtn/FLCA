@@ -7,7 +7,7 @@ import { melden, verlauf } from "../ereignisse";
 import { type Ergebnis, ja, sicher, text, werteAus, zahl } from "../forms";
 import { entwurfAusTermin } from "../rechnung/rechnungen";
 import { db } from "../supabase/admin";
-import { ablehnen, bestaetigen, erledigen, loeschen, PlanungsWarnung, stornieren, terminEintragen, TerminFehler, umplanen, verschieben } from "../termine";
+import { ablehnen, bestaetigen, erledigen, gegenvorschlag, loeschen, PlanungsWarnung, stornieren, terminEintragen, TerminFehler, umplanen, verschieben } from "../termine";
 import { istDatum } from "../zeit";
 
 /** Termin-Aktionen. Admin am Rechner und Handy-App teilen sich diese Funktionen. */
@@ -88,6 +88,23 @@ export async function verschiebenAktion(id: string, _v: Ergebnis, fd: FormData):
     await verschieben(id, datum, uhrzeit, b.id, ja(fd, "ueberbuchen"));
     neuLaden(id);
     return { status: "ok", meldung: "Verschoben." };
+  });
+}
+
+/**
+ * Gegenvorschlag zu einer Anfrage. Die Zeit kommt aus einem der vorgeschlagenen freien Termine (Knopf mit
+ * name="vorschlag", Wert „Datum|Uhrzeit“) oder aus den Feldern Datum und Uhrzeit.
+ */
+export async function gegenvorschlagAktion(id: string, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
+  return mitFehlertext(fd, async () => {
+    const b = await benutzerMitRecht("termine");
+    const [vDatum, vUhr] = text(fd, "vorschlag", 20).split("|");
+    const datum = vDatum || text(fd, "datum", 10);
+    const uhrzeit = vUhr || text(fd, "uhrzeit", 5);
+    if (!istDatum(datum) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(uhrzeit)) return { status: "fehler", meldung: "Bitte einen Termin wählen oder Datum und Uhrzeit angeben." };
+    await gegenvorschlag(id, datum, uhrzeit, text(fd, "nachricht", 1000), b.id, ja(fd, "ueberbuchen"));
+    neuLaden(id);
+    return { status: "ok", meldung: "Vorschlag ist an den Kunden raus. Er kann über seinen Link annehmen oder ablehnen." };
   });
 }
 

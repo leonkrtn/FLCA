@@ -47,7 +47,7 @@ export default async function KalenderSeite({ searchParams }: { searchParams: Pr
       .from("termine")
       .select("id, beginn, leistung_name, fahrzeug:fahrzeuge(kennzeichen)")
       .is("zugewiesen_an", null)
-      .in("status", ["angefragt", "bestaetigt"])
+      .eq("status", "bestaetigt")
       .gte("beginn", new Date().toISOString())
       .order("beginn")
       .limit(8),

@@ -91,7 +91,7 @@ export async function leistungNamen(ids: string[]): Promise<Record<string, strin
 }
 
 /**
- * Offene künftige Termine ohne Mitarbeiter (Zähler „Kalender“ in der Verwaltung). Nur, wenn die Planung läuft:
+ * Bestätigte künftige Termine ohne Mitarbeiter (Zähler „Kalender“ in der Verwaltung). Nur, wenn die Planung läuft:
  * Sonst hätte jeder Termin keinen und der Zähler wäre nur Lärm.
  */
 export async function ohneMitarbeiterAnzahl(): Promise<number> {
@@ -101,7 +101,8 @@ export async function ohneMitarbeiterAnzahl(): Promise<number> {
       .from("termine")
       .select("id", { count: "exact", head: true })
       .is("zugewiesen_an", null)
-      .in("status", ["angefragt", "bestaetigt"])
+      // Nur bestätigte: Anfragen bekommen beim Annehmen automatisch jemanden und zählen schon unter „Termine“.
+      .eq("status", "bestaetigt")
       .gte("beginn", new Date().toISOString());
     return count ?? 0;
   } catch {
