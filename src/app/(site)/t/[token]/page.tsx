@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AbsageKnopf } from "@/components/site/absage";
+import { VorschlagAntwort } from "@/components/site/vorschlag-antwort";
 import { einstellungen } from "@/lib/einstellungen";
 import { datumLangText, euro, telHref, zeit } from "@/lib/format";
 import { db } from "@/lib/supabase/admin";
@@ -30,7 +31,13 @@ export default async function KundenTermin({ params }: { params: Promise<{ token
     .select("nummer, token, summe_brutto_cent, status, storno_zu")
     .eq("termin_id", t.id)
     .in("status", ["gestellt", "bezahlt", "storniert"]);
-  const [status, erklaerung] = STATUS[t.status];
+  // Anfrage zur belegten Zeit und offener Gegenvorschlag haben eigene Texte
+  const vorschlag = t.status === "angefragt" && Boolean(t.vorschlag_am);
+  const [status, erklaerung] = vorschlag
+    ? ["Unser Vorschlag", `${t.wunsch_beginn ? `Am ${datumLangText(t.wunsch_beginn)} um ${zeit(t.wunsch_beginn)} Uhr` : "Zu Ihrer Wunschzeit"} klappt es leider nicht. Passt Ihnen dieser Termin?`]
+    : t.status === "angefragt" && t.wunschzeit_frei === false
+      ? ["Angefragt", "Zu dieser Zeit ist es bei uns eng. Wir melden uns mit einer Zusage oder einem anderen Vorschlag."]
+      : STATUS[t.status];
   const absagbar =
     t.status === "angefragt" || (t.status === "bestaetigt" && new Date(t.beginn).getTime() - jetztMs() >= buchung.stornoFristStd * 3600000);
 
@@ -43,10 +50,16 @@ export default async function KundenTermin({ params }: { params: Promise<{ token
         {erklaerung}
       </p>
       <dl className="grid gap-y-4 border-t border-grau-hell pt-5 sm:grid-cols-[10rem_minmax(0,1fr)]">
-        <dt className="text-grau">Wann</dt>
+        <dt className="text-grau">{vorschlag ? "Vorschlag" : "Wann"}</dt>
         <dd className="font-semibold">
           {datumLangText(t.beginn)}, {zeit(t.beginn)} Uhr
         </dd>
+        {vorschlag && t.vorschlag_nachricht ? (
+          <>
+            <dt className="text-grau">Nachricht</dt>
+            <dd className="whitespace-pre-line">{t.vorschlag_nachricht}</dd>
+          </>
+        ) : null}
         {t.fahrzeug ? (
           <>
             <dt className="text-grau">Fahrzeug</dt>
@@ -80,7 +93,8 @@ export default async function KundenTermin({ params }: { params: Promise<{ token
       ) : null}
 
       <div className="mt-12 flex flex-wrap items-start gap-3">
-        {absagbar ? <AbsageKnopf token={token} /> : null}
+        {vorschlag ? <VorschlagAntwort token={token} /> : null}
+        {absagbar && !vorschlag ? <AbsageKnopf token={token} /> : null}
         <a href={telHref(firma.telefon)} className="knopf knopf-rahmen">
           Anrufen
         </a>

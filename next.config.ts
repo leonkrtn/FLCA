@@ -43,6 +43,9 @@ const nextConfig: NextConfig = {
       { source: "/admin/angebot/:id", destination: "/admin/preisliste/:id", permanent: true },
       // Leistungen und Preise standen früher unter Website, jetzt in der Preisliste.
       { source: "/admin/website/leistung/:id", destination: "/admin/preisliste/:id", permanent: true },
+      // „Team“ heißt in der Verwaltung jetzt „Mitarbeiter“ (die Team-App unter /team bleibt).
+      { source: "/admin/team", destination: "/admin/mitarbeiter", permanent: true },
+      { source: "/admin/team/:id", destination: "/admin/mitarbeiter/:id", permanent: true },
     ];
   },
   async headers() {
@@ -54,9 +57,9 @@ const nextConfig: NextConfig = {
           { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          // Mikrofon für „Sprechen“ in der Werkstatt-App. Gilt für die ganze Seite, nicht nur /app/sprechen:
-          // Die Regel hängt am zuerst geladenen Dokument, und die App wechselt Seiten ohne Neuladen.
-          { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(), browsing-topics=()" },
+          // Mikrofon für „Sprechen“ in der Werkstatt-App, Standort für „Einstempeln nur vor Ort“ in der Team-App.
+          // Gilt für die ganze Seite: Die Regel hängt am zuerst geladenen Dokument, und die Apps wechseln Seiten ohne Neuladen.
+          { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(self), browsing-topics=()" },
         ],
       },
       { source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache" }, { key: "Service-Worker-Allowed", value: "/" }] },

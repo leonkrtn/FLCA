@@ -62,9 +62,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       if (!istDatum(von)) return fehler(400, "von=JJJJ-MM-TT fehlt");
       // Mehrere Leistungen mit Komma: leistung=radwechsel,oelwechsel (Dauer ist die Summe)
       const slugs = [...new Set((q.get("leistung") ?? "").split(",").map((x) => x.trim()).filter(Boolean))].slice(0, MAX_LEISTUNGEN);
-      const { data: l } = slugs.length ? await db().from("leistungen").select("dauer_min").in("slug", slugs) : { data: [] };
+      const { data: l } = slugs.length ? await db().from("leistungen").select("id, dauer_min").in("slug", slugs) : { data: [] };
       if (!l?.length || l.length !== slugs.length) return fehler(404, "Leistung unbekannt");
-      return NextResponse.json({ daten: await freieTermine({ dauer_min: gesamtDauer(l) }, von, Math.min(Number(q.get("tage")) || 7, 31)) });
+      return NextResponse.json({ daten: await freieTermine({ dauer_min: gesamtDauer(l), ids: l.map((x) => x.id as string) }, von, Math.min(Number(q.get("tage")) || 7, 31)) });
     }
     default:
       return fehler(404, "Unbekannt. Verfügbar: termine, kunden, rechnungen, ereignisse, frei");

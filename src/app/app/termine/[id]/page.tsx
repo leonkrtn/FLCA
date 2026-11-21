@@ -4,12 +4,12 @@ import { TerminAktionen } from "@/components/admin/termin-aktionen";
 import { TerminLoeschen } from "@/components/admin/termin-loeschen";
 import { Marke } from "@/components/admin/ui";
 import { Karte, MobilKopf } from "@/components/mobil/teile";
-import { ablehnenAktion, absagenAktion, bestaetigenAktion, erledigtAktion, rechnungAusTermin, verschiebenAktion } from "@/lib/aktionen/termine";
+import { ablehnenAktion, absagenAktion, bestaetigenAktion, erledigtAktion, gegenvorschlagAktion, rechnungAusTermin, verschiebenAktion } from "@/lib/aktionen/termine";
 import { benutzerMitRecht } from "@/lib/auth";
 import { datumLangText, euro, telHref, whatsappHref, zeit } from "@/lib/format";
 import { TERMIN_TON } from "@/lib/status";
 import { db } from "@/lib/supabase/admin";
-import { STATUS_TEXT, terminLaden } from "@/lib/termine";
+import { anfrageLage, STATUS_TEXT, terminLaden } from "@/lib/termine";
 import { berlinDatum, berlinUhrzeit } from "@/lib/zeit";
 
 export default async function AppTermin({ params }: { params: Promise<{ id: string }> }) {
@@ -17,7 +17,10 @@ export default async function AppTermin({ params }: { params: Promise<{ id: stri
   const { id } = await params;
   const t = await terminLaden(id);
   if (!t) notFound();
-  const { data: rechnungen } = await db().from("rechnungen").select("id, nummer, status, summe_brutto_cent, storno_zu").eq("termin_id", id);
+  const [{ data: rechnungen }, lage] = await Promise.all([
+    db().from("rechnungen").select("id, nummer, status, summe_brutto_cent, storno_zu").eq("termin_id", id),
+    t.status === "angefragt" ? anfrageLage(t) : Promise.resolve(undefined),
+  ]);
   const offene = (rechnungen ?? []).find((r) => r.status !== "storniert" && !r.storno_zu);
   return (
     <>
@@ -47,7 +50,10 @@ export default async function AppTermin({ params }: { params: Promise<{ id: stri
               absagen: absagenAktion.bind(null, t.id),
               verschieben: verschiebenAktion.bind(null, t.id),
               erledigt: erledigtAktion.bind(null, t.id),
+              gegenvorschlag: gegenvorschlagAktion.bind(null, t.id),
             }}
+            lage={lage}
+            vorschlagOffen={t.status === "angefragt" && t.vorschlag_am ? "Vorschlag ist beim Kunden, er sagt über seinen Link zu oder ab." : undefined}
           />
           {!["angefragt", "bestaetigt"].includes(t.status) ? <p className="text-grau">Keine offene Entscheidung.</p> : null}
         </Karte>

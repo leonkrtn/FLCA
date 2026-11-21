@@ -11,7 +11,8 @@ export const metadata = { title: "Termin eintragen" };
 
 /**
  * `?datum=…&uhrzeit=…` füllt vor (Klick in den Kalender), `?kalender=<Montag>` führt „zurück“ in diese Woche,
- * `?kunde=…&fz=…` wählt den Kunden aus der Kartei vor (Kundenseite).
+ * `?kunde=…&fz=…` wählt den Kunden aus der Kartei vor (Kundenseite), `?an=<Person>` den Mitarbeiter und
+ * `?tag=<Datum>` führt zurück in die Tagesansicht des Kalenders.
  */
 export default async function NeuerTermin({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await benutzerMitRecht("termine");
@@ -19,7 +20,10 @@ export default async function NeuerTermin({ searchParams }: { searchParams: Prom
   const datum = istDatum(s.datum) ? s.datum : berlinDatum();
   const uhrzeit = typeof s.uhrzeit === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(s.uhrzeit) ? s.uhrzeit : undefined;
   const kunde = await kundenWahl(s.kunde, s.fz);
-  const zurueck = istDatum(s.kalender)
+  const mitarbeiter = typeof s.an === "string" && /^[0-9a-f-]{36}$/.test(s.an) ? s.an : undefined;
+  const zurueck = istDatum(s.tag)
+    ? { href: `/admin/kalender?tag=${s.tag}`, text: "Kalender" }
+    : istDatum(s.kalender)
     ? { href: `/admin/kalender?woche=${s.kalender}`, text: "Kalender" }
     : kunde
       ? { href: `/admin/kunden/${kunde.kunde.id}`, text: kunde.kunde.name }
@@ -33,7 +37,7 @@ export default async function NeuerTermin({ searchParams }: { searchParams: Prom
     <>
       <Kopf titel="Termin eintragen" unter="Für Kunden, die anrufen oder vorbeikommen. Der Termin ist sofort bestätigt und steht im Kalender." zurueck={zurueck} />
       <Abschnitt>
-        <TerminFormular aktion={eintragenAktion.bind(null, "/admin/termine")} leistungen={((leistungen ?? []) as Leistung[]).filter(istTerminLeistung)} team={team ?? []} datum={datum} uhrzeit={uhrzeit} kunde={kunde} zuletzt={zuletzt} />
+        <TerminFormular aktion={eintragenAktion.bind(null, "/admin/termine")} leistungen={((leistungen ?? []) as Leistung[]).filter(istTerminLeistung)} team={team ?? []} datum={datum} uhrzeit={uhrzeit} kunde={kunde} zuletzt={zuletzt} mitarbeiter={mitarbeiter} />
       </Abschnitt>
     </>
   );

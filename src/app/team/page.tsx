@@ -1,16 +1,17 @@
 import Link from "next/link";
-import { Formular, Senden } from "@/components/admin/formular";
 import { Marke } from "@/components/admin/ui";
 import { AuftragKnoepfe } from "@/components/mobil/auftrag";
 import { Karte, MobilKopf } from "@/components/mobil/teile";
-import { stempeln } from "@/lib/aktionen/team";
+import { Stempeln } from "@/components/mobil/stempeln";
 import { benutzerMitRecht } from "@/lib/auth";
 import { einstellungen } from "@/lib/einstellungen";
 import { datumLangText, zeit } from "@/lib/format";
+import { planPersonen } from "@/lib/mitarbeiter";
 import { faelligeAnzahl } from "@/lib/notizen";
+import { abwesenheitAm, abwesenheitText, arbeitsfenster } from "@/lib/planung";
 import { db } from "@/lib/supabase/admin";
 import { TERMIN_FELDER, type Termin } from "@/lib/termine";
-import { berlin, berlinDatum, plusTage, wochentag } from "@/lib/zeit";
+import { berlin, berlinDatum, plusTage } from "@/lib/zeit";
 import { monatszeiten, stunden } from "@/lib/zeiterfassung";
 
 export const metadata = { title: "Heute" };
@@ -19,15 +20,17 @@ const AUFTRAG: Record<string, [string, "hell" | "warnung" | "ok"]> = { offen: ["
 
 export default async function TeamHeute() {
   const b = await benutzerMitRecht("werkstatt");
-  const { module } = await einstellungen();
+  const { module, standort } = await einstellungen();
   const heute = berlinDatum();
-  const [{ data: auftraege }, { data: zeiten }, { data: offen }, { data: abw }, erinnerungen] = await Promise.all([
+  const [{ data: auftraege }, plan, { data: offen }, erinnerungen] = await Promise.all([
     db().from("termine").select(TERMIN_FELDER).eq("zugewiesen_an", b.id).in("status", ["bestaetigt", "erledigt"]).gte("beginn", berlin(heute).toISOString()).lt("beginn", berlin(plusTage(heute, 1)).toISOString()).order("beginn"),
-    db().from("arbeitszeiten").select("beginn, ende").eq("profil_id", b.id).eq("wochentag", wochentag(heute)).order("beginn"),
+    planPersonen(heute, heute, false).then((alle) => alle.find((p) => p.id === b.id) ?? null),
     db().from("zeiteintraege").select("beginn").eq("profil_id", b.id).is("ende", null).maybeSingle(),
-    db().from("abwesenheiten").select("art").eq("profil_id", b.id).lte("von", heute).gte("bis", heute).eq("status", "genehmigt").maybeSingle(),
     faelligeAnzahl(b),
   ]);
+  // Wochenplan, Ausnahme für heute und Abwesenheit (auch halbe Tage) wie in der Planung
+  const abw = plan ? abwesenheitAm(plan, heute) : null;
+  const fenster = plan ? arbeitsfenster(plan, heute) : [];
   const zeiterfassung = module.zeiterfassung && b.zeiterfassung;
   const monat = zeiterfassung ? await monatszeiten(b.id, heute.slice(0, 7)) : null;
 
@@ -44,19 +47,17 @@ export default async function TeamHeute() {
         <Karte>
           <p className="text-sm text-grau">Deine Zeit heute</p>
           <p className="zahlen text-2xl">
-            {abw ? (abw.art === "krank" ? "krank gemeldet" : "frei") : zeiten?.length ? zeiten.map((z) => `${z.beginn.slice(0, 5)}–${z.ende.slice(0, 5)}`).join(", ") : "frei"}
+            {abw && !abw.von_zeit ? (abw.art === "krank" ? "krank gemeldet" : "frei") : fenster.length ? fenster.map(([a, z]) => `${a}–${z}`).join(", ") : "frei"}
           </p>
+          {abw?.von_zeit ? <p className="text-sm text-grau">{abwesenheitText(abw)} {abw.von_zeit.slice(0, 5)}–{abw.bis_zeit?.slice(0, 5)} Uhr</p> : null}
         </Karte>
         {zeiterfassung ? (
           <Karte>
-            <Formular aktion={stempeln} className="grid gap-2">
-              <p className="text-sm text-grau">
-                {offen ? `Eingestempelt seit ${zeit(offen.beginn)} Uhr` : "Nicht eingestempelt"} · Monat: {stunden(monat!.minuten)}
-              </p>
-              <Senden art={offen ? "rahmen" : "rot"} className="min-h-14 w-full text-lg" vorab={offen ? "Ausgestempelt" : "Eingestempelt"}>
-                {offen ? "Ausstempeln" : "Einstempeln"}
-              </Senden>
-            </Formular>
+            <Stempeln
+              eingestempelt={Boolean(offen)}
+              nurVorOrt={standort.nurVorOrt && standort.lat !== null && standort.lng !== null}
+              text={`${offen ? `Eingestempelt seit ${zeit(offen.beginn)} Uhr` : "Nicht eingestempelt"} · Monat: ${stunden(monat!.minuten)}`}
+            />
           </Karte>
         ) : null}
         <h2 className="px-2 pt-4 font-semibold">Deine Aufträge heute</h2>

@@ -16,6 +16,8 @@ export const EREIGNIS_TYPEN = {
   "termin.verschoben": "Ein Termin wurde verschoben",
   "termin.erledigt": "Ein Auftrag wurde abgeschlossen",
   "termin.geloescht": "Ein Termin wurde endgültig gelöscht (spätere Auftragsnummern rücken nach)",
+  "termin.gegenvorschlag": "Dem Kunden wurde statt seiner Wunschzeit eine andere Zeit vorgeschlagen",
+  "termin.zugewiesen": "Ein Termin wurde einem Mitarbeiter zugeteilt oder abgenommen (vorher = bisherige Person)",
   "termin.kunde_verknuepft": "Ein Termin wurde mit einem anderen Kunden verknüpft",
   "rechnung.gestellt": "Eine Rechnung wurde gestellt",
   "rechnung.versendet": "Eine Rechnung wurde per E-Mail versendet",
@@ -36,6 +38,7 @@ export const EREIGNIS_TYPEN = {
   "einlagerung.ausgelagert": "Räder wurden ausgelagert",
   "bewerbung.eingegangen": "Eine Bewerbung ist eingegangen",
   "abwesenheit.beantragt": "Urlaub beantragt oder krank gemeldet",
+  "abwesenheit.eingetragen": "Eine Abwesenheit gilt (genehmigt, krank gemeldet oder vom Inhaber eingetragen)",
   "zeit.gestempelt": "Ein Mitarbeiter hat ein- oder ausgestempelt",
 } as const;
 

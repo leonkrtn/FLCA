@@ -60,7 +60,10 @@ export default async function TerminListe({ searchParams }: { searchParams: Prom
                 <td>{t.leistung_name}</td>
                 <td>{t.kunde?.name}</td>
                 <td className="zahlen whitespace-nowrap">{t.fahrzeug?.kennzeichen}</td>
-                <td><Marke ton={TERMIN_TON[t.status]}>{STATUS_TEXT[t.status]}</Marke></td>
+                <td>
+                  <Marke ton={TERMIN_TON[t.status]}>{STATUS_TEXT[t.status]}</Marke>
+                  {t.status === "angefragt" && t.vorschlag_am ? <span className="block text-xs text-grau">Vorschlag beim Kunden</span> : t.status === "angefragt" && t.wunschzeit_frei === false ? <span className="block text-xs text-grau">Wunschzeit belegt</span> : null}
+                </td>
                 <td>{t.mitarbeiter?.name ?? <span className="text-grau">–</span>}</td>
                 <td className="zahl">{t.nummer}</td>
               </tr>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { Haken } from "@/components/icons";
 import { type Ergebnis, LEER } from "@/lib/forms";
@@ -24,7 +24,14 @@ export function Formular({
   zuruecksetzen?: boolean;
   bestaetigen?: string;
 }) {
-  const [zustand, ausfuehren] = useActionState(aktion, LEER);
+  // Die letzte Eingabe merken: Meldet die Aktion nur eine Warnung (z. B. „Max hat da schon einen Termin“),
+  // speichert „Trotzdem speichern“ genau diese Eingabe mit ueberbuchen=on, ohne alles neu auszufüllen.
+  const letzte = useRef<FormData | null>(null);
+  const [zustand, ausfuehren] = useActionState(async (vorher: Ergebnis, fd: FormData) => {
+    letzte.current = fd;
+    return aktion(vorher, fd);
+  }, LEER);
+  const [trotzdemLaeuft, starten] = useTransition();
   const ref = useRef<HTMLFormElement>(null);
   useEffect(() => {
     if (zustand.status === "ok" && zuruecksetzen) ref.current?.reset();
@@ -40,6 +47,22 @@ export function Formular({
     >
       {children}
       <Meldung zustand={zustand} />
+      {zustand.status === "fehler" && Array.isArray(zustand.daten?.warnungen) ? (
+        <button
+          type="button"
+          disabled={trotzdemLaeuft}
+          className={`knopf knopf-rahmen knopf-klein mt-2 ${trotzdemLaeuft ? "cursor-progress opacity-60" : ""}`}
+          onClick={() => {
+            if (!letzte.current) return;
+            const fd = new FormData();
+            for (const [k, v] of letzte.current.entries()) fd.append(k, v);
+            fd.set("ueberbuchen", "on");
+            starten(() => ausfuehren(fd));
+          }}
+        >
+          Trotzdem speichern
+        </button>
+      ) : null}
     </form>
   );
 }
