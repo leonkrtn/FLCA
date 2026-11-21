@@ -121,26 +121,28 @@ export function KundenSuche({
           </span>
           <span className="block text-xs text-grau">Welches Fahrzeug?</span>
         </p>
-        <ul role="list" aria-label={`Fahrzeuge von ${kunde.name}`} className="divide-y divide-linie border-y border-linie">
+        {/* Kennzeichen sind verschieden breit. Über Subgrid teilen sich alle Zeilen eine Spalte, so breit
+            wie das längste Kennzeichen: Die Schilder sind gleich groß und die Modelle stehen bündig. */}
+        <ul role="list" aria-label={`Fahrzeuge von ${kunde.name}`} className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 divide-y divide-linie border-y border-linie">
           {autos.map((f) => (
-            <li key={f?.id ?? "ohne"}>
+            <li key={f?.id ?? "ohne"} className="col-span-2 grid grid-cols-subgrid">
               <button
                 type="button"
                 data-fahrzeug
                 disabled={gesperrt}
                 onClick={() => !gesperrt && onWahl({ kunde, fahrzeug: f })}
-                className="flex min-h-14 w-full items-center gap-3 px-2 py-2 text-left focus:bg-papier disabled:opacity-60 active:bg-papier"
+                className="col-span-2 grid min-h-14 grid-cols-subgrid items-center px-2 py-2 text-left focus:bg-papier disabled:opacity-60 active:bg-papier"
               >
                 {f ? (
                   <>
-                    <span className="zahlen shrink-0 rounded-sm border border-linie px-2 py-0.5 text-sm font-semibold">{f.kennzeichen}</span>
-                    <span className="min-w-0 flex-1">
+                    <span className="zahlen rounded-sm border border-linie px-2 py-0.5 text-center text-sm font-semibold">{f.kennzeichen}</span>
+                    <span className="min-w-0">
                       <span className="block truncate">{f.marke_modell || "Modell nicht eingetragen"}</span>
                       {f.km_stand ? <span className="zahlen block text-sm text-grau">{f.km_stand.toLocaleString("de-DE")} km</span> : null}
                     </span>
                   </>
                 ) : (
-                  <span className="text-grau">Ohne Fahrzeug weiter</span>
+                  <span className="col-span-2 text-grau">Ohne Fahrzeug weiter</span>
                 )}
               </button>
             </li>

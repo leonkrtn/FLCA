@@ -64,9 +64,11 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
             <div className="space-y-6">
               {(fz.data ?? []).map((f) => (
                 <details key={f.id} className="border-b border-linie pb-4">
-                  <summary className="cursor-pointer list-none">
-                    <span className="zahlen font-semibold">{f.kennzeichen}</span> <span className="text-grau">{f.marke_modell}</span>
-                    {f.km_stand ? <span className="zahlen ml-2 text-sm text-grau">{new Intl.NumberFormat("de-DE").format(f.km_stand)} km</span> : null}
+                  {/* Kennzeichen in fester Breite, damit die Modelle untereinander bündig stehen; km-Stand rechts. */}
+                  <summary className="flex cursor-pointer list-none items-baseline gap-3">
+                    <span className="zahlen min-w-28 shrink-0 font-semibold">{f.kennzeichen}</span>
+                    <span className="min-w-0 flex-1 truncate text-grau">{f.marke_modell}</span>
+                    {f.km_stand ? <span className="zahlen shrink-0 text-right text-sm text-grau">{new Intl.NumberFormat("de-DE").format(f.km_stand)} km</span> : null}
                   </summary>
                   <FahrzeugFormular kundeId={k.id} f={f} typen={typen} />
                 </details>
