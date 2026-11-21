@@ -13,6 +13,7 @@ export function TerminFormular({
   leistungen,
   team,
   datum,
+  uhrzeit,
   kompakt = false,
   vorgabe,
 }: {
@@ -20,6 +21,8 @@ export function TerminFormular({
   leistungen: { id: string; name: string; dauer_min: number }[];
   team: { id: string; name: string }[];
   datum: string;
+  /** Vorgabe für die Uhrzeit (Klick in den Kalender) */
+  uhrzeit?: string;
   kompakt?: boolean;
   vorgabe?: TerminVorgabe | null;
 }) {
@@ -28,7 +31,7 @@ export function TerminFormular({
     <Formular aktion={aktion} className={`grid gap-4 ${kompakt ? "" : "sm:grid-cols-2"}`}>
       <LeistungenWahl leistungen={leistungen} kompakt={kompakt} start={v?.leistungIds} frei={v?.leistungFrei} dauer={v?.dauer} />
       <Feld label="Datum" name="datum" typ="date" wert={v?.datum || datum} required />
-      <Feld label="Uhrzeit" name="uhrzeit" typ="time" wert={v?.uhrzeit} required />
+      <Feld label="Uhrzeit" name="uhrzeit" typ="time" wert={v?.uhrzeit || uhrzeit} required />
       <Feld label="Name" name="name" wert={v?.name} required autoComplete="off" />
       <Feld label="Telefon" name="telefon" typ="tel" wert={v?.telefon} inputMode="tel" />
       <Feld label="Kennzeichen" name="kennzeichen" wert={v?.kennzeichen} autoCapitalize="characters" className="uppercase-input" />
