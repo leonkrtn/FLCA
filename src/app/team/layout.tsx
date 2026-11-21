@@ -20,7 +20,7 @@ export default async function TeamLayout({ children }: { children: React.ReactNo
   const { module } = await einstellungen();
   const zeiten = module.zeiterfassung && b.zeiterfassung;
   return (
-    <div className="min-h-dvh bg-boden pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)]">
+    <div className="handy-app min-h-dvh bg-boden pb-[calc(4.5rem+env(safe-area-inset-bottom))]" data-leiste="hell">
       <div className="mx-auto max-w-xl">{children}</div>
       <PushAbgleich />
       <TabLeiste

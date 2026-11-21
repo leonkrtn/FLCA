@@ -26,7 +26,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   await benutzerMitRecht("termine");
   const { count } = await db().from("termine").select("id", { count: "exact", head: true }).eq("status", "angefragt");
   return (
-    <div className="min-h-dvh bg-boden pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)]">
+    <div className="handy-app min-h-dvh bg-boden pb-[calc(4.5rem+env(safe-area-inset-bottom))]" data-leiste="dunkel">
       <div className="mx-auto max-w-xl">{children}</div>
       <PushAbgleich />
       <TabLeiste

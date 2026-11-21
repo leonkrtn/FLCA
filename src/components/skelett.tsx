@@ -72,7 +72,7 @@ export function AbschnittSkelett({ zeilen = 3 }: { zeilen?: number }) {
 export function MobilSkelett({ karten = 5 }: { karten?: number }) {
   return (
     <Laedt>
-      <div className="border-b border-linie px-4 pb-3 pt-3">
+      <div className="sticky top-0 z-30 border-b border-linie bg-boden px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))]">
         <div className="flex h-8 items-center">
           <S className="h-6 w-40" />
         </div>
