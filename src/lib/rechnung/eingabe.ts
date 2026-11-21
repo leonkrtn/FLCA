@@ -1,4 +1,5 @@
 import "server-only";
+import { db } from "../supabase/admin";
 import { istDatum } from "../zeit";
 import { centGenau, nettoAusBruttoPreis, type Position } from "./berechnung";
 import type { PaketWunsch } from "./preisgedaechtnis";
@@ -77,4 +78,22 @@ export function belegAus(roh: Record<string, unknown>) {
     hinweis: String(roh.hinweis ?? "").slice(0, 1000),
     datumOderNull: (k: string) => (istDatum(roh[k]) ? (roh[k] as string) : null),
   };
+}
+
+/**
+ * Der Stand aus dem Editor für die PDF-Vorschau, ohne ihn zu speichern. Halb angelegte Zeilen ohne
+ * Bezeichnung lässt die Vorschau weg, statt deswegen gar nichts zu zeigen; die Kundennummer kommt zum
+ * gerade gewählten Kunden aus der Kartei.
+ */
+export async function vorschauAus(fd: FormData) {
+  let roh: Record<string, unknown> = {};
+  try {
+    roh = JSON.parse(String(fd.get("daten") ?? "{}"));
+  } catch {
+    throw new Error("Die Angaben aus dem Formular sind unvollständig angekommen.");
+  }
+  const positionen = Array.isArray(roh.positionen) ? roh.positionen.filter((p) => p?.rabatt || String(p?.text ?? "").trim()) : [];
+  const beleg = belegAus({ ...roh, positionen });
+  const { data: kunde } = beleg.kunde_id ? await db().from("kunden").select("nummer").eq("id", beleg.kunde_id).maybeSingle() : { data: null };
+  return { ...beleg, kunde: (kunde as { nummer: number } | null) ?? null };
 }

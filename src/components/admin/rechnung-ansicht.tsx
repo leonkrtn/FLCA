@@ -2,25 +2,31 @@ import Link from "next/link";
 import { Formular, Senden } from "./formular";
 import { PositionenUebersicht } from "./positionen-uebersicht";
 import { Feld } from "./ui";
-import { bezahltAktion, stornoAktion, versendenAktion } from "@/lib/aktionen/rechnungen";
+import { bezahltAktion, stornoAktion, unbezahltAktion, versendenAktion } from "@/lib/aktionen/rechnungen";
 import { datum, datumZeit } from "@/lib/format";
-import type { Rechnung } from "@/lib/rechnung/rechnungen";
+import { eRechnungFehlt, type Rechnung } from "@/lib/rechnung/rechnungen";
 import { berlinDatum } from "@/lib/zeit";
 
 /** Gestellte Rechnung: nur noch ansehen, senden, Zahlung vermerken, stornieren. */
 export function RechnungAnsicht({ r, basis, pdfHref }: { r: Rechnung; basis: "/admin/rechnungen" | "/app/rechnungen"; pdfHref: string }) {
   // Mit Leitweg-ID (Behörde) ist die E-Rechnung eine XRechnung, sonst ZUGFeRD EN 16931 (siehe zugferd.ts).
   const xrechnung = Boolean(r.empfaenger.leitweg_id?.trim());
+  // Ohne Steuernummer usw. gestellt: nur PDF, keine E-Rechnung (siehe pdfErzeugen).
+  const fehlt = eRechnungFehlt(r);
   return (
     <div className="grid gap-6">
       <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         <a href={pdfHref} target="_blank" className="knopf knopf-dunkel">PDF öffnen</a>
-        <a href={`/admin/rechnungen/${r.id}/xml`} className="knopf knopf-rahmen">{xrechnung ? "XRechnung (XML)" : "E-Rechnung (XML)"}</a>
+        {!fehlt.length ? <a href={`/admin/rechnungen/${r.id}/xml`} className="knopf knopf-rahmen">{xrechnung ? "XRechnung (XML)" : "E-Rechnung (XML)"}</a> : null}
         {r.status === "gestellt" ? (
           <Formular aktion={bezahltAktion.bind(null, r.id)} className="contents">
             <input type="hidden" name="am" value={berlinDatum()} />
             <Senden art="rahmen" name="zahlungsart" value="bar" vorab="Bezahlt">Bar bezahlt</Senden>
             <Senden art="rahmen" name="zahlungsart" value="ueberweisung" vorab="Bezahlt">Überweisung da</Senden>
+          </Formular>
+        ) : r.status === "bezahlt" ? (
+          <Formular aktion={unbezahltAktion.bind(null, r.id)} className="contents">
+            <Senden art="rahmen" vorab="Wird zurückgesetzt">Nicht bezahlt</Senden>
           </Formular>
         ) : null}
       </div>
@@ -31,7 +37,13 @@ export function RechnungAnsicht({ r, basis, pdfHref }: { r: Rechnung; basis: "/a
         <dt className="text-grau">Empfänger</dt>
         <dd>{[r.empfaenger.firma, r.empfaenger.name].filter(Boolean).join(", ")}</dd>
         <dt className="text-grau">E-Rechnung</dt>
-        <dd>{xrechnung ? `XRechnung 3.0, Leitweg-ID ${r.empfaenger.leitweg_id}` : "ZUGFeRD / Factur-X (EN 16931), im PDF eingebettet"}</dd>
+        <dd>
+          {fehlt.length
+            ? `keine, beim Stellen fehlte: ${fehlt.join("; ")}`
+            : xrechnung
+              ? `XRechnung 3.0, Leitweg-ID ${r.empfaenger.leitweg_id}`
+              : "ZUGFeRD / Factur-X (EN 16931), im PDF eingebettet"}
+        </dd>
         <dt className="text-grau">Rechnungsdatum</dt>
         <dd>{datum(r.rechnungsdatum)}</dd>
         <dt className="text-grau">Fällig</dt>

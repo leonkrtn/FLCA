@@ -25,7 +25,7 @@ type Art = Parameters<typeof sammelAktion>[0];
 /**
  * Rechnungsliste mit Mehrfachauswahl. Häkchen links, Umschalt+Klick wählt einen Bereich. Sobald etwas
  * ausgewählt ist, erscheint unten eine Leiste mit dem, was für die Auswahl geht: PDFs als ZIP,
- * als bezahlt markieren, per Mail senden, Entwürfe löschen. Der neue Status steht sofort in der
+ * als bezahlt oder wieder als nicht bezahlt markieren, per Mail senden, Entwürfe löschen. Der neue Status steht sofort in der
  * Liste (optimistisch), der Server zieht nach; schlägt etwas fehl, steht wieder der alte da.
  */
 export function RechnungsAuswahl({ zeilen, summe }: { zeilen: Zeile[]; summe: number }) {
@@ -38,13 +38,16 @@ export function RechnungsAuswahl({ zeilen, summe }: { zeilen: Zeile[]; summe: nu
       ? alt.filter((z) => !(ids.has(z.id) && z.status === "entwurf"))
       : art === "senden"
         ? alt
-        : alt.map((z) => (ids.has(z.id) && z.status === "gestellt" ? { ...z, status: "bezahlt" as const, statusText: "Bezahlt", ton: "ok" as const } : z)),
+        : art === "unbezahlt"
+          ? alt.map((z) => (ids.has(z.id) && z.status === "bezahlt" ? { ...z, status: "gestellt" as const, statusText: "Offen", ton: "warnung" as const } : z))
+          : alt.map((z) => (ids.has(z.id) && z.status === "gestellt" ? { ...z, status: "bezahlt" as const, statusText: "Bezahlt", ton: "ok" as const } : z)),
   );
 
   // Ausgewählt zählt nur, was noch in der Liste steht (nach Filterwechsel oder Löschen).
   const auswahl = useMemo(() => liste.filter((z) => gewaehlt.has(z.id)), [liste, gewaehlt]);
   const anzahl = {
     offen: auswahl.filter((z) => z.status === "gestellt").length,
+    bezahlt: auswahl.filter((z) => z.status === "bezahlt").length,
     senden: auswahl.filter((z) => z.status !== "entwurf" && z.email).length,
     entwuerfe: auswahl.filter((z) => z.status === "entwurf").length,
   };
@@ -174,6 +177,7 @@ export function RechnungsAuswahl({ zeilen, summe }: { zeilen: Zeile[]; summe: nu
           </a>
           <Knopf aus={!anzahl.offen || laeuft} onClick={() => ausfuehren("bezahlt_ueberweisung")} text={`Überweisung da${anzahl.offen ? ` (${anzahl.offen})` : ""}`} />
           <Knopf aus={!anzahl.offen || laeuft} onClick={() => ausfuehren("bezahlt_bar")} text="Bar bezahlt" />
+          {anzahl.bezahlt ? <Knopf aus={laeuft} onClick={() => ausfuehren("unbezahlt")} text={`Nicht bezahlt (${anzahl.bezahlt})`} /> : null}
           <Knopf
             aus={!anzahl.senden || laeuft}
             onClick={() => ausfuehren("senden", `${anzahl.senden} ${anzahl.senden === 1 ? "Rechnung" : "Rechnungen"} per E-Mail an die Kunden senden?`)}

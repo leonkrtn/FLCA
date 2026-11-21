@@ -8,7 +8,13 @@ export async function GET(_r: Request, { params }: { params: Promise<{ id: strin
   const r = await rechnungLaden((await params).id);
   if (!r) return new NextResponse("Nicht gefunden", { status: 404 });
   if (r.status === "entwurf") return new NextResponse("Entwürfe haben noch keine E-Rechnung. Bitte zuerst stellen.", { status: 409 });
-  return new NextResponse(await xmlErzeugen(r), {
+  let xml: string;
+  try {
+    xml = await xmlErzeugen(r);
+  } catch (e) {
+    return new NextResponse(e instanceof Error ? e.message : String(e), { status: 409, headers: { "content-type": "text/plain; charset=utf-8" } });
+  }
+  return new NextResponse(xml, {
     headers: { "content-type": "application/xml; charset=utf-8", "content-disposition": `attachment; filename="${dateiname(r, "xml")}"`, "cache-control": "private, no-store" },
   });
 }

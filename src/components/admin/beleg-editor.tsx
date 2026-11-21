@@ -106,6 +106,7 @@ export function BelegEditor({
 }) {
   const { preisliste, preise, pakete, bezeichnungen, typen } = daten;
   const listeId = useId();
+  const vorschauId = useId();
   // Alte Entwürfe (brutto) und alte Fahrzeugangaben (ein Feld) beim Öffnen umstellen.
   const [d, setD] = useState<BelegDaten>(() => ({
     ...start,
@@ -307,6 +308,12 @@ export function BelegEditor({
   const regulaer = d.positionen.map((p, i) => (p.rabatt ? -1 : i)).filter((i) => i >= 0);
 
   return (
+    <>
+      {/* Eigenes Formular für die Vorschau (Formulare dürfen nicht ineinander stecken): schickt den
+          aktuellen Stand per POST in einen neuen Tab, ohne zu speichern. */}
+      <form id={vorschauId} method="post" action={t.pdf(id)} target="_blank" hidden>
+        <input type="hidden" name="daten" value={JSON.stringify(d)} />
+      </form>
     <form action={aktion} className="grid min-w-0 gap-8">
       <input type="hidden" name="daten" value={JSON.stringify({ ...d, pakete: art === "rechnung" && stellenOffen ? paketWuensche : [] })} />
       <datalist id={listeId}>
@@ -729,7 +736,7 @@ export function BelegEditor({
       {/* In der Handy-App sitzt die Tab-Leiste unten, die Knopfleiste klebt deshalb darüber statt dahinter. */}
       <div className={`sticky ${kompakt ? "bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))]" : "bottom-0"} z-10 -mx-4 grid grid-cols-[auto_auto_minmax(0,1fr)] items-center max-[359px]:grid-cols-2 gap-2 border-t border-linie bg-weiss px-4 py-3 md:static md:mx-0 md:flex md:flex-wrap md:gap-3 md:border-0 md:bg-transparent md:p-0`}>
         <button type="submit" name="weiter" value="" disabled={laeuft} className="knopf knopf-rahmen px-3 md:px-5">Speichern</button>
-        <a href={t.pdf(id)} target="_blank" className="knopf knopf-rahmen px-3 md:px-5">Vorschau</a>
+        <button type="submit" form={vorschauId} className="knopf knopf-rahmen px-3 md:px-5">Vorschau</button>
         <button
           type={art === "rechnung" ? "button" : "submit"}
           name={art === "rechnung" ? undefined : "weiter"}
@@ -752,6 +759,7 @@ export function BelegEditor({
         {zustand.meldung ? <p className={`col-span-full w-full text-sm font-semibold ${zustand.status === "fehler" ? "text-rot" : "text-ok"}`}>{zustand.meldung}</p> : null}
       </div>
     </form>
+    </>
   );
 }
 

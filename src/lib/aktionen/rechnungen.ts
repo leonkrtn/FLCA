@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { benutzerMitRecht } from "../auth";
 import { type Ergebnis, istEmail, ja, sicher, text } from "../forms";
 import { belegAus, paketeAus } from "../rechnung/eingabe";
-import { alsBezahlt, type Empfaenger, entwurfSpeichern, rechnungLaden, stellen, stornieren, versenden } from "../rechnung/rechnungen";
+import { alsBezahlt, alsUnbezahlt, type Empfaenger, entwurfSpeichern, rechnungLaden, stellen, stornieren, versenden } from "../rechnung/rechnungen";
 import { db } from "../supabase/admin";
 import { berlinDatum, istDatum } from "../zeit";
 
@@ -62,13 +62,22 @@ export async function bezahltAktion(id: string, _v: Ergebnis, fd: FormData): Pro
   });
 }
 
+export async function unbezahltAktion(id: string, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
+  return sicher(fd, async () => {
+    const b = await benutzerMitRecht("rechnungen");
+    await alsUnbezahlt(id, b.id);
+    neuLaden(id);
+    return { status: "ok", meldung: "Als nicht bezahlt markiert." };
+  });
+}
+
 /**
  * Sammelaktionen aus der Rechnungsliste. Jede Rechnung läuft einzeln durch dieselbe Funktion wie auf
  * ihrer Detailseite (Verlauf, Ereignisse, Mail), Rechnungen, für die die Aktion nicht passt, werden
  * übersprungen und in der Meldung gezählt statt die ganze Auswahl abzubrechen.
  */
 export async function sammelAktion(
-  art: "bezahlt_ueberweisung" | "bezahlt_bar" | "senden" | "entwuerfe_loeschen",
+  art: "bezahlt_ueberweisung" | "bezahlt_bar" | "unbezahlt" | "senden" | "entwuerfe_loeschen",
   ids: string[],
 ): Promise<Ergebnis> {
   const b = await benutzerMitRecht("rechnungen");
@@ -97,6 +106,9 @@ export async function sammelAktion(
             continue;
           }
           await versenden(r.id, an, b.id);
+        } else if (art === "unbezahlt") {
+          if (r.status !== "bezahlt") continue;
+          await alsUnbezahlt(r.id, b.id);
         } else {
           if (r.status !== "gestellt") continue;
           await alsBezahlt(r.id, art === "bezahlt_bar" ? "bar" : "ueberweisung", berlinDatum(), b.id);
@@ -110,7 +122,7 @@ export async function sammelAktion(
   revalidatePath("/admin/rechnungen", "layout");
   revalidatePath("/app", "layout");
 
-  const was = { bezahlt_ueberweisung: "als bezahlt markiert", bezahlt_bar: "als bar bezahlt markiert", senden: "per E-Mail gesendet", entwuerfe_loeschen: "gelöscht" }[art];
+  const was = { bezahlt_ueberweisung: "als bezahlt markiert", bezahlt_bar: "als bar bezahlt markiert", unbezahlt: "als nicht bezahlt markiert", senden: "per E-Mail gesendet", entwuerfe_loeschen: "gelöscht" }[art];
   const uebrig = auswahl.length - ok - fehler.length;
   const meldung = [
     `${ok} ${ok === 1 ? "Rechnung" : "Rechnungen"} ${was}.`,
