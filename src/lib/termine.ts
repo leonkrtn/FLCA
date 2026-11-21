@@ -614,6 +614,25 @@ export async function erledigen(id: string, vonBenutzer: string, status: "erledi
   if (status === "erledigt") after(() => melden("termin.erledigt", ereignisDaten(termin)));
 }
 
+/**
+ * Löscht einen Termin endgültig, mit Fotos, Verlauf und Kalendereintrag. Die späteren Auftragsnummern
+ * rücken nach (termin_loeschen). Rechnungen zum Termin bleiben, sie verlieren nur den Verweis. Der Kunde
+ * bekommt keine Mail: Wer ihm Bescheid geben will, sagt den Termin vorher ab.
+ */
+export async function loeschen(id: string, vonBenutzer: string): Promise<void> {
+  const termin = await terminLaden(id);
+  if (!termin) throw new TerminFehler("Termin nicht gefunden.");
+  const { data: fotos } = await db().from("termin_fotos").select("pfad").eq("termin_id", id);
+  const { error } = await db().rpc("termin_loeschen", { p_id: id });
+  if (error) dbFehler(error);
+  await db().from("verlauf").delete().eq("bezug_typ", "termin").eq("bezug_id", id);
+  after(async () => {
+    await ausKalenderEntfernen(termin);
+    if (fotos?.length) await db().storage.from("auftragsfotos").remove(fotos.map((f) => f.pfad as string));
+    await melden("termin.geloescht", { ...ereignisDaten(termin), geloescht_von: vonBenutzer });
+  });
+}
+
 /** Erinnerung 24 Stunden vorher (aus dem Takt aufgerufen). */
 export async function erinnerungSenden(t: Termin): Promise<void> {
   await kundenMail(t, "erinnerung");

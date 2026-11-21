@@ -40,6 +40,7 @@ Website, Terminvergabe, Werkstatt-Verwaltung, Rechnungen, Team und Karriere für
    - `supabase/migrations/20261108100100_zeitsteuerung.sql`, **vorher** die Platzhalter `<<WEBSITE_URL>>` und `<<CRON_SECRET>>` ersetzen.
    - `supabase/migrations/20261109100000_angebot.sql` (Leistungen und Rechnungspositionen in einer Liste)
    - `supabase/migrations/20261120100000_kostenvoranschlaege.sql` (Kostenvoranschläge mit eigenem Nummernkreis)
+   - `supabase/migrations/20261121100000_termine_loeschen.sql` (Termine endgültig löschen, Auftragsnummern rücken nach)
 3. *Authentication → Sign In / Providers*: „Allow new users to sign up“ **aus** (Konten legt nur der Inhaber an), Provider „Email“ an.
 4. *Authentication → Emails → SMTP Settings*: eigenen SMTP eintragen, sonst schickt Supabase nur 2 Mails pro Stunde. Mit Resend: Host `smtp.resend.com`, Port 465, Benutzer `resend`, Passwort = Resend-API-Key, Absender wie `MAIL_FROM`.
 5. *Authentication → Emails → Templates*: In „Invite user“ und „Reset password“ den Link ersetzen durch

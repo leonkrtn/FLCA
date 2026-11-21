@@ -7,7 +7,7 @@ import { verlauf } from "../ereignisse";
 import { type Ergebnis, ja, sicher, text, zahl } from "../forms";
 import { entwurfAusTermin } from "../rechnung/rechnungen";
 import { db } from "../supabase/admin";
-import { ablehnen, bestaetigen, erledigen, stornieren, terminEintragen, TerminFehler, verschieben } from "../termine";
+import { ablehnen, bestaetigen, erledigen, loeschen, stornieren, terminEintragen, TerminFehler, verschieben } from "../termine";
 import { istDatum } from "../zeit";
 
 /** Termin-Aktionen. Admin am Rechner und Handy-App teilen sich diese Funktionen. */
@@ -54,6 +54,16 @@ export async function absagenAktion(id: string, _v: Ergebnis, fd: FormData): Pro
     await stornieren(id, { benutzer: b.id }, text(fd, "grund", 500));
     neuLaden(id);
     return { status: "ok", meldung: "Abgesagt." };
+  });
+}
+
+/** Endgültig löschen, danach zurück zur Liste (die Detailseite gibt es dann nicht mehr). */
+export async function loeschenAktion(ziel: "/admin/termine" | "/app", id: string, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
+  return mitFehlertext(fd, async () => {
+    const b = await benutzerMitRecht("termine");
+    await loeschen(id, b.id);
+    neuLaden();
+    redirect(ziel);
   });
 }
 

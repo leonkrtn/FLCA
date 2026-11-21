@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Formular, Senden } from "@/components/admin/formular";
 import { TerminAktionen } from "@/components/admin/termin-aktionen";
+import { TerminLoeschen } from "@/components/admin/termin-loeschen";
 import { Abschnitt, Auswahl, Feld, Kopf, Marke, Textfeld } from "@/components/admin/ui";
 import { ablehnenAktion, absagenAktion, bestaetigenAktion, detailsSpeichern, erledigtAktion, rechnungAusTermin, verschiebenAktion } from "@/lib/aktionen/termine";
 import { benutzerMitRecht } from "@/lib/auth";
@@ -33,7 +34,9 @@ export default async function TerminDetail({ params }: { params: Promise<{ id: s
             </span>
           </span>
         }
-      />
+      >
+        <TerminLoeschen id={t.id} nummer={t.nummer} status={t.status} ziel="/admin/termine" />
+      </Kopf>
       <div className="grid gap-x-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div>
           <Abschnitt titel="Kunde">
@@ -87,7 +90,7 @@ export default async function TerminDetail({ params }: { params: Promise<{ id: s
               {z.verlauf.map((v, i) => (
                 <li key={i} className="flex gap-4">
                   <span className="zahlen shrink-0 text-grau">{datumZeit(v.erstellt_am)}</span>
-                  <span>
+                  <span className="min-w-0">
                     {v.text}
                     {v.profil?.name ? <span className="text-grau"> · {v.profil.name}</span> : null}
                   </span>
