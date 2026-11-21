@@ -7,9 +7,6 @@ import {
   benachrichtigungSpeichern,
   buchungSpeichern,
   firmaSpeichern,
-  kalenderAbgleichen,
-  kalenderIdSpeichern,
-  kalenderTrennen,
   moduleSpeichern,
   rechnungEinstellungen,
   rechtstexteSpeichern,
@@ -20,7 +17,7 @@ import {
 } from "@/lib/aktionen/einstellungen";
 import { benutzerMitRecht } from "@/lib/auth";
 import { einstellungen, WOCHENTAGE } from "@/lib/einstellungen";
-import { ENV, KONFIGURIERT } from "@/lib/env";
+import { ENV } from "@/lib/env";
 import { EREIGNIS_TYPEN } from "@/lib/ereignisse";
 import { datumZeit } from "@/lib/format";
 import { db } from "@/lib/supabase/admin";
@@ -31,7 +28,6 @@ const BEREICHE = [
   ["firma", "Firma"],
   ["zeiten", "Öffnungszeiten"],
   ["buchung", "Terminvergabe"],
-  ["kalender", "Google Kalender"],
   ["rechnung", "Rechnungen"],
   ["automatik", "Automatik"],
   ["benachrichtigung", "Benachrichtigungen"],
@@ -40,9 +36,9 @@ const BEREICHE = [
   ["recht", "Rechtstexte"],
 ] as const;
 
-export default async function EinstellungenSeite({ searchParams }: { searchParams: Promise<{ bereich?: string; fehler?: string; verbunden?: string }> }) {
+export default async function EinstellungenSeite({ searchParams }: { searchParams: Promise<{ bereich?: string }> }) {
   await benutzerMitRecht("einstellungen");
-  const { bereich = "firma", fehler, verbunden } = await searchParams;
+  const { bereich = "firma" } = await searchParams;
   const e = await einstellungen();
   return (
     <>
@@ -69,7 +65,7 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
       ) : null}
 
       {bereich === "zeiten" ? (
-        <Abschnitt titel="Öffnungszeiten" aktion={<span className="text-sm text-grau">Grundlage für freie Termine. Betriebsurlaub als ganztägigen Eintrag im Google-Kalender anlegen.</span>}>
+        <Abschnitt titel="Öffnungszeiten" aktion={<span className="text-sm text-grau">Grundlage für freie Termine.</span>}>
           <Formular aktion={zeitenSpeichern} className="grid max-w-2xl gap-2">
             {WOCHENTAGE.map((tag, i) => {
               const f = e.oeffnungszeiten[String(i + 1) as "1"];
@@ -107,8 +103,6 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
           </Formular>
         </Abschnitt>
       ) : null}
-
-      {bereich === "kalender" ? <KalenderBereich fehler={fehler} verbunden={verbunden} /> : null}
 
       {bereich === "rechnung" ? <RechnungBereich /> : null}
 
@@ -178,57 +172,6 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
         </Abschnitt>
       ) : null}
     </>
-  );
-}
-
-async function KalenderBereich({ fehler, verbunden }: { fehler?: string; verbunden?: string }) {
-  const { data: k } = await db().from("kalender_verbindung").select("*").eq("id", 1).maybeSingle();
-  const ist = Boolean(k?.refresh_token);
-  return (
-    <Abschnitt titel="Google Kalender">
-      {!KONFIGURIERT.google ? (
-        <p className="border-l-2 border-kreide bg-papier px-4 py-3">
-          Es fehlen GOOGLE_CLIENT_ID und GOOGLE_CLIENT_SECRET in Vercel. Die Anleitung steht in der README unter „Google Kalender“. Weiterleitungs-URI: <code className="zahlen break-all">{ENV.siteUrl}/api/google/rueckruf</code>
-        </p>
-      ) : ist ? (
-        <div className="grid gap-6">
-          <dl className="grid gap-y-1 sm:grid-cols-[12rem_minmax(0,1fr)]">
-            <dt className="text-grau">Verbunden mit</dt>
-            <dd className="font-semibold">{k!.konto_email || "Google-Konto"}</dd>
-            <dt className="text-grau">Letzter Abgleich</dt>
-            <dd>{datumZeit(k!.letzter_sync) || "noch keiner"}</dd>
-            <dt className="text-grau">Live-Benachrichtigung bis</dt>
-            <dd>{k!.kanal_ablauf ? datumZeit(k!.kanal_ablauf) : "nicht aktiv (Abgleich läuft alle 10 Minuten)"}</dd>
-            {k!.letzter_fehler ? (
-              <>
-                <dt className="text-grau">Fehler</dt>
-                <dd className="text-rot">{k!.letzter_fehler}</dd>
-              </>
-            ) : null}
-          </dl>
-          <Formular aktion={kalenderIdSpeichern} className="grid max-w-md gap-2">
-            <Feld label="Kalender" name="kalender_id" wert={k!.kalender_id} hilfe="„primary“ = Hauptkalender. Für einen eigenen Werkstattkalender dessen ID aus den Google-Kalender-Einstellungen eintragen." />
-            <div><Senden klein vorab="Gespeichert">Speichern</Senden></div>
-          </Formular>
-          <div className="flex flex-wrap gap-2">
-            <Formular aktion={kalenderAbgleichen}><Senden art="rahmen" klein>Jetzt abgleichen</Senden></Formular>
-            <a href="/api/google/verbinden" className="knopf knopf-rahmen knopf-klein">Neu verbinden</a>
-            <Formular aktion={kalenderTrennen} bestaetigen="Verbindung wirklich trennen?"><Senden art="rahmen" klein>Trennen</Senden></Formular>
-          </div>
-          <div className="text-sm text-grau">
-            <p className="mb-1 font-semibold text-tinte">So zählt der Kalender:</p>
-            <p>Bestätigte Termine trägt das System selbst ein. Was Sie direkt in Google eintragen, blockiert freie Zeiten: mit Uhrzeit einen Arbeitsplatz, ganztägig die ganze Werkstatt (z. B. Betriebsurlaub). Einträge, die in Google auf „Verfügbar“ stehen, blockieren nichts.</p>
-          </div>
-        </div>
-      ) : (
-        <div className="grid gap-4">
-          {fehler ? <p className="text-rot">Verbindung nicht geklappt ({fehler}). Bitte noch einmal versuchen.</p> : null}
-          {verbunden ? <p className="text-ok">Verbunden.</p> : null}
-          <p className="max-w-xl">Verbinden Sie den Google-Kalender des Betriebs. Danach landen bestätigte Termine automatisch dort, und Kunden sehen keine Zeiten, die im Kalender schon belegt sind.</p>
-          <a href="/api/google/verbinden" className="knopf knopf-dunkel w-fit">Mit Google verbinden</a>
-        </div>
-      )}
-    </Abschnitt>
   );
 }
 

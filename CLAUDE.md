@@ -18,8 +18,8 @@ npm run dev | build | lint | typecheck | test
 
 - **Zugriff:** Alle Tabellen haben RLS ohne Richtlinien. Gelesen und geschrieben wird nur serverseitig mit `db()` (`src/lib/supabase/admin.ts`, Secret Key), und zwar erst nach `benutzerMitRecht(bereich)` (`src/lib/auth.ts`). Rollen und Rechte: `src/lib/rollen.ts`. `src/proxy.ts` leitet nur nicht Angemeldete um, die Rolle prüft jede Seite und Server Action selbst.
 - **Umgebungsvariablen** nur über `src/lib/env.ts` (`ENV`, `KONFIGURIERT`).
-- **Dienste** hinter Schnittstellen in `src/lib/services/` (Mail, Kalender, Push). Feature-Code ruft `mailer()`, `kalender()`, `pushSenden()` auf, nie Resend oder Google direkt.
-- **Termine:** `src/lib/termine.ts` ist der einzige Weg, Termine anzulegen, zu bestätigen, zu verschieben oder abzusagen (Mails, Kalender, Ereignisse hängen daran). Kapazitätsprüfung in der Datenbank (`termin_anlegen`, `termin_bestaetigen`, `termin_verschieben` mit Advisory-Lock); `src/lib/slots.ts` rechnet dieselbe Logik für die Anzeige freier Zeiten.
+- **Dienste** hinter Schnittstellen in `src/lib/services/` (Mail, Push). Feature-Code ruft `mailer()` und `pushSenden()` auf, nie Resend direkt.
+- **Termine:** `src/lib/termine.ts` ist der einzige Weg, Termine anzulegen, zu bestätigen, zu verschieben oder abzusagen oder zu löschen (Mails und Ereignisse hängen daran). Kapazitätsprüfung in der Datenbank (`termin_anlegen`, `termin_bestaetigen`, `termin_verschieben` mit Advisory-Lock); `src/lib/slots.ts` rechnet dieselbe Logik für die Anzeige freier Zeiten.
 - **Zeit:** immer über `src/lib/zeit.ts` (Europe/Berlin per Intl, nie feste +01:00).
 - **Geld:** Cent als Ganzzahl, Preise brutto. Netto/Steuer rechnet nur `src/lib/rechnung/berechnung.ts`.
 - **Rechnungen:** gestellte Rechnungen sind unveränderlich (Trigger `rechnung_schuetzen`), Nummern vergibt nur `rechnung_stellen`. Das PDF entsteht nur in `pdfErzeugen` (`src/lib/rechnung/rechnungen.ts`) aus den gespeicherten Daten, mit eingebetteter ZUGFeRD-XML.

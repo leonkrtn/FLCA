@@ -5,7 +5,6 @@ import { zustellen } from "./ereignisse";
 import { mail } from "./email/vorlagen";
 import { monatsexport } from "./rechnung/datev";
 import { mailer } from "./services/email";
-import { abgleichWennAlt, kalender } from "./services/kalender";
 import { db } from "./supabase/admin";
 import { erinnerungSenden, TERMIN_FELDER, type Termin } from "./termine";
 import { berlinDatum, berlinUhrzeit, plusTage } from "./zeit";
@@ -34,12 +33,6 @@ export async function takt(): Promise<Bericht> {
       bericht[name] = `Fehler: ${error instanceof Error ? error.message : error}`;
     }
   };
-
-  await schritt("kalender", async () => {
-    await abgleichWennAlt(9);
-    await kalender().beobachten();
-    return "ok";
-  });
 
   await schritt("erinnerungen", async () => {
     if (!e.automatik.erinnerung.aktiv) return 0;
