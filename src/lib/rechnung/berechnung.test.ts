@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { alsNetto, berechne, nettoAusBrutto, nettoAusBruttoPreis, rohertrag, vorzeichenWechseln } from "./berechnung";
+import { euroGenau, zahlAusText } from "../format";
+import { alsNetto, berechne, einzelpreisAnzeige, nettoAusBrutto, nettoAusBruttoPreis, rohertrag, vorzeichenWechseln } from "./berechnung";
 
 describe("nettoAusBrutto", () => {
   it("40 € Radwechsel", () => expect(nettoAusBrutto(4000, 19)).toEqual({ netto: 3361, steuer: 639 }));
@@ -84,5 +85,40 @@ describe("berechne netto", () => {
     const gemischt = berechne([alt, { text: "Ventil", menge: 1, einheit: "Stk", einzel_netto_cent: 251, mwst_satz: 19 }]);
     expect(gemischt.preisart).toBe("netto");
     expect(alsNetto(alt).einzel_netto_cent).toBe(3361.34);
+  });
+});
+
+describe("Einzelpreis auf dem Beleg geht mit der Menge auf", () => {
+  const zeile = (menge: number, brutto: number) => {
+    const p = { text: "Zündkerze", menge, einheit: "Stk", einzel_netto_cent: nettoAusBruttoPreis(brutto, 19), mwst_satz: 19 };
+    const s = berechne([p]);
+    return { anzeige: einzelpreisAnzeige(p, s, 0), zeile: s.zeilenNetto[0] };
+  };
+  it("4 Stück à 15 € brutto: genauer Preis, damit 4 × Einzel = Zeile", () => {
+    const { anzeige, zeile: z } = zeile(4, 1500);
+    expect(euroGenau(anzeige).replace(/\s/g, " ")).toBe("12,605 €");
+    expect(Math.round(4 * anzeige)).toBe(z);
+  });
+  it("ein Stück: ganze Cent", () => expect(euroGenau(zeile(1, 4000).anzeige).replace(/\s/g, " ")).toBe("33,61 €"));
+  it("für jede Menge 1–10 und viele runde Preise rechnet die Zeile nach", () => {
+    for (let brutto = 100; brutto <= 30000; brutto += 50) {
+      for (let menge = 1; menge <= 10; menge++) {
+        const { anzeige, zeile: z } = zeile(menge, brutto);
+        expect(Math.round(menge * anzeige)).toBe(z);
+      }
+    }
+  });
+});
+
+describe("Zahlen aus Eingaben", () => {
+  it("deutsch, mit Punkt als Komma und mit Tausendern", () => {
+    expect(zahlAusText("12,50")).toBe(12.5);
+    expect(zahlAusText("12.50")).toBe(12.5);
+    expect(zahlAusText("1.250,50")).toBe(1250.5);
+    expect(zahlAusText("120.000")).toBe(120000);
+    expect(zahlAusText("2,5")).toBe(2.5);
+    expect(zahlAusText("40 €")).toBe(40);
+    expect(zahlAusText("")).toBeNull();
+    expect(zahlAusText("abc")).toBeNull();
   });
 });

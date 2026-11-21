@@ -2,9 +2,9 @@ import "server-only";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { Document, Font, Image, Page, renderToBuffer, StyleSheet, Text, View } from "@react-pdf/renderer";
-import { datum, euro } from "../format";
+import { datum, euro, euroGenau } from "../format";
 import { fahrzeugText } from "./aehnlich";
-import { berechne, einzelpreis, rabattText, zeilenbetrag } from "./berechnung";
+import { berechne, einzelpreisAnzeige, rabattText, zeilenbetrag } from "./berechnung";
 import { girocode } from "./girocode";
 import type { RechnungsDaten } from "./zugferd";
 
@@ -192,7 +192,7 @@ export async function rechnungPdf(r: PdfDaten): Promise<Buffer> {
                   {p.einheit === "Std" && p.lohnart ? <Text style={{ color: grau }}>{`\nArbeitslohn ${p.lohnart}`}</Text> : null}
                 </Text>
                 <Text style={s.menge}>{`${menge(p.menge)} ${p.einheit}`}</Text>
-                <Text style={[s.einzel, s.zahl]}>{euro(einzelpreis(p, summen.preisart))}</Text>
+                <Text style={[s.einzel, s.zahl]}>{euroGenau(einzelpreisAnzeige(p, summen, i))}</Text>
                 <Text style={[s.gesamt, s.zahl]}>{euro(zeilenbetrag(summen, i))}</Text>
               </View>
             ),

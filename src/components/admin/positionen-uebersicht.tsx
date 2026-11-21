@@ -1,5 +1,5 @@
-import { euro } from "@/lib/format";
-import { berechne, einzelpreis, type Position, rabattText, zeilenbetrag } from "@/lib/rechnung/berechnung";
+import { euro, euroGenau } from "@/lib/format";
+import { berechne, einzelpreisAnzeige, type Position, rabattText, zeilenbetrag } from "@/lib/rechnung/berechnung";
 
 /** Positionen und Summen eines abgeschlossenen Belegs, schmal genug fürs Handy. */
 export function PositionenUebersicht({ positionen }: { positionen: Position[] }) {
@@ -13,7 +13,7 @@ export function PositionenUebersicht({ positionen }: { positionen: Position[] })
               {p.rabatt ? rabattText(p) : p.text}
               {p.rabatt ? null : (
                 <span className="block text-sm text-grau">
-                  {String(p.menge).replace(".", ",")} {p.einheit} × {euro(einzelpreis(p, s.preisart))}
+                  {String(p.menge).replace(".", ",")} {p.einheit} × {euroGenau(einzelpreisAnzeige(p, s, i))}
                   {s.preisart === "netto" ? " netto" : ""}
                   {p.lohnart ? ` · ${p.lohnart}` : ""}
                 </span>
