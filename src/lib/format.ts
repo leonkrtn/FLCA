@@ -47,8 +47,13 @@ export function telHref(telefon: string): string {
   return `tel:${ziffern}`;
 }
 
+/**
+ * WhatsApp-Link. wa.me will die Nummer international ohne + und ohne 00; Kunden tragen sie aber in jeder Form ein
+ * („0171 …“, „(0171) …“, „0049 …“, „+49 …“). Deshalb dieselbe Umrechnung wie bei telHref, nicht am Aufrufer.
+ */
 export function whatsappHref(nummer: string, text?: string): string {
-  return `https://wa.me/${nummer.replace(/\D/g, "")}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
+  const international = telHref(nummer).slice("tel:".length).replace(/\D/g, "");
+  return `https://wa.me/${international}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
 }
 
 export function mapsHref(strasse: string, plz: string, ort: string): string {

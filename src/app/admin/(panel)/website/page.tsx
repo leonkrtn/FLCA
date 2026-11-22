@@ -42,8 +42,7 @@ async function Texte() {
           <DateiFeld name="heroVideo" label="Startvideo (MP4, stumm, 5–10 s)" ordner="start" accept="video/mp4,video/webm" vorhanden={e.medien.heroVideo} vorschau={websiteDatei(e.medien.heroVideo)} />
           <DateiFeld name="ueberBild" label="Bild „Über uns“" ordner="start" vorhanden={e.medien.ueberBild} vorschau={websiteDatei(e.medien.ueberBild)} />
         </div>
-        <p className="text-sm text-grau">Ohne eigenes Bild zeigt die Seite die Werkstattfotos, die schon drin sind. Ein Video läuft stumm in Schleife, das Startbild ist dann das Standbild.</p>
-        <Textfeld label="Unterzeile auf der Startseite" name="heroUnterzeile" wert={e.texte.heroUnterzeile} zeilen={2} />
+        <p className="text-sm text-grau">Ohne eigenes Bild zeigt die Seite die Werkstattfotos, die schon drin sind. Ein Video läuft stumm in Schleife über dem Startbild.</p>
         <Feld label="Überschrift „Über uns“" name="ueberTitel" wert={e.texte.ueberTitel} />
         <Textfeld label="Text „Über uns“ (Absätze mit Leerzeile trennen)" name="ueberText" wert={e.texte.ueberText} zeilen={8} />
         <Textfeld label="Text Karriereseite" name="karriereText" wert={e.texte.karriereText} zeilen={3} />

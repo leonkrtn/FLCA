@@ -44,7 +44,7 @@ export default async function AppTermin({ params }: { params: Promise<{ id: stri
           {t.kunde?.telefon ? (
             <div className="mt-3 grid grid-cols-2 gap-2">
               <a href={telHref(t.kunde.telefon)} className="knopf knopf-rahmen">Anrufen</a>
-              <a href={whatsappHref(t.kunde.telefon.replace(/^0/, "49"))} className="knopf knopf-rahmen" rel="noopener noreferrer">WhatsApp</a>
+              <a href={whatsappHref(t.kunde.telefon)} className="knopf knopf-rahmen" rel="noopener noreferrer">WhatsApp</a>
             </div>
           ) : null}
         </Karte>

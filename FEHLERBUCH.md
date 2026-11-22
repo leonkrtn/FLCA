@@ -18,6 +18,37 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-22 · Website: Strich am rechten Rand der Leiste im Startbereich (Handy)
+
+- **Stand:** behoben
+- **Wo:** Startbereich in `src/app/(site)/page.tsx` (Leiste mit Adresse, Zeiten, Telefon, Termin)
+- **Was man sah:** (beim Prüfen des neuen Startbereichs) Auf dem Telefon stand rechts neben „Heute“ ein
+  senkrechter Strich ins Leere.
+- **Ursache:** Tailwind 4 setzt bei `divide-x` den Rand **rechts** an jedes Kind außer dem letzten (v3: links an
+  jedes außer dem ersten). Die beiden letzten Zellen sind auf dem Telefon `hidden`, also bekam die zweite, sichtbar
+  letzte Zelle einen rechten Rand.
+- **Behebung:** kein `divide-x`, sondern `border-l` an den Zellen ab der zweiten.
+- **Muster:** `divide-x`/`divide-y` an einem Container, dessen letzte direkte Kinder je nach Breite ausgeblendet
+  werden (`hidden md:…`). Dann den Rand an die Kinder selbst setzen.
+- **Weitere Stellen:** alle `divide-`-Container gesucht: ausgeblendete Elemente sitzen dort nur innerhalb der
+  Zeilen, nie als direktes Kind. Nichts zu tun.
+
+### 2026-11-22 · Werkstatt-App: WhatsApp am Termin öffnete eine falsche Nummer
+
+- **Stand:** behoben
+- **Wo:** `src/app/app/termine/[id]/page.tsx`, `whatsappHref` in `src/lib/format.ts`
+- **Was man sah:** (beim Durchsehen bemerkt) Hatte der Kunde seine Nummer als `0049 171 …` oder `(0171) …`
+  eingetragen, ging „WhatsApp“ an `49049171…` bzw. `0171…`, also an niemanden.
+- **Ursache:** Der Aufrufer rechnete die Nummer selbst um (`telefon.replace(/^0/, "49")`), nur für die Form
+  „0171 …“. `telHref` daneben kannte schon alle Formen, `whatsappHref` nicht.
+- **Behebung:** `whatsappHref` rechnet wie `telHref` (+, 00, führende 0), der Aufrufer übergibt die Nummer
+  unverändert. Test in `src/lib/format.test.ts`.
+- **Muster:** Eingaben von Kunden (Telefon, Kennzeichen, E-Mail) am Aufrufer mit einem kleinen `replace`
+  zurechtgebogen statt in der gemeinsamen Hilfsfunktion; dann fehlen die Formen, an die der Aufrufer nicht dachte.
+- **Weitere Stellen:** übrige `whatsappHref`-Aufrufe (Website, mobile Leiste) geben die Firmennummer aus den
+  Einstellungen; die profitieren mit, falls dort `0…` steht. Andere Umrechnungen von Telefonnummern am Aufrufer
+  nicht gefunden (`grep "replace(/^0"`).
+
 ### 2026-11-22 · Kalender: Zurück, Eintragen und Löschen landeten bei „Termine“, der Kalender vergaß die Woche
 
 - **Stand:** behoben

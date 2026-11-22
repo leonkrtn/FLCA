@@ -66,7 +66,6 @@ export async function texteSpeichern(_v: Ergebnis, fd: FormData): Promise<Ergebn
     await benutzerMitRecht("website");
     const e = await einstellungen();
     await einstellungenSpeichern("texte", {
-      heroUnterzeile: text(fd, "heroUnterzeile", 300),
       ueberTitel: text(fd, "ueberTitel", 120),
       ueberText: text(fd, "ueberText", 4000),
       karriereText: text(fd, "karriereText", 1000),
