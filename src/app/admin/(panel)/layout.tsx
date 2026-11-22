@@ -4,7 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { abmelden } from "@/app/login/actions";
 import { Logo } from "@/components/logo";
-import { AdminNav, type NavEintrag } from "@/components/admin/nav";
+import { AdminNav, EinstellungenSymbol, type NavEintrag } from "@/components/admin/nav";
 import { benutzerMitRecht } from "@/lib/auth";
 import { erinnerungenNachholen } from "@/lib/automatik";
 import { einstellungen } from "@/lib/einstellungen";
@@ -52,10 +52,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: "/admin/mitarbeiter", text: "Mitarbeiter", recht: "team", anzahl: abwesenheiten, gruppe: "Betrieb" },
     { href: "/admin/karriere", text: "Karriere", recht: "karriere", anzahl: bewerbungen, modul: "karriere" },
     { href: "/admin/website", text: "Website", recht: "website" },
-    // Das Büro sieht dort nur den Reiter „Gemerkte Preise“ (Recht „rechnungen“)
-    { href: "/admin/einstellungen", text: "Einstellungen", recht: darf(b.rolle, "einstellungen") ? "einstellungen" : "rechnungen", anzahl: fehler },
+    // Das Büro sieht dort nur den Reiter „Gemerkte Preise“ (Recht „rechnungen“). Am großen Bildschirm steht
+    // Einstellungen als Zahnrad im Benutzerblock unten, in der waagerechten Leiste am Handy weiter als Text.
+    { href: "/admin/einstellungen", text: "Einstellungen", recht: darf(b.rolle, "einstellungen") ? "einstellungen" : "rechnungen", anzahl: fehler, nurMobil: true },
   ];
   const eintraege = alle.filter((n) => darf(b.rolle, n.recht) && (!n.modul || e.module[n.modul]));
+  const einstellungenEintrag = eintraege.find((n) => n.href === "/admin/einstellungen");
 
   return (
     <div className="min-h-dvh bg-boden lg:pl-60">
@@ -75,8 +77,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </div>
         <AdminNav eintraege={eintraege} />
         <div className="mx-3 mt-auto hidden border-t border-white/10 px-3 pt-4 text-sm lg:block">
-          <p className="font-semibold text-weiss">{b.name || b.email}</p>
-          <p className="text-grau-hell">{rollenName(b.rolle)}</p>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-weiss">{b.name || b.email}</p>
+              <p className="text-grau-hell">{rollenName(b.rolle)}</p>
+            </div>
+            {einstellungenEintrag ? <EinstellungenSymbol href={einstellungenEintrag.href} anzahl={einstellungenEintrag.anzahl} /> : null}
+          </div>
           <div className="mt-3 flex flex-col gap-1.5 text-boden/80">
             <form action={abmelden}>
               <button type="submit" className="hover:text-weiss">Abmelden</button>
