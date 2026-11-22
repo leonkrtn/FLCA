@@ -205,14 +205,9 @@ begin
 end;
 $$;
 
--- Neue Tabellen: wie alle anderen nur über den Server (RLS ohne Richtlinien)
-do $$
-declare
-  t text;
-begin
-  foreach t in array array['arbeitszeit_ausnahmen', 'leistung_sperren'] loop
-    execute format('alter table public.%I enable row level security', t);
-    execute format('revoke all on public.%I from anon, authenticated', t);
-  end loop;
-end;
-$$;
+-- Neue Tabellen: wie alle anderen nur über den Server (RLS ohne Richtlinien). Ausgeschrieben statt in einer
+-- Schleife, damit der SQL-Editor von Supabase sieht, dass RLS eingeschaltet wird.
+alter table public.arbeitszeit_ausnahmen enable row level security;
+alter table public.leistung_sperren enable row level security;
+revoke all on public.arbeitszeit_ausnahmen from anon, authenticated;
+revoke all on public.leistung_sperren from anon, authenticated;
