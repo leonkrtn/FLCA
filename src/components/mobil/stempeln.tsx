@@ -1,14 +1,26 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useOptimistic, useRef, useState } from "react";
 import { Formular, Senden } from "@/components/admin/formular";
 import { pauseUmschalten, stempeln } from "@/lib/aktionen/team";
+import { zeit } from "@/lib/format";
+
+type Stand = { seit: string | null; pauseSeit: string | null };
 
 /**
  * Ein- und Ausstempeln. Ist „nur vor Ort“ eingeschaltet, holt das Handy vor dem Einstempeln seinen Standort und
  * schickt ihn mit; der Server entscheidet. Ausstempeln geht ohne Standort.
+ *
+ * Der Tipp wirkt sofort (`useOptimistic`, erst nach der Ortung): Text und Knöpfe zeigen gleich den neuen Stand.
+ * Lehnt der Server ab (zu weit weg), steht wieder der alte da, darunter der Grund. `seit`/`pauseSeit` kommen
+ * aus dem offenen Zeiteintrag, `monat` ist der fertige Text für die Monatssumme.
  */
-export function Stempeln({ eingestempelt, nurVorOrt, text, pause = false }: { eingestempelt: boolean; nurVorOrt: boolean; text: string; pause?: boolean }) {
+export function Stempeln({ seit, pauseSeit, nurVorOrt, monat }: { seit: string | null; pauseSeit: string | null; nurVorOrt: boolean; monat: string }) {
+  const [stand, setzeStand] = useOptimistic<Stand>({ seit, pauseSeit });
+  const eingestempelt = Boolean(stand.seit);
+  const pause = Boolean(stand.pauseSeit);
+  const jetzt = () => new Date().toISOString();
+  const text = `${stand.seit ? (stand.pauseSeit ? `Pause seit ${zeit(stand.pauseSeit)} Uhr` : `Eingestempelt seit ${zeit(stand.seit)} Uhr`) : "Nicht eingestempelt"} · Monat: ${monat}`;
   const form = useRef<HTMLFormElement | null>(null);
   const bereit = useRef(false);
   const [orten, setOrten] = useState(false);
@@ -53,12 +65,12 @@ export function Stempeln({ eingestempelt, nurVorOrt, text, pause = false }: { ei
         );
       }}
     >
-      <Formular aktion={stempeln} className="grid gap-2">
+      <Formular aktion={stempeln} sofort={() => setzeStand(eingestempelt ? { seit: null, pauseSeit: null } : { seit: jetzt(), pauseSeit: null })} className="grid gap-2">
         <input type="hidden" name="lat" />
         <input type="hidden" name="lng" />
         <input type="hidden" name="genauigkeit" />
         <p className="text-sm text-grau">{text}</p>
-        <Senden art={eingestempelt ? "rahmen" : "rot"} className="min-h-14 w-full text-lg" vorab={eingestempelt ? "Ausgestempelt" : "Eingestempelt"}>
+        <Senden art={eingestempelt ? "rahmen" : "rot"} className="min-h-14 w-full text-lg">
           {orten ? "Standort wird geprüft …" : eingestempelt ? "Ausstempeln" : "Einstempeln"}
         </Senden>
         {nurVorOrt && !eingestempelt ? <p className="text-xs text-grau">Einstempeln geht nur in der Werkstatt (Standort wird geprüft).</p> : null}
@@ -66,8 +78,8 @@ export function Stempeln({ eingestempelt, nurVorOrt, text, pause = false }: { ei
       </Formular>
       {/* Pause als eigenes Formular: Ein Tipp, ohne Standort; stoppt auch die Uhr am Auftrag. */}
       {eingestempelt ? (
-        <Formular aktion={pauseUmschalten} className="mt-2 grid">
-          <Senden art={pause ? "dunkel" : "rahmen"} className="min-h-12 w-full" vorab={pause ? "Weiter" : "Pause"}>
+        <Formular aktion={pauseUmschalten} sofort={() => setzeStand({ seit: stand.seit, pauseSeit: pause ? null : jetzt() })} className="mt-2 grid">
+          <Senden art={pause ? "dunkel" : "rahmen"} className="min-h-12 w-full">
             {pause ? "Pause beenden" : "Pause"}
           </Senden>
         </Formular>

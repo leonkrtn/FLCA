@@ -82,10 +82,10 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
       <Kopf titel={k.name} unter={`Kunde Nr. ${k.nummer}${k.firma ? ` · ${k.firma}` : ""}`} zurueck={{ href: "/admin/kunden", text: "Kunden" }}>
         <Link href={`/admin/termine/neu?kunde=${k.id}`} className="knopf knopf-rahmen knopf-klein">Termin eintragen</Link>
         <form action={belegAnlegen.bind(null, "kostenvoranschlag", "admin", k.id, einziges)}>
-          <button className="knopf knopf-rahmen knopf-klein">Kostenvoranschlag</button>
+          <Senden art="rahmen" klein>Kostenvoranschlag</Senden>
         </form>
         <form action={belegAnlegen.bind(null, "rechnung", "admin", k.id, einziges)}>
-          <button className="knopf knopf-rahmen knopf-klein">Rechnung ohne Termin</button>
+          <Senden art="rahmen" klein>Rechnung ohne Termin</Senden>
         </form>
         <KundeLoeschen kundeId={k.id} name={k.name} folgen={loeschFolgen} />
       </Kopf>

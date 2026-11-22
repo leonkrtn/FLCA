@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Ausblenden } from "@/components/admin/formular";
 import { Marke } from "@/components/admin/ui";
 import { AuftragKnoepfe, Uebernehmen } from "@/components/mobil/auftrag";
 import { Karte, MobilKopf } from "@/components/mobil/teile";
@@ -82,10 +83,10 @@ export default async function TeamHeute() {
           {zeiterfassung ? (
             <div className="mt-3">
               <Stempeln
-                eingestempelt={Boolean(eintrag)}
-                pause={Boolean(eintrag?.pause_seit)}
+                seit={eintrag?.beginn ?? null}
+                pauseSeit={eintrag?.pause_seit ?? null}
                 nurVorOrt={standort.nurVorOrt && standort.lat !== null && standort.lng !== null}
-                text={`${eintrag ? (eintrag.pause_seit ? `Pause seit ${zeit(eintrag.pause_seit)} Uhr` : `Eingestempelt seit ${zeit(eintrag.beginn)} Uhr`) : "Nicht eingestempelt"} · Monat: ${stunden(monat!.minuten)}`}
+                monat={stunden(monat!.minuten)}
               />
             </div>
           ) : null}
@@ -111,15 +112,18 @@ export default async function TeamHeute() {
           <>
             <h2 className="px-2 pt-4 font-semibold">Freie Aufträge</h2>
             <p className="px-2 text-sm text-grau">Noch niemandem zugeteilt, du darfst sie machen und hast Zeit dafür.</p>
+            {/* Übernehmen blendet die Karte sofort aus; der Auftrag erscheint oben, sobald der Server antwortet. */}
             {frei.map((t) => (
-              <Karte key={t.id}>
-                <p className="zahlen text-sm text-grau">
-                  {berlinDatum(new Date(t.beginn)) === heute ? "heute" : datumKurzText(t.beginn)}, {zeit(t.beginn)}–{zeit(t.ende)} Uhr
-                </p>
-                <p className="font-semibold">{t.leistung_name}</p>
-                <p className="text-sm">{[t.fahrzeug?.kennzeichen, t.fahrzeug?.marke_modell].filter(Boolean).join(" · ")}</p>
-                <Uebernehmen id={t.id} />
-              </Karte>
+              <Ausblenden key={t.id}>
+                <Karte>
+                  <p className="zahlen text-sm text-grau">
+                    {berlinDatum(new Date(t.beginn)) === heute ? "heute" : datumKurzText(t.beginn)}, {zeit(t.beginn)}–{zeit(t.ende)} Uhr
+                  </p>
+                  <p className="font-semibold">{t.leistung_name}</p>
+                  <p className="text-sm">{[t.fahrzeug?.kennzeichen, t.fahrzeug?.marke_modell].filter(Boolean).join(" · ")}</p>
+                  <Uebernehmen id={t.id} />
+                </Karte>
+              </Ausblenden>
             ))}
           </>
         ) : null}

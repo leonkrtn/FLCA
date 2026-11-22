@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Senden } from "@/components/admin/formular";
 import { notFound } from "next/navigation";
 import { Karte, MobilKopf } from "@/components/mobil/teile";
 import { belegAnlegen } from "@/lib/aktionen/belege";
@@ -44,10 +45,10 @@ export default async function AppKunde({ params }: { params: Promise<{ id: strin
             {z.text ? <h2 className="zahlen font-semibold">{z.text}</h2> : null}
             <div className="grid grid-cols-2 gap-2">
               <form action={belegAnlegen.bind(null, "kostenvoranschlag", "app", k.id, z.id)}>
-                <button className="knopf knopf-rahmen w-full">Kostenvoranschlag</button>
+                <Senden art="rahmen" className="w-full">Kostenvoranschlag</Senden>
               </form>
               <form action={belegAnlegen.bind(null, "rechnung", "app", k.id, z.id)}>
-                <button className="knopf knopf-rahmen w-full">Rechnung</button>
+                <Senden art="rahmen" className="w-full">Rechnung</Senden>
               </form>
             </div>
           </section>

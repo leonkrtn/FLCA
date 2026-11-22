@@ -147,7 +147,7 @@ export function RechnungAnsicht({
           <summary className="cursor-pointer text-grau">Rechnung stornieren …</summary>
           <form action={stornoAktion.bind(null, r.id, basis)} className="mt-3">
             <p className="mb-3 max-w-md">Es entsteht eine Stornorechnung mit eigener Nummer und negativen Beträgen. Die Originalrechnung bleibt erhalten. Danach können Sie eine neue Rechnung stellen.</p>
-            <button className="knopf knopf-rahmen knopf-klein">Stornorechnung erstellen</button>
+            <Senden art="rahmen" klein>Stornorechnung erstellen</Senden>
           </form>
         </details>
       ) : null}

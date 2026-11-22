@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Absenden } from "@/components/admin/formular";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Zahnrad } from "@/components/icons";
@@ -96,9 +97,9 @@ export function KontoMenue({ name, rolle, abmelden }: { name: string; rolle: str
       {offen ? (
         <div role="menu" className="absolute inset-x-0 bottom-full mb-2 overflow-hidden rounded-md bg-weiss py-1 text-tinte shadow-xl">
           <form action={abmelden}>
-            <button type="submit" role="menuitem" className="block w-full px-3 py-2 text-left font-semibold hover:bg-boden">
+            <Absenden role="menuitem" className="block w-full px-3 py-2 text-left font-semibold hover:bg-boden">
               Abmelden
-            </button>
+            </Absenden>
           </form>
         </div>
       ) : null}

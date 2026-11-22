@@ -26,7 +26,7 @@ export default async function NotizSeite({ params, searchParams }: { params: Pro
       >
         {n ? (
           <Formular aktion={notizLoeschen.bind(null, "/admin/notizen", n.id)} bestaetigen="Notiz endgültig löschen?">
-            <Senden art="rahmen" klein className="text-fehler">Löschen</Senden>
+            <Senden art="rahmen" klein className="text-fehler" vorab="Gelöscht">Löschen</Senden>
           </Formular>
         ) : null}
       </Kopf>

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { Senden } from "@/components/admin/formular";
 import { KorrekturHinweis, RechnungAnsicht } from "@/components/admin/rechnung-ansicht";
 import { BelegEditor } from "@/components/admin/beleg-editor";
 import { Abschnitt, Kopf, Marke } from "@/components/admin/ui";
@@ -31,7 +32,7 @@ export default async function RechnungSeite({ params }: { params: Promise<{ id: 
       >
         {r.status === "entwurf" ? (
           <form action={entwurfLoeschen.bind(null, r.id, "/admin/rechnungen")}>
-            <button className="knopf knopf-rahmen knopf-klein">Entwurf löschen</button>
+            <Senden art="rahmen" klein>Entwurf löschen</Senden>
           </form>
         ) : null}
       </Kopf>

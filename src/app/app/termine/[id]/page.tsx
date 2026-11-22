@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Senden } from "@/components/admin/formular";
 import { notFound } from "next/navigation";
 import { AnnahmeFormular, AuftragBereich, KvAmTerminBereich } from "@/components/admin/auftrag";
 import { TerminAktionen } from "@/components/admin/termin-aktionen";
@@ -100,7 +101,7 @@ export default async function AppTermin({ params }: { params: Promise<{ id: stri
             </Link>
           ) : (
             <form action={rechnungAusTermin.bind(null, t.id, "/app/rechnungen")}>
-              <button className="knopf knopf-dunkel w-full">Rechnung erstellen</button>
+              <Senden className="w-full">Rechnung erstellen</Senden>
             </form>
           )}
         </Karte>

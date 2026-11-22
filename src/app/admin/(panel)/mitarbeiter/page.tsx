@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Formular, Senden } from "@/components/admin/formular";
+import { Ausblenden, Formular, Senden } from "@/components/admin/formular";
 import { StandortFelder } from "@/components/admin/standort-felder";
 import { Abschnitt, Auswahl, Feld, Kopf, Leer, Marke, Reiter, Schalter, Tabelle } from "@/components/admin/ui";
 import { FaehigkeitenMatrix } from "@/components/admin/faehigkeiten";
@@ -64,16 +64,16 @@ export default async function Mitarbeiter({ searchParams }: { searchParams: Prom
         <Abschnitt titel="Offene Anträge" className="border-l-4 border-kreide">
           <ul className="divide-y divide-linie">
             {(offen as Antrag[]).map((a) => (
-              <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+              <Ausblenden als="li" key={a.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                 <span className="min-w-0">
                   <span className="font-semibold">{name(a.profil_id)}</span> · {abwesenheitText(a)} {zeitraumText(a)}
                   {a.notiz ? <span className="block text-sm text-grau">{a.notiz}</span> : null}
                 </span>
-                <Formular aktion={abwesenheitEntscheiden.bind(null, a.id)} className="flex flex-wrap items-center gap-2">
+                <Formular aktion={abwesenheitEntscheiden.bind(null, a.id)} ausblenden className="flex flex-wrap items-center gap-2">
                   <Senden klein name="entscheidung" value="genehmigt" vorab="Genehmigt">Genehmigen</Senden>
                   <Senden klein art="rahmen" name="entscheidung" value="abgelehnt" vorab="Abgelehnt">Ablehnen</Senden>
                 </Formular>
-              </li>
+              </Ausblenden>
             ))}
           </ul>
         </Abschnitt>
@@ -410,7 +410,7 @@ async function Personen({ personen, standortRecht, einladenRecht }: { personen: 
             <Auswahl label="Rolle" name="rolle" wert="mitarbeiter" optionen={ROLLEN.map((r) => [r.wert, `${r.name}: ${r.beschreibung}`])} />
             <Schalter label="Inhaber oder Büro auch einplanen" name="nimmt_auftraege" an={false} hilfe="Mitarbeiter werden immer eingeplant (freie Termine auf der Website, Zuteilen)" />
             <Schalter label="Zeiterfassung einschalten" name="zeiterfassung" an={false} />
-            <div><Senden>Einladung senden</Senden></div>
+            <div><Senden vorab="Wird gesendet">Einladung senden</Senden></div>
           </Formular>
         </Abschnitt>
         ) : null}

@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { Auffrischen } from "@/components/auffrischen";
 import type { Metadata, Viewport } from "next";
 import { Kalender, Liste, Mehr, Uhr, Person } from "@/components/icons";
 import { TabLeiste } from "@/components/mobil/leiste";
@@ -27,6 +28,7 @@ export default async function TeamLayout({ children }: { children: React.ReactNo
   return (
     <div className="handy-app min-h-dvh bg-boden pb-[calc(4.5rem+env(safe-area-inset-bottom))]" data-leiste="hell">
       <div className="mx-auto max-w-xl">{children}</div>
+      <Auffrischen />
       <PushAbgleich />
       <TabLeiste
         tabs={[

@@ -27,6 +27,12 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Node-Pakete, die nicht gebündelt werden sollen (native Abhängigkeiten, große Schriftverarbeitung)
   serverExternalPackages: ["web-push", "@react-pdf/renderer"],
+  experimental: {
+    // Besuchte Seiten 30 s im Router-Cache halten (Standard seit Next 15: 0). Wer zwischen den Tabs der Handy-Apps
+    // oder Liste und Detail hin- und herspringt, sieht die Seite sofort statt erst das Ladegerüst. Jede Aktion mit
+    // revalidatePath leert den Cache ohnehin; was andere ändern, holt <Auffrischen> beim Zurückkommen in die App.
+    staleTimes: { dynamic: 30 },
+  },
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: supabase ? [new URL(`${supabase}/storage/v1/object/public/website/**`)] : [],

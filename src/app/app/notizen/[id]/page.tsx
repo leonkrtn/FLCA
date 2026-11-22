@@ -39,7 +39,7 @@ export default async function AppNotiz({ params, searchParams }: { params: Promi
         {n ? (
           <Karte>
             <Formular aktion={notizLoeschen.bind(null, "/app/notizen", n.id)} bestaetigen="Notiz endgültig löschen?">
-              <Senden art="rahmen" className="w-full text-fehler">Notiz löschen</Senden>
+              <Senden art="rahmen" className="w-full text-fehler" vorab="Gelöscht">Notiz löschen</Senden>
             </Formular>
           </Karte>
         ) : null}

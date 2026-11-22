@@ -18,6 +18,57 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-22 · Sofort-Rückmeldung am Knopf wirkte ausgegraut statt bestätigt
+
+- **Stand:** behoben
+- **Wo:** `Senden` in `src/components/admin/formular.tsx`, `.knopf:disabled` in `src/app/globals.css`
+- **Was man sah:** (beim Durchsehen der optimistischen Anzeige) Nach dem Tippen auf „Einstempeln“, „Annehmen“
+  usw. stand zwar schon „✓ Eingestempelt“ da, aber blass wie ein gesperrter Knopf. Es sah eher nach „geht nicht“
+  aus als nach „erledigt“.
+- **Ursache:** Der Knopf ist während der Aktion `disabled` (kein zweites Absenden). `.knopf:disabled` blendet
+  jeden gesperrten Knopf auf 45 % ab, auch den, der gerade das Ergebnis zeigen soll. Der Code nahm an, ohne
+  `opacity-60` bleibe er voll sichtbar.
+- **Behebung:** Zeigt der Knopf schon das Ergebnis (`vorab`, oder das Formular hat `sofort`), bekommt er
+  `disabled:opacity-100 disabled:cursor-default`: gesperrt, aber nicht blass.
+- **Muster:** Ein Knopf, der während einer Aktion `disabled` wird und dabei etwas anderes zeigen soll als „bitte
+  warten“. Die Komponentenregel `.knopf:disabled` gilt immer mit; das gewünschte Aussehen muss sie ausdrücklich
+  überschreiben.
+- **Weitere Stellen:** alle `disabled={…}` an `.knopf` gesucht (Login, Website-Formulare, Beleg-Editor,
+  Unterschrift, Kunde löschen, Nummernkreis): Dort soll der Knopf während der Aktion blass sein. In Ordnung.
+
+### 2026-11-22 · Knöpfe in schlichten Formularen reagierten nicht, doppeltes Tippen legte doppelt an
+
+- **Stand:** behoben
+- **Wo:** `<form action={…}>` mit gewöhnlichem `<button>`: „Rechnung erstellen“ (Termin in Verwaltung und App),
+  „Kostenvoranschlag“/„Rechnung“ (Kundenseite in Verwaltung und App), „Kostenvoranschlag erstellen“, „In Rechnung
+  übernehmen“, „Als neuen Entwurf kopieren“, „Stornorechnung erstellen“, „Entwurf löschen“ (Rechnung, KV), „lösen“
+  (Rechnung und KV am Termin), „Vergessen“/„Löschen“ bei gemerkten Preisen, „Abmelden“ (Verwaltung, beide Apps)
+- **Was man sah:** (beim Durchsehen) Nach dem Tippen passierte nichts Sichtbares, bis der Server fertig war,
+  manchmal über eine Sekunde. Wer nochmal tippte, bekam zum Beispiel zwei Rechnungsentwürfe für denselben Kunden.
+- **Ursache:** Ein schlichtes `<form action>` ruft die Server Action, aber ein gewöhnlicher `<button>` weiß nichts
+  davon: kein Sperren, kein Hinweis. `Senden` (mit `useFormStatus`) war nur in `<Formular>` im Einsatz.
+- **Behebung:** Diese Knöpfe sind jetzt `Senden` (Knopf-Gestalt) oder `Absenden` (Textlink, Menüpunkt). Beide
+  funktionieren in jedem Formular, sperren während der Aktion und zeigen das. Gemerkte Preise und Pakete laufen
+  über `<Formular ausblenden>`, die Zeile verschwindet sofort (Aktionen geben dafür ein `Ergebnis` zurück).
+- **Muster:** `<form action={serverAction}>` und darin ein nacktes `<button>`. Dort immer `Senden`/`Absenden`
+  nehmen.
+- **Weitere Stellen:** übrige schlichte Formulare (Beleg-Editor, Kunde neu, Unterschrift, Datenübernahme, Kunde
+  löschen, Login, Website: Buchung, Absage, Vorschlag, KV-Antwort, Auftrag erteilen, Bewerbung) haben eigene
+  Anzeige über `useActionState`/`useFormStatus`. In Ordnung.
+
+### 2026-11-22 · Handy-Apps zeigten nach dem Zurückkehren den alten Stand
+
+- **Stand:** behoben
+- **Wo:** Layouts von `/app`, `/team`, `/admin` (`src/components/auffrischen.tsx`)
+- **Was man sah:** (beim Durchsehen) Eine Web-App vom Home-Bildschirm bleibt im Hintergrund offen. Öffnete man sie
+  nach Stunden wieder, standen dort die Termine und Anfragen vom letzten Mal, bis man selbst eine Seite wechselte.
+- **Ursache:** Nichts lud die Seite beim Zurückkommen neu; der Server liefert nur bei Navigation oder Aktion.
+- **Behebung:** `<Auffrischen>` ruft `router.refresh()`, wenn die Seite länger als eine Minute verdeckt war.
+  Eingaben und Scrollposition bleiben. Das deckt auch den Router-Cache ab (`staleTimes.dynamic` 30 s).
+- **Muster:** Ein neuer Bereich mit eigenem Layout (eigene Web-App) ohne `<Auffrischen>`.
+- **Weitere Stellen:** Website `(site)` bewusst ohne: Besucher bleiben nicht stundenlang auf einer Seite stehen,
+  und dort ändert sich nichts, was sie sofort sehen müssten.
+
 ### 2026-11-22 · Website: Strich am rechten Rand der Leiste im Startbereich (Handy)
 
 - **Stand:** behoben
@@ -31,7 +82,10 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 - **Muster:** `divide-x`/`divide-y` an einem Container, dessen letzte direkte Kinder je nach Breite ausgeblendet
   werden (`hidden md:…`). Dann den Rand an die Kinder selbst setzen.
 - **Weitere Stellen:** alle `divide-`-Container gesucht: ausgeblendete Elemente sitzen dort nur innerhalb der
-  Zeilen, nie als direktes Kind. Nichts zu tun.
+  Zeilen, nie als direktes Kind. Nichts zu tun. Nachtrag: `<Ausblenden als="li">` in `divide-y`-Listen
+  (Einstellungen, gemerkte Preise, Anträge) blendet eine Zeile aus, solange die Aktion läuft. Ist es die letzte,
+  steht unter der vorletzten kurz ein Strich, bis der Server die Liste neu schickt. Bewusst gelassen (weniger als
+  eine Sekunde).
 
 ### 2026-11-22 · Werkstatt-App: WhatsApp am Termin öffnete eine falsche Nummer
 

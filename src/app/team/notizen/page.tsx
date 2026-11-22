@@ -1,3 +1,4 @@
+import { Ausblenden } from "@/components/admin/formular";
 import { ErinnerungsMarke, NotizKnoepfe } from "@/components/admin/notizen";
 import { Karte, MobilKopf } from "@/components/mobil/teile";
 import { benutzerMitRecht } from "@/lib/auth";
@@ -14,20 +15,23 @@ export default async function TeamNotizen() {
     notizenLaden(b, { nurMeine: true, ansicht: "erledigt", limit: 10 }),
   ]);
   const jetzt = jetztMs();
+  // Erledigt und wieder öffnen schieben die Karte in die andere Liste: Sie verschwindet beim Tippen sofort.
   const karte = (n: Notiz) => (
-    <Karte key={n.id}>
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="font-semibold">{n.titel || "Notiz"}</p>
-          {n.text ? <p className="whitespace-pre-line text-sm">{n.text}</p> : null}
-          <p className="text-xs text-grau">{[n.autor?.name ? `von ${n.autor.name}` : null, n.kunde?.name, n.termin ? `Termin Nr. ${n.termin.nummer}` : null].filter(Boolean).join(" · ")}</p>
+    <Ausblenden key={n.id}>
+      <Karte>
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="font-semibold">{n.titel || "Notiz"}</p>
+            {n.text ? <p className="whitespace-pre-line text-sm">{n.text}</p> : null}
+            <p className="text-xs text-grau">{[n.autor?.name ? `von ${n.autor.name}` : null, n.kunde?.name, n.termin ? `Termin Nr. ${n.termin.nummer}` : null].filter(Boolean).join(" · ")}</p>
+          </div>
+          <span className="shrink-0">
+            <ErinnerungsMarke n={n} jetzt={jetzt} />
+          </span>
         </div>
-        <span className="shrink-0">
-          <ErinnerungsMarke n={n} jetzt={jetzt} />
-        </span>
-      </div>
-      <NotizKnoepfe n={n} gross />
-    </Karte>
+        <NotizKnoepfe n={n} gross ausblenden />
+      </Karte>
+    </Ausblenden>
   );
   return (
     <>
