@@ -18,6 +18,37 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-22 · Website: Hallenfoto im Startbereich fehlte
+
+- **Stand:** behoben
+- **Wo:** `next.config.ts` (`images`), alle `next/image` auf der Website
+- **Was man sah:** Im Startbereich der Website stand nur die dunkle Fläche, kein Foto.
+- **Ursache:** Das Kontingent für Vercels Bildoptimierung (kostenloser Tarif) war aufgebraucht. Vercel lieferte jede
+  noch nicht zwischengespeicherte Größe/Format-Kombination mit „402 Payment Required“; das iPhone fragt für das
+  neue Hallenfoto genau so eine an (z. B. 1200 px AVIF). Bereits zwischengespeicherte Größen kamen weiter, deshalb
+  fehlten Bilder nur je nach Gerät.
+- **Behebung:** `images.unoptimized: true`, die Fotos aus `src/assets` (150–400 KB) gehen direkt raus.
+- **Muster:** Bilder, die nur auf manchen Geräten fehlen, nach neuem Foto oder Deploy: `/_next/image?...` direkt
+  abrufen und auf 402 achten. Neue Fotos vor dem Einchecken klein halten (unter ca. 400 KB), weil nichts mehr
+  verkleinert wird; dasselbe gilt für Bilder, die über Website → Texte und Bilder hochgeladen werden.
+- **Weitere Stellen:** gilt für alle `next/image` (Startseite, Leistungsbereiche, Angebote, Leistungsseiten).
+
+### 2026-11-22 · Team-Ansicht öffnete sich in der Web-App im Safari-Fenster
+
+- **Stand:** behoben im Code (seit 2026-11-20), auf dem Gerät erst nach Neuinstallation
+- **Wo:** `src/lib/manifest.ts` (`scope`), installierte Web-Apps auf dem iPhone
+- **Was man sah:** In der Web-App vom Home-Bildschirm öffnete sich `/team` in einem eingeblendeten Fenster mit „X“,
+  Adresse `flca.vercel.app` und Safari-Leiste unten statt im Vollbild der App.
+- **Ursache:** Der Bereich (`scope`) der Manifeste war bis zum 20.11. nur `/app` bzw. `/team`; `/team` lag für die
+  Werkstatt-App außerhalb. iOS liest das Manifest nur beim Hinzufügen zum Home-Bildschirm und aktualisiert es nie.
+  Vorher installierte Apps behalten den alten, engen Bereich, auch nach der Korrektur auf `scope: "/"`.
+- **Behebung:** Code war schon richtig. Auf dem Gerät: App-Symbol löschen und über Safari neu „Zum Home-Bildschirm“
+  hinzufügen (angemeldet, auf `/app` bzw. `/team`).
+- **Muster:** Jede Änderung an Manifest oder `appleWebApp` (Bereich, Name, Icon, Startseite, Farben) wirkt auf dem
+  iPhone erst nach Neuinstallation. Bei solchen Änderungen den Betreiber darauf hinweisen.
+- **Weitere Stellen:** beide Manifeste haben `scope: "/"`; Login, Verwaltung und Website haben kein eigenes Manifest
+  und liegen damit im Bereich beider Apps.
+
 ### 2026-11-22 · Sofort-Rückmeldung am Knopf wirkte ausgegraut statt bestätigt
 
 - **Stand:** behoben
