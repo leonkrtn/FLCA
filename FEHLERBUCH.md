@@ -18,6 +18,22 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-22 · Werkstatt-App: WhatsApp am Termin öffnete eine falsche Nummer
+
+- **Stand:** behoben
+- **Wo:** `src/app/app/termine/[id]/page.tsx`, `whatsappHref` in `src/lib/format.ts`
+- **Was man sah:** (beim Durchsehen bemerkt) Hatte der Kunde seine Nummer als `0049 171 …` oder `(0171) …`
+  eingetragen, ging „WhatsApp“ an `49049171…` bzw. `0171…`, also an niemanden.
+- **Ursache:** Der Aufrufer rechnete die Nummer selbst um (`telefon.replace(/^0/, "49")`), nur für die Form
+  „0171 …“. `telHref` daneben kannte schon alle Formen, `whatsappHref` nicht.
+- **Behebung:** `whatsappHref` rechnet wie `telHref` (+, 00, führende 0), der Aufrufer übergibt die Nummer
+  unverändert. Test in `src/lib/format.test.ts`.
+- **Muster:** Eingaben von Kunden (Telefon, Kennzeichen, E-Mail) am Aufrufer mit einem kleinen `replace`
+  zurechtgebogen statt in der gemeinsamen Hilfsfunktion; dann fehlen die Formen, an die der Aufrufer nicht dachte.
+- **Weitere Stellen:** übrige `whatsappHref`-Aufrufe (Website, mobile Leiste) geben die Firmennummer aus den
+  Einstellungen; die profitieren mit, falls dort `0…` steht. Andere Umrechnungen von Telefonnummern am Aufrufer
+  nicht gefunden (`grep "replace(/^0"`).
+
 ### 2026-11-22 · Kalender: Zurück, Eintragen und Löschen landeten bei „Termine“, der Kalender vergaß die Woche
 
 - **Stand:** behoben
