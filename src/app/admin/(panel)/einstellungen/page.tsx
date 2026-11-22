@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Formular, Senden } from "@/components/admin/formular";
 import { Datenuebernahme } from "@/components/admin/datenuebernahme";
+import { letzteFruehereNummer } from "@/lib/altbestand/daten";
 import { GemerktePreise } from "@/components/admin/gemerkte-preise";
 import { NummernkreisFormular } from "@/components/admin/nummernkreis";
 import { TaktStatus } from "@/components/admin/takt-status";
@@ -26,7 +27,7 @@ import { einstellungen, WOCHENTAGE } from "@/lib/einstellungen";
 import { ENV } from "@/lib/env";
 import { EREIGNIS_TYPEN } from "@/lib/ereignisse";
 import { offeneFehlerAnzahl, protokollLaden } from "@/lib/fehlerprotokoll";
-import { datumZeit } from "@/lib/format";
+import { datum, datumZeit } from "@/lib/format";
 import { darf } from "@/lib/rollen";
 import { db, DbFehler, dbRoh } from "@/lib/supabase/admin";
 import { berlinDatum } from "@/lib/zeit";
@@ -211,11 +212,12 @@ async function RechnungBereich() {
     db().from("rechnungen").select("id", { count: "exact", head: true }).not("nummer", "is", null),
     db().from("rechnungen").select("nummer").not("nummer", "is", null).order("gestellt_am", { ascending: false }).limit(1).maybeSingle(),
   ]);
+  const frueher = await letzteFruehereNummer();
   const aktuell = { praefix: k?.praefix ?? "", mit_jahr: k?.mit_jahr ?? true, stellen: Number(k?.stellen ?? 4), naechste: Number(k?.naechste ?? 1) };
   return (
     <>
     <Abschnitt titel="Nummernkreis" aktion={<span className="text-sm text-grau">Ändern nur mit Bestätigung</span>}>
-      <NummernkreisFormular key={JSON.stringify(aktuell)} aktuell={aktuell} gestellt={count ?? 0} letzte={letzte?.nummer ?? null} jahr={Number(berlinDatum().slice(0, 4))} />
+      <NummernkreisFormular key={JSON.stringify(aktuell)} aktuell={aktuell} gestellt={count ?? 0} letzte={letzte?.nummer ?? null} frueher={frueher ? { nummer: frueher.nummer, datum: datum(frueher.rechnungsdatum) } : null} jahr={Number(berlinDatum().slice(0, 4))} />
     </Abschnitt>
     <Abschnitt titel="Rechnungen">
       <Formular aktion={rechnungEinstellungen} className="grid gap-6">

@@ -6,7 +6,9 @@ import { NotizenAbschnitt } from "@/components/admin/notizen";
 import { Abschnitt, Feld, Kopf, Marke, Textfeld } from "@/components/admin/ui";
 import { fahrzeugSpeichern, kundeSpeichern } from "@/lib/aktionen/kunden";
 import { belegAnlegen } from "@/lib/aktionen/belege";
-import { type FruehereRechnung, fruehereRechnungen } from "@/lib/altbestand/daten";
+import { FruehereRechnungen, fruehereSumme } from "@/components/admin/fruehere-rechnungen";
+import { KundeLoeschen, type LoeschFolgen } from "@/components/admin/kunde-loeschen";
+import { fruehereRechnungen } from "@/lib/altbestand/daten";
 import { benutzerMitRecht } from "@/lib/auth";
 import { datum, datumZeit, euro } from "@/lib/format";
 import { kvStatusText, type Kostenvoranschlag } from "@/lib/rechnung/kostenvoranschlaege";
@@ -22,7 +24,7 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const { data: k } = await db().from("kunden").select("*").eq("id", id).maybeSingle();
   if (!k) notFound();
-  const [fz, tm, re, ei, kv, typen, alt] = await Promise.all([
+  const [fz, tm, re, ei, kv, typen, alt, laufend, notizen] = await Promise.all([
     db().from("fahrzeuge").select("*").eq("kunde_id", id).order("erstellt_am"),
     db().from("termine").select("id, beginn, leistung_name, status, km_stand, fahrzeug:fahrzeuge(kennzeichen)").eq("kunde_id", id).order("beginn", { ascending: false }).limit(50),
     db().from("rechnungen").select("id, nummer, status, summe_brutto_cent, rechnungsdatum").eq("kunde_id", id).order("erstellt_am", { ascending: false }),
@@ -30,7 +32,22 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
     db().from("kostenvoranschlaege").select("id, nummer, status, gueltig_bis, summe_brutto_cent, datum").eq("kunde_id", id).order("erstellt_am", { ascending: false }),
     fahrzeugTypen(),
     fruehereRechnungen(id),
+    // Was das Löschen verhindert, genau wie in kunde_loeschen geprüft
+    db().from("termine").select("id, beginn, leistung_name").eq("kunde_id", id).in("status", ["angefragt", "bestaetigt"]).or(`belegt_bis.gte.${new Date().toISOString()},auftrag_status.eq.in_arbeit`),
+    db().from("notizen").select("id", { count: "exact", head: true }).eq("kunde_id", id),
   ]);
+  const eingelagert = (ei.data ?? []).filter((e) => !e.ausgelagert_am);
+  const loeschFolgen: LoeschFolgen = {
+    fahrzeuge: fz.data?.length ?? 0,
+    fruehere: alt.reduce((n, r) => n + 1 + r.aeltere.length, 0),
+    rechnungen: (re.data?.length ?? 0) + (kv.data?.length ?? 0),
+    termine: (tm.data?.length ?? 0) - (laufend.data?.length ?? 0),
+    notizen: notizen.count ?? 0,
+    hindernisse: [
+      ...(laufend.data ?? []).map((t) => `Termin ${datumZeit(t.beginn)} (${t.leistung_name}) läuft noch: erst absagen oder abschließen.`),
+      ...(eingelagert.length ? [`${eingelagert.length === 1 ? "Ein Satz Räder ist" : `${eingelagert.length} Sätze Räder sind`} noch eingelagert: erst auslagern.`] : []),
+    ],
+  };
   // Bei genau einem Fahrzeug kommt es gleich mit auf den neuen Beleg.
   const einziges = fz.data?.length === 1 ? (fz.data[0].id as string) : null;
   const termine = (tm.data ?? []) as unknown as (Pick<Termin, "id" | "beginn" | "leistung_name" | "status" | "km_stand"> & { fahrzeug: { kennzeichen: string } | null })[];
@@ -45,6 +62,7 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
         <form action={belegAnlegen.bind(null, "rechnung", "admin", k.id, einziges)}>
           <button className="knopf knopf-rahmen knopf-klein">Rechnung ohne Termin</button>
         </form>
+        <KundeLoeschen kundeId={k.id} name={k.name} folgen={loeschFolgen} />
       </Kopf>
       <div className="grid gap-x-8 lg:grid-cols-2">
         <Abschnitt titel="Stammdaten">
@@ -144,65 +162,17 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
               </ul>
             </>
           ) : null}
-          {alt.length ? <FruehereRechnungen liste={alt} /> : null}
+          {alt.length ? (
+            <>
+              <h3 className="mb-1 mt-6 flex items-baseline justify-between gap-3 font-semibold">
+                <span>Frühere Rechnungen</span>
+                <span className="zahlen text-sm font-normal text-grau">{euro(fruehereSumme(alt))} gesamt</span>
+              </h3>
+              <FruehereRechnungen liste={alt} />
+            </>
+          ) : null}
         </Abschnitt>
       </div>
-    </>
-  );
-}
-
-/**
- * Rechnungen aus der Zeit vor dem System (Einstellungen → Datenübernahme), zum Nachschlagen: was wann am
- * Auto gemacht wurde und zu welchem Preis. Positionen stehen wie auf dem Beleg, also netto bzw. bei
- * Kleinunternehmer-Rechnungen ohne Umsatzsteuer.
- */
-function FruehereRechnungen({ liste }: { liste: FruehereRechnung[] }) {
-  const umsatz = liste.filter((r) => !r.korrektur).reduce((s, r) => s + (r.endbetrag_cent ?? 0), 0);
-  const zahl = (cent: number | null) => (cent == null ? "" : euro(cent));
-  return (
-    <>
-      <h3 className="mb-1 mt-6 flex items-baseline justify-between gap-3 font-semibold">
-        <span>Frühere Rechnungen</span>
-        <span className="zahlen text-sm font-normal text-grau">{euro(umsatz)} gesamt</span>
-      </h3>
-      <ul className="divide-y divide-linie text-sm">
-        {liste.map((r) => (
-          <li key={r.id}>
-            <details>
-              <summary className="grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto] gap-3 py-2 hover:bg-papier">
-                <span className="min-w-0 truncate">
-                  <span className="zahlen">{r.nummer}</span> <span className="text-grau">{datum(r.rechnungsdatum)} {r.kennzeichen}</span>
-                  {r.korrektur ? <span className="text-grau"> · Korrektur</span> : null}
-                </span>
-                <span className="zahlen text-right">{zahl(r.endbetrag_cent)}</span>
-              </summary>
-              <div className="grid gap-2 pb-4">
-                <table className="w-full text-sm">
-                  <tbody>
-                    {r.positionen.map((p, i) => (
-                      <tr key={i} className="align-top">
-                        <td className="zahlen w-12 py-0.5 pr-2 text-grau">{p.menge}</td>
-                        <td className="py-0.5 pr-2">{p.text}</td>
-                        <td className="zahlen py-0.5 text-right">{euro(p.summe_cent)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <p className="zahlen text-xs text-grau">
-                  {r.steuer === "kleinunternehmer"
-                    ? "ohne Umsatzsteuer (§ 19 UStG)"
-                    : [r.netto_cent != null ? `netto ${euro(r.netto_cent)}` : "", r.mwst_cent != null ? `MwSt ${euro(r.mwst_cent)}` : "", r.brutto_cent != null ? `brutto ${euro(r.brutto_cent)}` : ""].filter(Boolean).join(" · ")}
-                  {r.regulaer_cent ? ` · Sonderpreis statt ${euro(r.regulaer_cent)}` : ""}
-                  {r.leistungsdatum && r.leistungsdatum !== r.rechnungsdatum ? ` · Leistung ${datum(r.leistungsdatum)}` : ""}
-                  {r.km_stand ? ` · ${new Intl.NumberFormat("de-DE").format(r.km_stand)} km` : ""}
-                  {r.zahlart ? ` · ${r.zahlart}` : ""}
-                </p>
-                <p className="break-all text-xs text-grau">Original: {r.datei}</p>
-              </div>
-            </details>
-          </li>
-        ))}
-      </ul>
     </>
   );
 }

@@ -8,9 +8,9 @@ import { db } from "@/lib/supabase/admin";
 
 export const metadata = { title: "Kunden" };
 
-export default async function KundenListe({ searchParams }: { searchParams: Promise<{ q?: string; neu?: string }> }) {
+export default async function KundenListe({ searchParams }: { searchParams: Promise<{ q?: string; neu?: string; geloescht?: string }> }) {
   await benutzerMitRecht("kunden");
-  const { q = "", neu } = await searchParams;
+  const { q = "", neu, geloescht } = await searchParams;
   let abfrage = db().from("kunden").select("id, nummer, name, firma, telefon, email, ort, erstellt_am, fahrzeuge(kennzeichen)").order("erstellt_am", { ascending: false }).limit(100);
   const such = q.replace(/[,()%]/g, " ").trim();
   if (such) {
@@ -27,6 +27,7 @@ export default async function KundenListe({ searchParams }: { searchParams: Prom
       <Kopf titel="Kunden">
         <Link href="/admin/kunden?neu=1" className="knopf knopf-dunkel">Kunde anlegen</Link>
       </Kopf>
+      {geloescht ? <p role="status" className="mb-4 text-sm font-semibold text-ok">Kunde gelöscht.</p> : null}
       {neu ? (
         <Abschnitt titel="Neuer Kunde">
           <Formular aktion={kundeSpeichern.bind(null, null)} className="grid gap-4 sm:grid-cols-3">

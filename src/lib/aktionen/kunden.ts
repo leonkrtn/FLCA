@@ -105,3 +105,33 @@ export async function kundeAnlegenAktion(ort: "admin" | "app", _v: Ergebnis, fd:
   if (neu) redirect(`/${ort}/kunden/${neu}`);
   return e;
 }
+
+/**
+ * Kunde löschen, nach Bestätigung im Dialog der Kundenakte. Prüfen und Löschen macht die Datenbank in
+ * einem Schritt (`kunde_loeschen`): Fahrzeuge und frühere Rechnungen gehen mit, gestellte Rechnungen,
+ * vergangene Termine und Notizen bleiben ohne Verknüpfung. Gemeldet wird ohne Namen, denn wer gelöscht
+ * werden will, soll nicht im Ereignisprotokoll und bei Webhooks weiterleben.
+ */
+export async function kundeLoeschen(id: string, _v: Ergebnis): Promise<Ergebnis> {
+  let fertig = false;
+  const e = await sicher(null, async () => {
+    await benutzerMitRecht("kunden");
+    const { data, error } = await dbRoh().rpc("kunde_loeschen", { p_id: id });
+    if (error) {
+      if (error.message.includes("KUNDE_HAT_TERMINE")) return { status: "fehler", meldung: "Nicht gelöscht: Der Kunde hat noch einen kommenden Termin oder einen Auftrag in Arbeit. Erst absagen oder abschließen." };
+      if (error.message.includes("KUNDE_HAT_EINLAGERUNG")) return { status: "fehler", meldung: "Nicht gelöscht: Es sind noch Räder des Kunden eingelagert. Erst auslagern." };
+      if (error.message.includes("NICHT_GEFUNDEN")) return { status: "fehler", meldung: "Den Kunden gibt es nicht mehr." };
+      if (error.code === "PGRST202" || error.code === "42883") return { status: "fehler", meldung: "Löschen ist noch nicht eingerichtet. Bitte die Migration 20261125120000_kunde_loeschen.sql im SQL-Editor von Supabase ausführen." };
+      throw new DbFehler(error, { funktion: "kunde_loeschen" });
+    }
+    const r = data as { nummer: number; fahrzeuge: number; fruehere_rechnungen: number };
+    await melden("kunde.geloescht", { kunde_id: id, nummer: r.nummer, fahrzeuge: r.fahrzeuge, fruehere_rechnungen: r.fruehere_rechnungen });
+    fertig = true;
+    return { status: "ok" };
+  });
+  if (fertig) {
+    revalidatePath("/admin", "layout");
+    redirect("/admin/kunden?geloescht=1");
+  }
+  return e;
+}

@@ -11,7 +11,20 @@ import { eingabeFehler, gleich, type Nummernkreis, nummerText, warnungen } from 
  * neues Format). Der Server verlangt diese Bestätigung ebenfalls (`bestaetigt`). Die Seite gibt einen
  * `key` aus den gespeicherten Werten mit, damit die Felder nach dem Speichern neu starten.
  */
-export function NummernkreisFormular({ aktuell, gestellt, letzte, jahr }: { aktuell: Nummernkreis; gestellt: number; letzte: string | null; jahr: number }) {
+export function NummernkreisFormular({
+  aktuell,
+  gestellt,
+  letzte,
+  frueher,
+  jahr,
+}: {
+  aktuell: Nummernkreis;
+  gestellt: number;
+  letzte: string | null;
+  /** Höchste Nummer aus der Datenübernahme, als Anhalt, wo es weitergehen sollte */
+  frueher: { nummer: string; datum: string } | null;
+  jahr: number;
+}) {
   const [zustand, ausfuehren] = useActionState(nummernkreisSpeichern, LEER);
   const [laeuft, starten] = useTransition();
   const [k, setK] = useState(aktuell);
@@ -20,6 +33,7 @@ export function NummernkreisFormular({ aktuell, gestellt, letzte, jahr }: { aktu
 
   const geaendert = !gleich(aktuell, k);
   const fehler = eingabeFehler(k);
+  const altNummer = frueher ? Number(frueher.nummer.replace(/\D/g, "")) : 0;
   const zahlFeld = (v: string) => (v.trim() === "" ? NaN : Number(v.replace(/\D/g, "")));
 
   function absenden(bestaetigt: boolean) {
@@ -44,6 +58,19 @@ export function NummernkreisFormular({ aktuell, gestellt, letzte, jahr }: { aktu
         Nächste Rechnungsnummer: <span className="zahlen font-semibold">{nummerText(aktuell, jahr)}</span>
         {letzte ? <span className="text-grau"> · zuletzt vergeben: <span className="zahlen">{letzte}</span></span> : <span className="text-grau"> · noch keine Rechnung gestellt</span>}
       </p>
+      {frueher ? (
+        <p className="text-sm text-grau">
+          Letzte Nummer vor dem System (Datenübernahme): <span className="zahlen">{frueher.nummer}</span> vom <span className="zahlen">{frueher.datum}</span>.
+          {!gestellt && aktuell.naechste <= altNummer ? (
+            <>
+              {" "}
+              <button type="button" className="underline" onClick={() => setK({ ...k, naechste: altNummer + 1, stellen: Math.max(k.stellen, String(altNummer + 1).length) })}>
+                Bei {altNummer + 1} weitermachen
+              </button>
+            </>
+          ) : null}
+        </p>
+      ) : null}
       <div className="grid gap-4 sm:grid-cols-4">
         <label className="block">
           <span className="label">Präfix</span>
