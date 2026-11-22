@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { Formular, Senden } from "@/components/admin/formular";
 import { Datenuebernahme } from "@/components/admin/datenuebernahme";
+import { letzteFruehereNummer } from "@/lib/altbestand/daten";
 import { GemerktePreise } from "@/components/admin/gemerkte-preise";
+import { NummernkreisFormular } from "@/components/admin/nummernkreis";
 import { TaktStatus } from "@/components/admin/takt-status";
 import { Abschnitt, Auswahl, Feld, Kopf, Leer, Marke, Reiter, Schalter, Tabelle, Textfeld } from "@/components/admin/ui";
 import {
@@ -25,9 +27,10 @@ import { einstellungen, WOCHENTAGE } from "@/lib/einstellungen";
 import { ENV } from "@/lib/env";
 import { EREIGNIS_TYPEN } from "@/lib/ereignisse";
 import { offeneFehlerAnzahl, protokollLaden } from "@/lib/fehlerprotokoll";
-import { datumZeit } from "@/lib/format";
+import { datum, datumZeit } from "@/lib/format";
 import { darf } from "@/lib/rollen";
 import { db, DbFehler, dbRoh } from "@/lib/supabase/admin";
+import { berlinDatum } from "@/lib/zeit";
 
 export const metadata = { title: "Einstellungen" };
 
@@ -204,29 +207,20 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
 
 async function RechnungBereich() {
   const e = await einstellungen();
-  const [{ data: k }, { count }] = await Promise.all([
-    db().from("nummernkreise").select("*").eq("art", "rechnung").single(),
+  const [{ data: k }, { count }, { data: letzte }] = await Promise.all([
+    db().from("nummernkreise").select("praefix, mit_jahr, stellen, naechste").eq("art", "rechnung").single(),
     db().from("rechnungen").select("id", { count: "exact", head: true }).not("nummer", "is", null),
+    db().from("rechnungen").select("nummer").not("nummer", "is", null).order("gestellt_am", { ascending: false }).limit(1).maybeSingle(),
   ]);
-  const gesperrt = (count ?? 0) > 0;
-  const beispiel = `${k?.praefix ?? ""}${k?.mit_jahr ? `${new Date().getFullYear()}-` : ""}${String(k?.naechste ?? 1).padStart(k?.stellen ?? 4, "0")}`;
+  const frueher = await letzteFruehereNummer();
+  const aktuell = { praefix: k?.praefix ?? "", mit_jahr: k?.mit_jahr ?? true, stellen: Number(k?.stellen ?? 4), naechste: Number(k?.naechste ?? 1) };
   return (
+    <>
+    <Abschnitt titel="Nummernkreis" aktion={<span className="text-sm text-grau">Ändern nur mit Bestätigung</span>}>
+      <NummernkreisFormular key={JSON.stringify(aktuell)} aktuell={aktuell} gestellt={count ?? 0} letzte={letzte?.nummer ?? null} frueher={frueher ? { nummer: frueher.nummer, datum: datum(frueher.rechnungsdatum) } : null} jahr={Number(berlinDatum().slice(0, 4))} />
+    </Abschnitt>
     <Abschnitt titel="Rechnungen">
       <Formular aktion={rechnungEinstellungen} className="grid gap-6">
-        <fieldset className="grid gap-4 sm:grid-cols-4">
-          <legend className="mb-2 font-semibold">Nummernkreis · nächste Nummer: <span className="zahlen">{beispiel}</span></legend>
-          {gesperrt ? (
-            <p className="text-sm text-grau sm:col-span-4">Gesperrt: Es sind schon Rechnungen gestellt. Die Nummern laufen lückenlos weiter (GoBD).</p>
-          ) : (
-            <>
-              <input type="hidden" name="nummernkreis" value="1" />
-              <Feld label="Präfix" name="praefix" wert={k?.praefix} />
-              <Feld label="Nächste Nummer" name="naechste" wert={k?.naechste} inputMode="numeric" hilfe="z. B. die letzte Nummer der alten Software + 1" />
-              <Feld label="Stellen" name="stellen" wert={k?.stellen} inputMode="numeric" />
-              <div className="self-end pb-3"><Schalter label="Jahr in der Nummer" name="mit_jahr" an={k?.mit_jahr ?? true} /></div>
-            </>
-          )}
-        </fieldset>
         <Feld label="Zahlungsziel (Tage)" name="zahlungszielTage" wert={e.rechnung.zahlungszielTage} inputMode="numeric" className="max-w-xs" />
         <Textfeld label="Einleitungssatz" name="einleitung" wert={e.rechnung.einleitung} zeilen={2} />
         <Textfeld label="Fußtext" name="fusstext" wert={e.rechnung.fusstext} zeilen={2} />
@@ -267,6 +261,7 @@ async function RechnungBereich() {
         <div><Senden vorab="Gespeichert">Speichern</Senden></div>
       </Formular>
     </Abschnitt>
+    </>
   );
 }
 
