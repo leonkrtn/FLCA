@@ -3,7 +3,8 @@
 import { redirect } from "next/navigation";
 import { benutzerMitRecht } from "../auth";
 import { einstellungen } from "../einstellungen";
-import { type Ergebnis, sicher, text } from "../forms";
+import { type Ergebnis, text } from "../forms";
+import { sicher } from "../sicher";
 import { alsBelegFahrzeug, alsEmpfaenger, fahrzeugTypen, type KundenFahrzeug, type KundenTreffer, kundenSuchen, markeUndModell } from "../kunden";
 import { notizTeam } from "../notizen-seiten";
 import { fahrzeugText, modellNorm } from "../rechnung/aehnlich";

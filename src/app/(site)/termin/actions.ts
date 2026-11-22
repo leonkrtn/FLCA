@@ -1,6 +1,7 @@
 "use server";
 
-import { type Ergebnis, istEmail, istSpam, istTelefon, sicher, text, werteAus } from "@/lib/forms";
+import { type Ergebnis, istEmail, istSpam, istTelefon, text, werteAus } from "@/lib/forms";
+import { sicher } from "@/lib/sicher";
 import { imLimit } from "@/lib/limit";
 import { anfrageStellen, TerminFehler } from "@/lib/termine";
 import { istDatum } from "@/lib/zeit";
@@ -53,5 +54,5 @@ export async function anfrageSenden(_vorher: Ergebnis, formData: FormData): Prom
       if (error instanceof TerminFehler) return { status: "fehler", meldung: error.message, fehler: { zeit: error.message }, werte: werteAus(formData), versuch: Date.now() };
       throw error;
     }
-  });
+  }, true);
 }

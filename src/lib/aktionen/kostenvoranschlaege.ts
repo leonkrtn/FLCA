@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { benutzerMitRecht } from "../auth";
-import { type Ergebnis, istEmail, ja, sicher, text } from "../forms";
+import { type Ergebnis, istEmail, ja, text } from "../forms";
+import { sicher } from "../sicher";
 import { belegAus } from "../rechnung/eingabe";
 import { kvAbschliessen, kvBeantworten, kvInRechnung, kvKopieren, kvSpeichern, kvVersenden } from "../rechnung/kostenvoranschlaege";
 import { db } from "../supabase/admin";

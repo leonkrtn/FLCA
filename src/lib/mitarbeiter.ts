@@ -3,6 +3,7 @@ import { einstellungen, type Fenster } from "./einstellungen";
 import type { PersonBelegung, PlanAbwesenheit, PlanPerson, Woche } from "./planung";
 import { db, pruefe } from "./supabase/admin";
 import { berlin, plusTage } from "./zeit";
+import { fehlerMelden } from "./fehler";
 
 /**
  * Daten der Mitarbeiterplanung aus der Datenbank. Gerechnet wird in planung.ts (ohne Datenbank, getestet).
@@ -105,7 +106,8 @@ export async function ohneMitarbeiterAnzahl(): Promise<number> {
       .eq("status", "bestaetigt")
       .gte("beginn", new Date().toISOString());
     return count ?? 0;
-  } catch {
+  } catch (fehler) {
+    await fehlerMelden(fehler, "Menü-Zähler Termine ohne Mitarbeiter");
     return 0;
   }
 }

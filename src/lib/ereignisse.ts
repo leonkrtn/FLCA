@@ -2,6 +2,7 @@ import "server-only";
 import { createHmac } from "node:crypto";
 import { after } from "next/server";
 import { db } from "./supabase/admin";
+import { fehlerMelden } from "./fehler";
 
 /**
  * Alle Ereignisse, die das System nach außen meldet. Neue Module ergänzen hier ihre Typen. Externe
@@ -63,7 +64,7 @@ export async function melden(typ: EreignisTyp, daten: Record<string, unknown>): 
       .insert(passend.map((h) => ({ webhook_id: h.id, ereignis_id: ereignis.id })));
     after(() => zustellen());
   } catch (error) {
-    console.error(`Ereignis ${typ} konnte nicht gemeldet werden`, error);
+    await fehlerMelden(error, `Ereignis ${typ} melden`);
   }
 }
 

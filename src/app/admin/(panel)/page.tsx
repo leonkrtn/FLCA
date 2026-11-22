@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { Abschnitt, Kopf, Leer, Marke } from "@/components/admin/ui";
 import { benutzerMitRecht } from "@/lib/auth";
+import { offeneFehlerAnzahl } from "@/lib/fehlerprotokoll";
 import { datumKurzText, datumLangText, euro, zeit } from "@/lib/format";
+import { darf } from "@/lib/rollen";
 import { TERMIN_TON } from "@/lib/status";
 import { db } from "@/lib/supabase/admin";
 import { STATUS_TEXT, TERMIN_FELDER, type Termin } from "@/lib/termine";
@@ -12,11 +14,12 @@ export const metadata = { title: "Übersicht" };
 export default async function Uebersicht() {
   const b = await benutzerMitRecht("termine");
   const heute = berlinDatum();
-  const [heuteRes, anfragenRes, offenRes, abwRes] = await Promise.all([
+  const [heuteRes, anfragenRes, offenRes, abwRes, fehler] = await Promise.all([
     db().from("termine").select(TERMIN_FELDER).in("status", ["bestaetigt", "erledigt", "angefragt"]).gte("beginn", berlin(heute).toISOString()).lt("beginn", berlin(plusTage(heute, 1)).toISOString()).order("beginn"),
     db().from("termine").select(TERMIN_FELDER).eq("status", "angefragt").order("beginn").limit(8),
     db().from("rechnungen").select("summe_brutto_cent, faellig_am").eq("status", "gestellt"),
     db().from("abwesenheiten").select("id, art, von, bis, status, profil:profile!abwesenheiten_profil_id_fkey(name)").lte("von", heute).gte("bis", heute).neq("status", "abgelehnt"),
+    darf(b.rolle, "einstellungen") ? offeneFehlerAnzahl() : 0,
   ]);
   const heuteTermine = (heuteRes.data ?? []) as Termin[];
   const anfragen = (anfragenRes.data ?? []) as Termin[];
@@ -73,6 +76,14 @@ export default async function Uebersicht() {
           </Abschnitt>
         </div>
         <div>
+          {fehler ? (
+            <Abschnitt titel="Fehler im System" className="border-l-4 border-rot">
+              <p className="text-sm">
+                {fehler === 1 ? "Ein Fehler ist" : `${fehler} Fehler sind`} aufgetreten und noch nicht erledigt. Im Protokoll steht, wo und warum.
+              </p>
+              <Link href="/admin/einstellungen?bereich=fehler" className="mt-3 inline-block text-sm underline">Fehlerprotokoll ansehen</Link>
+            </Abschnitt>
+          ) : null}
           <Abschnitt titel="Offene Rechnungen">
             <p className="zahlen text-3xl">{euro(offen.reduce((s, r) => s + Number(r.summe_brutto_cent), 0))}</p>
             <p className="text-sm text-grau">

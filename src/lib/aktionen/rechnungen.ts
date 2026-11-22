@@ -3,10 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { benutzerMitRecht } from "../auth";
-import { type Ergebnis, istEmail, ja, sicher, text } from "../forms";
+import { type Ergebnis, istEmail, ja, text } from "../forms";
+import { sicher } from "../sicher";
 import { belegAus, paketeAus } from "../rechnung/eingabe";
 import { alsBezahlt, alsUnbezahlt, type Empfaenger, entwurfSpeichern, rechnungLaden, stellen, stornieren, versenden } from "../rechnung/rechnungen";
-import { db } from "../supabase/admin";
+import { db, dbRoh } from "../supabase/admin";
 import { berlinDatum, istDatum } from "../zeit";
 
 type Basis = "/admin/rechnungen" | "/app/rechnungen";
@@ -91,7 +92,7 @@ export async function sammelAktion(
   if (art === "entwuerfe_loeschen") {
     const entwuerfe = liste.filter((r) => r.status === "entwurf").map((r) => r.id);
     if (entwuerfe.length) {
-      const { error } = await db().from("rechnungen").delete().in("id", entwuerfe).eq("status", "entwurf");
+      const { error } = await dbRoh().from("rechnungen").delete().in("id", entwuerfe).eq("status", "entwurf");
       if (error) return { status: "fehler", meldung: error.message };
     }
     ok = entwuerfe.length;

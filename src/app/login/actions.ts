@@ -3,7 +3,8 @@
 import { redirect } from "next/navigation";
 import { aktuellerBenutzer, sicheresZiel } from "@/lib/auth";
 import { ENV } from "@/lib/env";
-import { type Ergebnis, istEmail, sicher, text } from "@/lib/forms";
+import { type Ergebnis, istEmail, text } from "@/lib/forms";
+import { sicher } from "@/lib/sicher";
 import { imLimit } from "@/lib/limit";
 import { db } from "@/lib/supabase/admin";
 import { sitzung } from "@/lib/supabase/server";

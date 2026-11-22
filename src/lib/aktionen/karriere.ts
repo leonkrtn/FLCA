@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { benutzerMitRecht } from "../auth";
 import { verlauf } from "../ereignisse";
-import { type Ergebnis, ja, sicher, text, zahl } from "../forms";
+import { type Ergebnis, ja, text, zahl } from "../forms";
+import { sicher } from "../sicher";
 import { db } from "../supabase/admin";
 
 export async function stelleSpeichern(id: string | null, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {

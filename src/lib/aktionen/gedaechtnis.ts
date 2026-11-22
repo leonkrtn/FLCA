@@ -2,9 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { benutzerMitRecht } from "../auth";
-import { centAus, type Ergebnis, sicher, text, zahl } from "../forms";
+import { centAus, type Ergebnis, text, zahl } from "../forms";
+import { sicher } from "../sicher";
 import { textNorm } from "../rechnung/aehnlich";
-import { db } from "../supabase/admin";
+import { db, dbRoh } from "../supabase/admin";
 
 // Reiter „Gemerkte Preise“ in den Einstellungen
 const PFAD = "/admin/einstellungen";
@@ -24,7 +25,7 @@ export async function gemerktAendern(id: string, _v: Ergebnis, fd: FormData): Pr
     const genau = alt ? Number(alt.einzel_netto_cent) : null;
     const preis = genau !== null && Math.round(genau) === eingabe ? genau : eingabe;
     const ek = centAus(fd, "ek");
-    const { error } = await db()
+    const { error } = await dbRoh()
       .from("preis_gedaechtnis")
       .update({
         einzel_netto_cent: preis,
@@ -50,7 +51,7 @@ export async function paketUmbenennen(id: string, _v: Ergebnis, fd: FormData): P
     await benutzerMitRecht("rechnungen");
     const name = text(fd, "name", 120);
     if (!name) return { status: "fehler", meldung: "Bitte einen Namen angeben." };
-    const { error } = await db().from("pakete").update({ name, name_norm: textNorm(name) }).eq("id", id);
+    const { error } = await dbRoh().from("pakete").update({ name, name_norm: textNorm(name) }).eq("id", id);
     if (error) return { status: "fehler", meldung: error.code === "23505" ? "Für dieses Auto gibt es schon ein Paket mit diesem Namen." : error.message };
     revalidatePath(PFAD);
     return { status: "ok", meldung: "Gespeichert." };

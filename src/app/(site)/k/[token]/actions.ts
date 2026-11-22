@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { type Ergebnis, sicher } from "@/lib/forms";
+import { type Ergebnis } from "@/lib/forms";
+import { istSystemfehler } from "@/lib/fehler";
+import { sicher } from "@/lib/sicher";
 import { imLimit } from "@/lib/limit";
 import { kvBeantworten, kvMitTerminVerknuepfen, kvPerToken } from "@/lib/rechnung/kostenvoranschlaege";
 import { anfrageAusKv, TerminFehler } from "@/lib/termine";
@@ -15,6 +17,8 @@ export async function kundeAntwortet(token: string, antwort: "angenommen" | "abg
     try {
       await kvBeantworten(k.id, antwort === "abgelehnt" ? "abgelehnt" : "angenommen", { kunde: true });
     } catch (error) {
+      // Systemfehler an sicher() weitergeben: ins Protokoll und ohne technische Meldung an den Kunden
+      if (istSystemfehler(error)) throw error;
       return { status: "fehler", meldung: error instanceof Error ? error.message : "Das hat nicht geklappt." };
     }
     revalidatePath(`/k/${token}`);
@@ -29,7 +33,7 @@ export async function kundeAntwortet(token: string, antwort: "angenommen" | "abg
             ? "Vielen Dank! Damit ist der Auftrag für Ihren Termin erteilt."
             : "Vielen Dank! Wählen Sie jetzt einen Termin, oder wir melden uns bei Ihnen.",
     };
-  });
+  }, true);
 }
 
 /**
@@ -58,5 +62,5 @@ export async function kvTerminAnfragen(token: string, _v: Ergebnis, fd: FormData
     revalidatePath("/admin", "layout");
     revalidatePath("/app", "layout");
     return { status: "ok", meldung: "Ihre Terminanfrage ist da. Wir bestätigen sie per E-Mail, meist am selben Tag.", daten: { token: terminToken } };
-  });
+  }, true);
 }

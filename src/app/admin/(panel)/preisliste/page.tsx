@@ -3,7 +3,7 @@ import { Kopf, Leer, Marke, Reiter } from "@/components/admin/ui";
 import { benutzerMitRecht } from "@/lib/auth";
 import { euro } from "@/lib/format";
 import { KATEGORIEN } from "@/lib/inhalte";
-import { db } from "@/lib/supabase/admin";
+import { dbRoh } from "@/lib/supabase/admin";
 import type { Leistung } from "@/lib/termine";
 
 export const metadata = { title: "Preisliste" };
@@ -25,7 +25,7 @@ export default async function PreislisteSeite({ searchParams }: { searchParams: 
   const sp = await searchParams;
   const ansicht = (sp.ansicht && sp.ansicht in ANSICHTEN ? sp.ansicht : "aktiv") as keyof typeof ANSICHTEN;
   const q = (sp.q ?? "").trim().toLowerCase();
-  const { data, error } = await db().from("leistungen").select("*").order("sortierung");
+  const { data, error } = await dbRoh().from("leistungen").select("*").order("sortierung");
   const alle = (data ?? []) as Leistung[];
   // Vor der Migration „angebot“ fehlen die neuen Spalten. Dann lieber klar sagen, was zu tun ist.
   const unmigriert = !error && alle.length > 0 && alle[0].art === undefined;

@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { benutzerMitRecht } from "../auth";
 import { melden } from "../ereignisse";
-import { centAus, type Ergebnis, ja, sicher, text, zahl } from "../forms";
-import { db } from "../supabase/admin";
+import { centAus, type Ergebnis, ja, text, zahl } from "../forms";
+import { sicher } from "../sicher";
+import { db, DbFehler } from "../supabase/admin";
 import { fahrzeugFindenOderAnlegen, kundeFindenOderAnlegen } from "../termine";
 import { berlinDatum, istDatum } from "../zeit";
 
@@ -48,7 +49,7 @@ export async function einlagern(_v: Ergebnis, fd: FormData): Promise<Ergebnis> {
       fz = { id: fid, kunde_id: kundeId };
     }
     const { data, error } = await db().from("einlagerungen").insert({ ...daten(fd), kunde_id: fz.kunde_id, fahrzeug_id: fz.id }).select("id, nummer").single();
-    if (error) throw new Error(error.message);
+    if (error) throw new DbFehler(error);
     await melden("einlagerung.angelegt", { einlagerung_id: data.id, nummer: data.nummer, kennzeichen: kz });
     ziel = `/admin/einlagerung/${data.id}`;
     return { status: "ok" };
@@ -61,7 +62,7 @@ export async function einlagerungSpeichern(id: string, _v: Ergebnis, fd: FormDat
   return sicher(fd, async () => {
     await benutzerMitRecht("einlagerung");
     const { error } = await db().from("einlagerungen").update(daten(fd)).eq("id", id);
-    if (error) throw new Error(error.message);
+    if (error) throw new DbFehler(error);
     revalidatePath(`/admin/einlagerung/${id}`);
     return { status: "ok", meldung: "Gespeichert." };
   });

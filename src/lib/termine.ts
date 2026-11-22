@@ -11,7 +11,7 @@ import { pushSenden } from "./services/push";
 import { belegungenAm, belegungenMitPerson, leistungNamen, planPersonen, planungAktiv } from "./mitarbeiter";
 import { besteFreiePerson, freieSlotsMitPersonen, konflikte, type PersonSlot } from "./planung";
 import { arbeitsende, type Belegung, freieSlots, type Slot } from "./slots";
-import { db, pruefe } from "./supabase/admin";
+import { db, DbFehler, dbRoh, pruefe } from "./supabase/admin";
 import { berlin, berlinDatum, berlinUhrzeit, minuten, plusTage, uhrzeit as uhrzeitAus, wochentag } from "./zeit";
 import { markeModellTrennen } from "./rechnung/aehnlich";
 import type { AuftragFelder } from "./auftrag-regeln";
@@ -117,7 +117,8 @@ function dbFehler(error: unknown, intern = false): never {
   if (text.includes("SLOT_BELEGT")) throw new TerminFehler("Dieser Termin ist inzwischen vergeben. Bitte wählen Sie eine andere Uhrzeit.");
   if (text.includes("FALSCHER_STATUS")) throw new TerminFehler("Der Termin wurde in der Zwischenzeit schon bearbeitet.");
   if (text.includes("NICHT_GEFUNDEN")) throw new TerminFehler("Termin nicht gefunden.");
-  throw error instanceof Error ? error : new Error(text);
+  // Alles andere ist ein Fehler im System, kein Planungsproblem: mit Ursache und Abhilfe weiterreichen.
+  throw error instanceof Error ? error : new DbFehler(error as { message: string; code?: string });
 }
 
 export async function leistungen(nurSichtbar = true): Promise<Leistung[]> {
@@ -652,7 +653,7 @@ async function anfrageSpeichern(
   let id: string | null = null;
   let warEng = false;
   for (const k of versuche) {
-    const { data, error } = await db().rpc("termin_anlegen", {
+    const { data, error } = await dbRoh().rpc("termin_anlegen", {
       p: {
         beginn: slot.beginn.toISOString(),
         ende: k.ende.toISOString(),
@@ -742,7 +743,7 @@ export async function terminEintragen(
   const kundeId = e.kundeId ? await gewaehlterKunde(e.kundeId, kontakt) : await kundeFindenOderAnlegen(kontakt);
   const fahrzeugId = await gewaehltesFahrzeug(e.fahrzeugId, e.kennzeichen, kundeId, e.fahrzeug);
 
-  const { data: id, error } = await db().rpc("termin_anlegen", {
+  const { data: id, error } = await dbRoh().rpc("termin_anlegen", {
     p: {
       status: "bestaetigt",
       beginn: slot.beginn.toISOString(),
@@ -786,7 +787,7 @@ export async function bestaetigen(id: string, vonBenutzer: string | null, ueberb
     // Klappt das nicht (gerade vergeben), wird trotzdem bestätigt, nur eben ohne Person.
     if (person) await umplanenRpc(id, zr, person, buchung.kapazitaet, false).catch(() => undefined);
   }
-  const { error } = await db().rpc("termin_bestaetigen", { p_id: id, p_kapazitaet: buchung.kapazitaet, p_ueberbuchen: ueberbuchen });
+  const { error } = await dbRoh().rpc("termin_bestaetigen", { p_id: id, p_kapazitaet: buchung.kapazitaet, p_ueberbuchen: ueberbuchen });
   if (error) dbFehler(error, vonBenutzer !== null);
   const termin = (await terminLaden(id))!;
   await verlauf("termin", id, verlaufText ?? (ueberbuchen ? "Bestätigt (trotz Warnung)" : "Bestätigt"), vonBenutzer);
@@ -806,7 +807,7 @@ export async function ablehnen(id: string, grund: string, vonBenutzer: string): 
     .eq("id", id)
     .eq("status", "angefragt")
     .select("id");
-  if (error) throw error;
+  if (error) throw new DbFehler(error);
   if (!data?.length) throw new TerminFehler("Die Anfrage wurde in der Zwischenzeit schon bearbeitet.");
   const termin = (await terminLaden(id))!;
   await verlauf("termin", id, `Abgelehnt${grund ? `: ${grund}` : ""}`, vonBenutzer);
@@ -832,7 +833,7 @@ export async function stornieren(id: string, durch: { kunde: true } | { benutzer
     .eq("id", id)
     .in("status", ["angefragt", "bestaetigt"])
     .select("id");
-  if (error) throw error;
+  if (error) throw new DbFehler(error);
   if (!data?.length) throw new TerminFehler("Dieser Termin kann nicht mehr abgesagt werden.");
   const neu = (await terminLaden(id))!;
   await verlauf("termin", id, "kunde" in durch ? "Vom Kunden abgesagt" : `Abgesagt${grund ? `: ${grund}` : ""}`, "kunde" in durch ? null : durch.benutzer);
@@ -849,7 +850,7 @@ export async function stornieren(id: string, durch: { kunde: true } | { benutzer
 type Zeitraum = { beginn: Date; ende: Date; bis: Date };
 
 async function umplanenRpc(id: string, z: Zeitraum, person: string | null, kapazitaet: number, ueberbuchen: boolean) {
-  const { error } = await db().rpc("termin_umplanen", {
+  const { error } = await dbRoh().rpc("termin_umplanen", {
     p_id: id,
     p_beginn: z.beginn.toISOString(),
     p_ende: z.ende.toISOString(),
@@ -1043,7 +1044,9 @@ export async function nachAbwesenheitUmverteilen(
     const neuePerson = await automatischePerson(z, [profil]);
     try {
       await umplanenRpc(t.id, z, neuePerson, buchung.kapazitaet, false);
-    } catch {
+    } catch (e) {
+      // Nur wenn die Person nicht passt, ohne Person weiter; ein Datenbankfehler soll auffallen.
+      if (!(e instanceof TerminFehler)) throw e;
       await umplanenRpc(t.id, z, null, buchung.kapazitaet, true);
     }
     const neu = (await terminLaden(t.id))!;
@@ -1073,7 +1076,7 @@ export async function erledigen(id: string, vonBenutzer: string, status: "erledi
     .eq("id", id)
     .in("status", ["bestaetigt", "angefragt"])
     .select("id");
-  if (error) throw error;
+  if (error) throw new DbFehler(error);
   // Sonst stünde „Erledigt“ bei einem Doppelklick zweimal im Verlauf und Webhooks bekämen termin.erledigt doppelt
   if (!data?.length) throw new TerminFehler("Der Termin wurde in der Zwischenzeit schon bearbeitet.");
   const termin = (await terminLaden(id))!;
@@ -1090,7 +1093,7 @@ export async function loeschen(id: string, vonBenutzer: string): Promise<void> {
   const termin = await terminLaden(id);
   if (!termin) throw new TerminFehler("Termin nicht gefunden.");
   const { data: fotos } = await db().from("termin_fotos").select("pfad").eq("termin_id", id);
-  const { error } = await db().rpc("termin_loeschen", { p_id: id });
+  const { error } = await dbRoh().rpc("termin_loeschen", { p_id: id });
   if (error) dbFehler(error);
   await db().from("verlauf").delete().eq("bezug_typ", "termin").eq("bezug_id", id);
   after(async () => {

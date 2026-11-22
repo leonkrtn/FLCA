@@ -1,13 +1,15 @@
+import Link from "next/link";
 import { Formular, Senden } from "@/components/admin/formular";
 import { GemerktePreise } from "@/components/admin/gemerkte-preise";
 import { TaktStatus } from "@/components/admin/takt-status";
-import { Abschnitt, Auswahl, Feld, Kopf, Reiter, Schalter, Tabelle, Textfeld } from "@/components/admin/ui";
+import { Abschnitt, Auswahl, Feld, Kopf, Leer, Marke, Reiter, Schalter, Tabelle, Textfeld } from "@/components/admin/ui";
 import {
   apiSchluesselAnlegen,
   apiSchluesselWiderrufen,
   automatikSpeichern,
   benachrichtigungSpeichern,
   buchungSpeichern,
+  fehlerErledigt,
   firmaSpeichern,
   moduleSpeichern,
   rechnungEinstellungen,
@@ -21,6 +23,7 @@ import { benutzerMitRecht } from "@/lib/auth";
 import { einstellungen, WOCHENTAGE } from "@/lib/einstellungen";
 import { ENV } from "@/lib/env";
 import { EREIGNIS_TYPEN } from "@/lib/ereignisse";
+import { offeneFehlerAnzahl, protokollLaden } from "@/lib/fehlerprotokoll";
 import { datumZeit } from "@/lib/format";
 import { darf } from "@/lib/rollen";
 import { db } from "@/lib/supabase/admin";
@@ -38,9 +41,10 @@ const BEREICHE = [
   ["module", "Module"],
   ["schnittstellen", "Schnittstellen"],
   ["recht", "Rechtstexte"],
+  ["fehler", "Fehler"],
 ] as const;
 
-export default async function EinstellungenSeite({ searchParams }: { searchParams: Promise<{ bereich?: string; ansicht?: string; q?: string }> }) {
+export default async function EinstellungenSeite({ searchParams }: { searchParams: Promise<{ bereich?: string; ansicht?: string; q?: string; code?: string }> }) {
   // Die gemerkten Preise pflegt auch das Büro (Recht „rechnungen“), alles andere hier nur, wer Einstellungen darf.
   const b = await benutzerMitRecht();
   const sp = await searchParams;
@@ -48,11 +52,16 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
   if (!alles) await benutzerMitRecht("rechnungen");
   const bereich = alles ? (sp.bereich ?? "firma") : "preise";
   const sichtbar = BEREICHE.filter(([k]) => alles || k === "preise");
-  const e = await einstellungen();
+  const [e, offeneFehler] = await Promise.all([einstellungen(), alles ? offeneFehlerAnzahl() : 0]);
   return (
     <>
       <Kopf titel="Einstellungen" />
-      <Reiter aktiv={`/admin/einstellungen?bereich=${bereich}`} eintraege={sichtbar.map(([k, t]) => ({ href: `/admin/einstellungen?bereich=${k}`, text: t }))} />
+      <Reiter
+        aktiv={`/admin/einstellungen?bereich=${bereich}`}
+        eintraege={sichtbar.map(([k, t]) => ({ href: `/admin/einstellungen?bereich=${k}`, text: t, anzahl: k === "fehler" ? offeneFehler : undefined }))}
+      />
+
+      {bereich === "fehler" ? <FehlerBereich erledigte={sp.ansicht === "erledigt"} code={sp.code} /> : null}
 
       {bereich === "preise" ? <GemerktePreise sp={sp} /> : null}
 
@@ -253,6 +262,65 @@ async function RechnungBereich() {
         </fieldset>
         <div><Senden vorab="Gespeichert">Speichern</Senden></div>
       </Formular>
+    </Abschnitt>
+  );
+}
+
+/**
+ * Fehlerprotokoll: alles, was auf dem Server schiefging (Seiten, Formulare, Takt, Mails), mit Ursache und
+ * Abhilfe. Gleiche Fehler stehen einmal da und werden gezählt. `code` kommt von der Fehlerseite.
+ */
+async function FehlerBereich({ erledigte, code }: { erledigte: boolean; code?: string }) {
+  const { eintraege, unmigriert } = await protokollLaden(erledigte);
+  const ansicht = (a: string, t: string, an: boolean) => (
+    <Link href={`/admin/einstellungen?bereich=fehler${a ? `&ansicht=${a}` : ""}`} className={`text-sm ${an ? "font-semibold" : "text-grau underline"}`}>{t}</Link>
+  );
+  return (
+    <Abschnitt
+      titel={erledigte ? "Erledigte Fehler" : "Offene Fehler"}
+      aktion={
+        <>
+          {ansicht("", "Offen", !erledigte)}
+          {ansicht("erledigt", "Erledigt", erledigte)}
+          {!erledigte && eintraege.length > 1 ? (
+            <Formular aktion={fehlerErledigt.bind(null, null)} bestaetigen="Alle offenen Fehler als erledigt markieren?"><Senden art="rahmen" klein>Alle erledigt</Senden></Formular>
+          ) : null}
+        </>
+      }
+    >
+      {unmigriert ? (
+        <p className="max-w-2xl text-sm">
+          Das Fehlerprotokoll ist noch nicht eingerichtet. Bitte die Migration <span className="zahlen">20261124100000_fehlerprotokoll.sql</span> im SQL-Editor von Supabase ausführen. Bis dahin stehen Fehler nur im Server-Log (Vercel → Logs).
+        </p>
+      ) : eintraege.length ? (
+        <>
+          <p className="mb-4 max-w-2xl text-sm text-grau">
+            Als erledigt markieren, wenn die Ursache behoben ist. Tritt der Fehler wieder auf, steht er wieder hier. Erledigte verschwinden nach 30 Tagen.
+          </p>
+          <ul className="divide-y divide-linie">
+            {eintraege.map((f) => (
+              <li key={f.id} className={`grid gap-2 py-4 ${code && f.digest === code ? "-mx-2 rounded-lg bg-flaeche px-2" : ""}`}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="min-w-0 font-semibold">{f.ort}</span>
+                  <span className="flex items-center gap-2">
+                    {f.code ? <Marke>{f.code}</Marke> : null}
+                    <span className="zahlen text-sm text-grau">{f.anzahl === 1 ? "einmal" : `${f.anzahl}-mal`}</span>
+                    {!erledigte ? <Formular aktion={fehlerErledigt.bind(null, f.id)}><Senden art="rahmen" klein>Erledigt</Senden></Formular> : null}
+                  </span>
+                </div>
+                <p className="whitespace-pre-wrap break-words text-sm">{f.meldung}</p>
+                <p className="zahlen text-xs text-grau">
+                  {f.anzahl > 1 ? `zuerst ${datumZeit(f.zuerst_am)} · ` : ""}zuletzt {datumZeit(f.zuletzt_am)}
+                  {f.digest ? ` · Fehlercode ${f.digest}` : ""}
+                  {f.erledigt_am ? ` · erledigt ${datumZeit(f.erledigt_am)}` : ""}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <Leer>{erledigte ? "Keine erledigten Fehler." : "Keine offenen Fehler."}</Leer>
+      )}
     </Abschnitt>
   );
 }

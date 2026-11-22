@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { type NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/supabase/admin";
+import { db, dbRoh } from "@/lib/supabase/admin";
 import { freieTermine, gesamtDauer, MAX_LEISTUNGEN } from "@/lib/termine";
 import { istDatum } from "@/lib/zeit";
 
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   switch (ressource) {
     case "termine": {
-      let a = db().from("termine").select("id, nummer, status, beginn, ende, leistung_name, quelle, auftrag_status, kunde:kunden(id, name, email, telefon), fahrzeug:fahrzeuge(kennzeichen, marke_modell)").order("beginn", { ascending: false }).limit(limit);
+      let a = dbRoh().from("termine").select("id, nummer, status, beginn, ende, leistung_name, quelle, auftrag_status, kunde:kunden(id, name, email, telefon), fahrzeug:fahrzeuge(kennzeichen, marke_modell)").order("beginn", { ascending: false }).limit(limit);
       if (id) a = a.eq("id", id);
       if (q.get("status")) a = a.eq("status", q.get("status")!);
       if (q.get("von")) a = a.gte("beginn", q.get("von")!);
@@ -38,20 +38,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return error ? fehler(400, error.message) : NextResponse.json({ daten: data });
     }
     case "kunden": {
-      let a = db().from("kunden").select("id, nummer, name, firma, email, telefon, strasse, plz, ort, erstellt_am, fahrzeuge(kennzeichen, marke_modell)").order("erstellt_am", { ascending: false }).limit(limit);
+      let a = dbRoh().from("kunden").select("id, nummer, name, firma, email, telefon, strasse, plz, ort, erstellt_am, fahrzeuge(kennzeichen, marke_modell)").order("erstellt_am", { ascending: false }).limit(limit);
       if (id) a = a.eq("id", id);
       const { data, error } = await a;
       return error ? fehler(400, error.message) : NextResponse.json({ daten: data });
     }
     case "rechnungen": {
-      let a = db().from("rechnungen").select("id, nummer, status, rechnungsdatum, faellig_am, bezahlt_am, summe_netto_cent, summe_mwst_cent, summe_brutto_cent, empfaenger, termin_id, kunde_id").not("nummer", "is", null).order("gestellt_am", { ascending: false }).limit(limit);
+      let a = dbRoh().from("rechnungen").select("id, nummer, status, rechnungsdatum, faellig_am, bezahlt_am, summe_netto_cent, summe_mwst_cent, summe_brutto_cent, empfaenger, termin_id, kunde_id").not("nummer", "is", null).order("gestellt_am", { ascending: false }).limit(limit);
       if (id) a = a.eq("id", id);
       if (q.get("status")) a = a.eq("status", q.get("status")!);
       const { data, error } = await a;
       return error ? fehler(400, error.message) : NextResponse.json({ daten: data });
     }
     case "ereignisse": {
-      let a = db().from("ereignisse").select("id, typ, daten, erstellt_am").order("id").limit(limit);
+      let a = dbRoh().from("ereignisse").select("id, typ, daten, erstellt_am").order("id").limit(limit);
       if (q.get("nach")) a = a.gt("id", Number(q.get("nach")) || 0);
       if (q.get("typ")) a = a.eq("typ", q.get("typ")!);
       const { data, error } = await a;

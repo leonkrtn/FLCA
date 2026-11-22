@@ -3,7 +3,7 @@ import { melden } from "./ereignisse";
 import { kennzeichen as kennzeichenFormat } from "./format";
 import { MARKEN, markeModellTrennen } from "./rechnung/aehnlich";
 import type { Empfaenger, Rechnung } from "./rechnung/rechnungen";
-import { db } from "./supabase/admin";
+import { db, DbFehler } from "./supabase/admin";
 
 export type KundenFahrzeug = { id: string; kennzeichen: string; marke_modell: string; marke: string; modell: string; km_stand: number | null };
 
@@ -56,7 +56,7 @@ export async function kundenSuchen(q: string, limit = 8): Promise<KundenTreffer[
     );
   }
   const { data, error } = await abfrage;
-  if (error) throw new Error(error.message);
+  if (error) throw new DbFehler(error);
   const passt = (f: KundenFahrzeug) => norm.length >= 2 && f.kennzeichen.toUpperCase().replace(/[^A-ZÄÖÜ0-9]/g, "").includes(norm);
   return ((data ?? []) as unknown as KundenTreffer[]).map((k) => {
     const fahrzeuge = [...(k.fahrzeuge ?? [])].sort((a, b) => a.kennzeichen.localeCompare(b.kennzeichen));

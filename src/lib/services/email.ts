@@ -1,6 +1,7 @@
 import "server-only";
 import { Resend } from "resend";
 import { ENV, KONFIGURIERT } from "../env";
+import { fehlerMelden } from "../fehler";
 
 export type Mail = {
   an: string | string[];
@@ -30,10 +31,13 @@ const resend: Mailer = {
         replyTo: mail.antwortAn,
         attachments: mail.anhaenge?.map((a) => ({ filename: a.dateiname, content: a.inhalt, contentType: a.typ })),
       });
-      if (error) return { ok: false, fehler: error.message };
+      if (error) {
+        await fehlerMelden(new Error(`Resend: ${error.message}`), "E-Mail senden");
+        return { ok: false, fehler: error.message };
+      }
       return { ok: true, id: data?.id };
     } catch (error) {
-      console.error("E-Mail konnte nicht versendet werden", error);
+      await fehlerMelden(error, "E-Mail senden");
       return { ok: false, fehler: "E-Mail konnte nicht versendet werden." };
     }
   },

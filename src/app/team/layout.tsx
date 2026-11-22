@@ -6,6 +6,7 @@ import { PushAbgleich } from "@/components/mobil/push-abgleich";
 import { benutzerMitRecht } from "@/lib/auth";
 import { erinnerungenNachholen } from "@/lib/automatik";
 import { einstellungen } from "@/lib/einstellungen";
+import { weich } from "@/lib/fehler";
 
 export const metadata: Metadata = {
   title: { default: "Team", template: "%s · FLC Team" },
@@ -20,7 +21,7 @@ export const viewport: Viewport = { themeColor: "#ecebe7", viewportFit: "cover" 
 export default async function TeamLayout({ children }: { children: React.ReactNode }) {
   const b = await benutzerMitRecht("werkstatt");
   // Fällige Erinnerungen nachholen, falls die Zeitsteuerung nicht anruft (nach der Antwort, bremst nichts)
-  after(() => erinnerungenNachholen().catch((e) => console.error("Erinnerungen nachholen fehlgeschlagen", e)));
+  after(() => weich(erinnerungenNachholen(), undefined, "Erinnerungen nachholen"));
   const { module } = await einstellungen();
   const zeiten = module.zeiterfassung && b.zeiterfassung;
   return (

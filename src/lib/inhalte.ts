@@ -3,9 +3,10 @@ import { cache } from "react";
 import { laufendeAngebote } from "./angebote/daten";
 import { angeboteAnwenden } from "./angebote/preise";
 import { KONFIGURIERT } from "./env";
-import { db, websiteDatei } from "./supabase/admin";
+import { db, DbFehler, dbRoh, websiteDatei } from "./supabase/admin";
 import type { Leistung } from "./termine";
 import { berlinDatum } from "./zeit";
+import { fehlerMelden, weich } from "./fehler";
 
 /**
  * Inhalte der öffentlichen Website. Ohne Datenbank (lokale Vorschau, Build ohne Zugangsdaten) gelten die
@@ -51,10 +52,10 @@ export const KATEGORIEN: Record<string, string> = {
  */
 export const oeffentlicheLeistungen = cache(async (): Promise<Leistung[]> => {
   if (!KONFIGURIERT.supabaseAdmin) return START_LEISTUNGEN.map((l) => ({ ...l, id: l.slug, angebot: null }));
-  const [{ data, error }, angebote] = await Promise.all([db().from("leistungen").select("*").eq("sichtbar", true).order("sortierung"), laufendeAngebote()]);
+  const [{ data, error }, angebote] = await Promise.all([dbRoh().from("leistungen").select("*").eq("sichtbar", true).order("sortierung"), laufendeAngebote()]);
   // Noch nicht migriert oder Datenbank kurz weg: lieber die Startdaten zeigen als eine Fehlerseite.
   if (error) {
-    console.error("Leistungen konnten nicht geladen werden", error.message);
+    await fehlerMelden(new DbFehler(error, { tabelle: "leistungen" }), "Leistungen für die Website laden");
     return START_LEISTUNGEN.map((l) => ({ ...l, id: l.slug, angebot: null }));
   }
   return angeboteAnwenden(data as Leistung[], angebote, berlinDatum());
@@ -70,22 +71,27 @@ export const bewertungen = cache(async (): Promise<Bewertung[]> => {
       { id: "3", name: "A. F.", sterne: 5, quelle: "Google", text: "War schon mehrfach mit meinem Auto dort und immer sehr zufrieden. Besonders der freundliche Service und die ehrliche Beratung zeichnen den Betrieb aus." },
     ];
   }
-  const { data } = await db().from("bewertungen").select("id, name, text, sterne, quelle").eq("sichtbar", true).order("sortierung").limit(6);
-  return (data ?? []) as Bewertung[];
+  // Website-Abschnitt: bei einem Fehler fehlt er eben, die Seite bleibt erreichbar (Fehler ins Protokoll)
+  return weich(async () => {
+    const { data } = await db().from("bewertungen").select("id, name, text, sterne, quelle").eq("sichtbar", true).order("sortierung").limit(6);
+    return (data ?? []) as Bewertung[];
+  }, [], "Bewertungen für die Website laden");
 });
 
 export type GalerieEintrag = { id: string; titel: string; beschreibung: string; vorher: string; nachher: string };
 
 export const galerie = cache(async (): Promise<GalerieEintrag[]> => {
   if (!KONFIGURIERT.supabaseAdmin) return [];
-  const { data } = await db().from("galerie").select("*").eq("sichtbar", true).order("sortierung");
-  return (data ?? []).map((g) => ({
-    id: g.id,
-    titel: g.titel,
-    beschreibung: g.beschreibung,
-    vorher: websiteDatei(g.vorher_pfad)!,
-    nachher: websiteDatei(g.nachher_pfad)!,
-  }));
+  return weich(async () => {
+    const { data } = await db().from("galerie").select("*").eq("sichtbar", true).order("sortierung");
+    return (data ?? []).map((g) => ({
+      id: g.id,
+      titel: g.titel,
+      beschreibung: g.beschreibung,
+      vorher: websiteDatei(g.vorher_pfad)!,
+      nachher: websiteDatei(g.nachher_pfad)!,
+    }));
+  }, [], "Galerie für die Website laden");
 });
 
 export type Stelle = { id: string; titel: string; umfang: string; einleitung: string; aufgaben: string; profil: string; wir_bieten: string };
@@ -94,6 +100,8 @@ export const stellen = cache(async (): Promise<Stelle[]> => {
   if (!KONFIGURIERT.supabaseAdmin) {
     return [{ id: "beispiel", titel: "Kfz-Mechatroniker (m/w/d)", umfang: "Vollzeit", einleitung: "Für unsere Werkstatt in Dietzenbach suchen wir Verstärkung.", aufgaben: "Reifenservice, Ölwechsel und Inspektionen\nReparaturen an Bremsen und Fahrwerk", profil: "Abgeschlossene Ausbildung als Kfz-Mechatroniker oder vergleichbar", wir_bieten: "Feste Arbeitszeiten, samstags nur bis 13 Uhr" }];
   }
-  const { data } = await db().from("stellen").select("*").eq("aktiv", true).order("sortierung");
-  return (data ?? []) as Stelle[];
+  return weich(async () => {
+    const { data } = await db().from("stellen").select("*").eq("aktiv", true).order("sortierung");
+    return (data ?? []) as Stelle[];
+  }, [], "Stellen für die Website laden");
 });

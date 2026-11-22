@@ -12,9 +12,10 @@ import { rechnungPdf } from "./rechnung/pdf";
 import { entwurfAusTermin, type Empfaenger } from "./rechnung/rechnungen";
 import { mailer } from "./services/email";
 import { pushSenden } from "./services/push";
-import { db } from "./supabase/admin";
+import { db, DbFehler, dbRoh } from "./supabase/admin";
 import { type Termin, TerminFehler, terminLaden } from "./termine";
 import { berlinDatum } from "./zeit";
+import { fehlerMelden } from "./fehler";
 
 /**
  * Werkstattauftrag: Der Kunde erteilt ihn, bevor gearbeitet wird. Er hängt am Termin (Spalten auftrag_* in
@@ -109,7 +110,7 @@ export async function auftragAnlegen(terminId: string, vonBenutzer: string): Pro
 }
 
 async function nummerVergeben(terminId: string): Promise<string> {
-  const { data, error } = await db().rpc("auftrag_anlegen", { p_id: terminId });
+  const { data, error } = await dbRoh().rpc("auftrag_anlegen", { p_id: terminId });
   if (error) throw new Error(error.message.includes("NICHT_GEFUNDEN") ? "Termin nicht gefunden." : error.message);
   return data as string;
 }
@@ -149,7 +150,7 @@ export async function auftragSpeichern(terminId: string, a: { positionen: Positi
     .eq("id", terminId)
     .not("auftrag_nummer", "is", null)
     .select("id");
-  if (error) throw new Error(error.message);
+  if (error) throw new DbFehler(error);
   if (!data?.length) throw new TerminFehler("Zu diesem Termin gibt es keinen Werkstattauftrag.");
   const t = (await terminLaden(terminId))!;
   const warnung = grenzeText(t);
@@ -169,7 +170,7 @@ export async function annahmeSpeichern(
   const { data: t } = await db().from("termine").select("fahrzeug_id").eq("id", terminId).maybeSingle();
   if (!t) throw new TerminFehler("Termin nicht gefunden.");
   const { error } = await db().from("termine").update({ annahme: e.annahme, km_stand: e.km, auftrag_beschreibung: e.beschreibung }).eq("id", terminId);
-  if (error) throw new Error(error.message);
+  if (error) throw new DbFehler(error);
   if (t.fahrzeug_id) {
     await db()
       .from("fahrzeuge")
@@ -204,7 +205,7 @@ export async function auftragErteilen(
     .eq("id", terminId)
     .is("auftrag_erteilt_am", null)
     .select("id");
-  if (error) throw new Error(error.message);
+  if (error) throw new DbFehler(error);
   if (!data?.length) {
     if (o.stumm) return;
     throw new TerminFehler("Der Auftrag ist schon erteilt.");
@@ -234,7 +235,7 @@ export async function erteilungZuruecknehmen(terminId: string, vonBenutzer: stri
     .eq("id", terminId)
     .not("auftrag_erteilt_am", "is", null)
     .select("id");
-  if (error) throw new Error(error.message);
+  if (error) throw new DbFehler(error);
   if (!data?.length) throw new TerminFehler("Der Auftrag ist nicht erteilt.");
   await db().from("auftrag_unterschriften").delete().eq("termin_id", terminId);
   await verlauf("termin", terminId, "Erteilung des Werkstattauftrags zurückgenommen", vonBenutzer);
@@ -361,7 +362,7 @@ export async function nachFertig(terminId: string, vonBenutzer: string, wer: str
   try {
     rechnungId = await entwurfAusTermin(terminId, vonBenutzer);
   } catch (error) {
-    console.error("Rechnungsentwurf nach „fertig“ nicht angelegt", terminId, error);
+    await fehlerMelden(error, "Rechnungsentwurf nach „fertig“ anlegen");
   }
   const t = await terminLaden(terminId);
   if (!t) return rechnungId;

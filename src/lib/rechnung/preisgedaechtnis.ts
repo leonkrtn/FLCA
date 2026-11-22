@@ -1,8 +1,9 @@
 import "server-only";
-import { db } from "../supabase/admin";
+import { db, DbFehler, dbRoh } from "../supabase/admin";
 import { besterTreffer, fahrzeugSchluessel, markeModellTrennen, textNorm } from "./aehnlich";
 import { istAlt, istRabatt, type Position } from "./berechnung";
 import type { Rechnung } from "./rechnungen";
+import { fehlerMelden } from "../fehler";
 
 /** Ein gemerkter Preis: die Position, wie sie zuletzt bei diesem Fahrzeugtyp berechnet wurde. */
 export type Gemerkt = {
@@ -66,13 +67,13 @@ export async function gemerktFuer(marke: string, modell: string): Promise<Gemerk
     .eq("modell_norm", s.modell_norm)
     .order("aktualisiert_am", { ascending: false })
     .limit(1000);
-  if (error) throw new Error(error.message);
+  if (error) throw new DbFehler(error);
   return (data ?? []).map(alsGemerkt);
 }
 
 export async function paketeListe(): Promise<Paket[]> {
   const { data, error } = await db().from("pakete").select("*").order("aktualisiert_am", { ascending: false }).limit(500);
-  if (error) throw new Error(error.message);
+  if (error) throw new DbFehler(error);
   return (data ?? []) as Paket[];
 }
 
@@ -129,9 +130,9 @@ export async function merken(r: Rechnung, pakete: PaketWunsch[] = []): Promise<v
       };
       const treffer = vorhanden.find((v) => v.text_norm === text_norm) ?? besterTreffer(p.text, vorhanden);
       const { error } = treffer
-        ? await db().from("preis_gedaechtnis").update({ ...zeile, text_norm: treffer.text_norm }).eq("id", treffer.id)
-        : await db().from("preis_gedaechtnis").upsert({ ...zeile, text_norm }, { onConflict: "marke_norm,modell_norm,text_norm" });
-      if (error) console.error("Preis nicht gemerkt", p.text, error.message);
+        ? await dbRoh().from("preis_gedaechtnis").update({ ...zeile, text_norm: treffer.text_norm }).eq("id", treffer.id)
+        : await dbRoh().from("preis_gedaechtnis").upsert({ ...zeile, text_norm }, { onConflict: "marke_norm,modell_norm,text_norm" });
+      if (error) await fehlerMelden(new DbFehler(error, { tabelle: "preis_gedaechtnis" }), "Preis merken");
     }
 
     // Altbestand ohne getrennte Marke/Modell: beim ersten Beleg nachtragen, ohne dass jemand die Kartei pflegt.
@@ -153,7 +154,7 @@ export async function merken(r: Rechnung, pakete: PaketWunsch[] = []): Promise<v
       .map((i) => r.positionen[i])
       .filter((p) => !istRabatt(p) && !istAlt(p));
     if (!name || !positionen.length) continue;
-    const { error } = await db()
+    const { error } = await dbRoh()
       .from("pakete")
       .upsert(
         {
@@ -168,6 +169,6 @@ export async function merken(r: Rechnung, pakete: PaketWunsch[] = []): Promise<v
         },
         { onConflict: "name_norm,marke_norm,modell_norm" },
       );
-    if (error) console.error("Paket nicht gemerkt", name, error.message);
+    if (error) await fehlerMelden(new DbFehler(error, { tabelle: "pakete" }), "Paket merken");
   }
 }

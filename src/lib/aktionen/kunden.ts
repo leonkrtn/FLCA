@@ -4,9 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { benutzerMitRecht } from "../auth";
 import { melden } from "../ereignisse";
-import { type Ergebnis, istEmail, sicher, text, werteAus, zahl } from "../forms";
+import { type Ergebnis, istEmail, text, werteAus, zahl } from "../forms";
+import { sicher } from "../sicher";
 import { kennzeichen } from "../format";
-import { db } from "../supabase/admin";
+import { db, DbFehler, dbRoh } from "../supabase/admin";
+import { fehlerMelden } from "../fehler";
 
 const KUNDENFELDER = ["name", "firma", "email", "telefon", "strasse", "plz", "ort", "ust_id", "leitweg_id", "notiz"] as const;
 
@@ -19,12 +21,12 @@ export async function kundeSpeichern(id: string | null, _v: Ergebnis, fd: FormDa
     daten.email = daten.email.toLowerCase();
     if (id) {
       const { error } = await db().from("kunden").update(daten).eq("id", id);
-      if (error) throw new Error(error.message);
+      if (error) throw new DbFehler(error);
       revalidatePath(`/admin/kunden/${id}`);
       return { status: "ok", meldung: "Gespeichert." };
     }
     const { data, error } = await db().from("kunden").insert(daten).select("id, nummer").single();
-    if (error) throw new Error(error.message);
+    if (error) throw new DbFehler(error);
     neu = data.id;
     await melden("kunde.angelegt", { kunde_id: data.id, nummer: data.nummer, name: daten.name });
     return { status: "ok" };
@@ -56,7 +58,7 @@ export async function fahrzeugSpeichern(kundeId: string, fahrzeugId: string | nu
       reifengroesse: text(fd, "reifengroesse", 40),
       km_stand: km === null ? null : Math.round(km),
     };
-    const { error } = fahrzeugId ? await db().from("fahrzeuge").update(daten).eq("id", fahrzeugId) : await db().from("fahrzeuge").insert(daten);
+    const { error } = fahrzeugId ? await dbRoh().from("fahrzeuge").update(daten).eq("id", fahrzeugId) : await dbRoh().from("fahrzeuge").insert(daten);
     if (error) return { status: "fehler", meldung: error.code === "23505" ? "Dieses Kennzeichen gibt es schon bei einem anderen Kunden." : error.message };
     revalidatePath(`/admin/kunden/${kundeId}`);
     return { status: "ok", meldung: "Gespeichert." };
@@ -87,14 +89,14 @@ export async function kundeAnlegenAktion(ort: "admin" | "app", _v: Ergebnis, fd:
       }
     }
     const { data, error } = await db().from("kunden").insert(daten).select("id, nummer").single();
-    if (error) throw new Error(error.message);
+    if (error) throw new DbFehler(error);
     neu = data.id;
     if (kz) {
       const km = zahl(fd, "km_stand");
-      const { error: f } = await db()
+      const { error: f } = await dbRoh()
         .from("fahrzeuge")
         .insert({ kunde_id: data.id, kennzeichen: kz, ...markeModellAus(fd), km_stand: km === null ? null : Math.round(km) });
-      if (f) console.error("Fahrzeug zum neuen Kunden nicht gespeichert", f.message);
+      if (f) await fehlerMelden(new DbFehler(f, { tabelle: "fahrzeuge" }), "Fahrzeug zum neuen Kunden speichern");
     }
     await melden("kunde.angelegt", { kunde_id: data.id, nummer: data.nummer, name: daten.name });
     revalidatePath("/admin/kunden");
