@@ -148,8 +148,7 @@ export async function terminLaden(id: string): Promise<Termin | null> {
 
 export async function terminPerToken(token: string): Promise<Termin | null> {
   if (!/^[a-f0-9]{64}$/.test(token)) return null;
-  const { data } = await db().from("termine").select(TERMIN_FELDER).eq("token", token).maybeSingle();
-  return data as Termin | null;
+  return pruefe<Termin | null>(await db().from("termine").select(TERMIN_FELDER).eq("token", token).maybeSingle());
 }
 
 // ---------------------------------------------------------------------------
