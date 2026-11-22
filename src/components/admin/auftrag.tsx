@@ -16,6 +16,7 @@ import {
   kvTerminLoesenAktion,
 } from "@/lib/aktionen/auftrag";
 import type { AuftragTermin } from "@/lib/auftrag";
+import { type KalenderAnsicht, mitKal } from "@/lib/kalender-ansicht";
 import { AUFTRAG_STAND_TEXT, AUFTRAG_STAND_TON, auftragStand, erteiltText, grenzeText, TANKSTAENDE } from "@/lib/auftrag-regeln";
 import { datum, datumZeit, euro } from "@/lib/format";
 import { KV_STATUS } from "@/lib/rechnung/kostenvoranschlaege";
@@ -27,7 +28,8 @@ const OFFEN = ["angefragt", "bestaetigt", "erledigt"];
  * Werkstattauftrag am Termin (Verwaltung und Handy-App): anlegen, Positionen, PDF, Erteilung per Unterschrift
  * oder per Mail zur Freigabe. Ohne erteilten Auftrag darf die Werkstatt anfangen, sieht aber die Warnung.
  */
-export function AuftragBereich({ t, ort }: { t: AuftragTermin; ort: Ort }) {
+/** `kal`: Termin wurde aus dem Kalender geöffnet; der Weg zu den Positionen nimmt das mit (zurück bis in den Kalender). */
+export function AuftragBereich({ t, ort, kal }: { t: AuftragTermin; ort: Ort; kal?: KalenderAnsicht | null }) {
   const stand = auftragStand(t);
   if (stand === "kein") {
     if (!OFFEN.includes(t.status)) return <p className="text-grau">Zu diesem Termin gibt es keinen Auftrag.</p>;
@@ -55,7 +57,7 @@ export function AuftragBereich({ t, ort }: { t: AuftragTermin; ort: Ort }) {
       ) : null}
       {t.auftrag_positionen?.length ? <PositionenUebersicht positionen={t.auftrag_positionen} /> : <p className="text-sm text-grau">Noch keine Positionen.</p>}
       <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-        <Link href={`/${ort}/termine/${t.id}/auftrag`} className="knopf knopf-rahmen">Positionen bearbeiten</Link>
+        <Link href={mitKal(`/${ort}/termine/${t.id}/auftrag`, kal ?? null)} className="knopf knopf-rahmen">Positionen bearbeiten</Link>
         <DateiKnopf art="datei" href={`/admin/termine/${t.id}/auftrag/pdf`} className="knopf knopf-rahmen">PDF</DateiKnopf>
       </div>
 

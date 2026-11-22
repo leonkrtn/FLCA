@@ -58,6 +58,7 @@ export function mapsHref(strasse: string, plz: string, ort: string): string {
 const datumFormat = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeZone: ZONE });
 const datumLang = new Intl.DateTimeFormat("de-DE", { weekday: "long", day: "numeric", month: "long", timeZone: ZONE });
 const datumKurz = new Intl.DateTimeFormat("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", timeZone: ZONE });
+const monatFormat = new Intl.DateTimeFormat("de-DE", { month: "long", year: "numeric", timeZone: ZONE });
 const zeitFormat = new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: ZONE });
 
 const alsDatum = (wert: string | Date) =>
@@ -74,6 +75,10 @@ export function datumLangText(wert: string | Date): string {
 /** Di., 01.12. */
 export function datumKurzText(wert: string | Date): string {
   return datumKurz.format(alsDatum(wert));
+}
+/** November 2026 */
+export function monatText(wert: string | Date): string {
+  return monatFormat.format(alsDatum(wert));
 }
 /** 09:30 */
 export function zeit(wert: string | Date): string {

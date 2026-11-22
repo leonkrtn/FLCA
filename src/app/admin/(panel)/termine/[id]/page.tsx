@@ -25,6 +25,7 @@ import { auftragLaden } from "@/lib/auftrag";
 import { AUFTRAG_STAND_TEXT, AUFTRAG_STAND_TON, auftragStand } from "@/lib/auftrag-regeln";
 import { benutzerMitRecht } from "@/lib/auth";
 import { datum, datumLangText, datumZeit, euro, preis, telHref, zeit } from "@/lib/format";
+import { kalenderHref, kalLesen, kalWert } from "@/lib/kalender-ansicht";
 import { kundenSuchen } from "@/lib/kunden";
 import { RECHNUNG_STATUS } from "@/lib/rechnung/rechnungen";
 import { darf } from "@/lib/rollen";
@@ -34,9 +35,11 @@ import { freieRechnungen, kvsZumTermin, terminZusatz } from "@/lib/termin-daten"
 import { anfrageLage, STATUS_TEXT } from "@/lib/termine";
 import { berlinDatum, berlinUhrzeit } from "@/lib/zeit";
 
-export default async function TerminDetail({ params }: { params: Promise<{ id: string }> }) {
+export default async function TerminDetail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ kal?: string }> }) {
   const b = await benutzerMitRecht("termine");
   const { id } = await params;
+  // Aus dem Kalender geöffnet: „Zurück“ und Löschen führen in genau diese Ansicht
+  const kal = kalLesen((await searchParams).kal);
   const t = await auftragLaden(id);
   if (!t) notFound();
   const mitRechnungen = darf(b.rolle, "rechnungen");
@@ -63,7 +66,7 @@ export default async function TerminDetail({ params }: { params: Promise<{ id: s
   return (
     <>
       <Kopf
-        zurueck={{ href: "/admin/termine", text: "Termine" }}
+        zurueck={kal ? { href: kalenderHref(kal), text: "Kalender" } : { href: "/admin/termine", text: "Termine" }}
         titel={t.leistung_name}
         unter={
           <span className="flex flex-wrap items-center gap-2">
@@ -75,7 +78,7 @@ export default async function TerminDetail({ params }: { params: Promise<{ id: s
           </span>
         }
       >
-        <TerminLoeschen id={t.id} nummer={t.nummer} status={t.status} ziel="/admin/termine" />
+        <TerminLoeschen id={t.id} nummer={t.nummer} status={t.status} ziel="/admin/termine" kal={kal ? kalWert(kal) : undefined} />
       </Kopf>
       <div className="grid gap-x-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div>
@@ -127,7 +130,7 @@ export default async function TerminDetail({ params }: { params: Promise<{ id: s
           </Abschnitt>
 
           <Abschnitt titel="Werkstattauftrag">
-            <AuftragBereich t={t} ort="admin" />
+            <AuftragBereich t={t} ort="admin" kal={kal} />
           </Abschnitt>
 
           <Abschnitt titel="Fahrzeugannahme">
