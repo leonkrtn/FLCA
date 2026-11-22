@@ -15,6 +15,7 @@ import { kundeAusBeleg, markeUndModell } from "../kunden";
 import { merken, type PaketWunsch } from "./preisgedaechtnis";
 import { rechnungPdf } from "./pdf";
 import { alsZugferd, eRechnungPruefen, istXRechnung, zugferdXml } from "./zugferd";
+import { bereitsBezahlt, durchZahlungErledigt, fassungsNummer, grundPruefen, offenerBetrag } from "./korrektur";
 import { fehlerMelden } from "../fehler";
 
 export type Empfaenger = {
@@ -33,6 +34,14 @@ export type Rechnung = {
   nummer: string | null;
   status: "entwurf" | "gestellt" | "bezahlt" | "storniert";
   storno_zu: string | null;
+  /**
+   * Korrektur: das Original, das diese Fassung ersetzt (Nummer des Originals mit Fassung, RE-2026-0001.1).
+   * Optional, weil die Spalten vor der Migration „rechnung_korrigieren“ fehlen.
+   */
+  korrektur_zu?: string | null;
+  korrektur_grund?: string;
+  /** Auf das Original schon gezahlt, die Korrektur verrechnet es (siehe korrektur.ts). */
+  bereits_bezahlt_cent?: number;
   termin_id: string | null;
   kunde_id: string | null;
   empfaenger: Empfaenger;
@@ -219,7 +228,7 @@ export async function entwurfAusTermin(terminId: string, vonBenutzer: string): P
 }
 
 export async function entwurfAnlegen(
-  r: Partial<Pick<Rechnung, "termin_id" | "kunde_id" | "empfaenger" | "fahrzeug" | "positionen" | "leistungsdatum" | "hinweis">>,
+  r: Partial<Pick<Rechnung, "termin_id" | "kunde_id" | "empfaenger" | "fahrzeug" | "positionen" | "leistungsdatum" | "hinweis" | "korrektur_zu" | "korrektur_grund">>,
   vonBenutzer: string,
 ): Promise<string> {
   const summen = berechne(r.positionen ?? []);
@@ -252,16 +261,21 @@ export async function entwurfSpeichern(
     .eq("status", "entwurf")
     .select("id");
   if (error) throw new DbFehler(error);
-  if (!data?.length) throw new Error("Nur Entwürfe lassen sich ändern. Für eine gestellte Rechnung bitte eine Stornorechnung erstellen.");
+  if (!data?.length) throw new Error("Nur Entwürfe lassen sich ändern. Eine gestellte Rechnung bitte über „Rechnung korrigieren“ berichtigen.");
 }
 
 /**
  * Vergibt die Nummer und friert die Rechnung ein. Danach ist sie unveränderlich. Anschließend merken sich die
  * Positionen ihren Preis für Marke + Modell des Fahrzeugs, dazu die benannten Pakete.
+ *
+ * Eine Korrektur (korrektur_zu) storniert vorher ihr Original und bekommt dessen Nummer mit Fassung
+ * (`rechnung_korrektur_stellen`). Was auf das Original schon gezahlt ist, wird verrechnet; deckt es den neuen
+ * Betrag, ist die Korrektur gleich bezahlt.
  */
 export async function stellen(id: string, vonBenutzer: string, pakete: PaketWunsch[] = []): Promise<string> {
   const r = await rechnungLaden(id);
   if (!r) throw new Error("Rechnung nicht gefunden.");
+  if (r.status !== "entwurf") throw new Error("Die Rechnung ist schon gestellt.");
   if (!r.empfaenger?.name?.trim()) throw new Error("Bitte einen Rechnungsempfänger eintragen.");
   // Vor dem Anlegen des Kunden: sonst entstünde er auch, wenn das Stellen gleich danach scheitert
   if (!r.positionen?.length) throw new Error("Die Rechnung hat keine Positionen.");
@@ -272,28 +286,177 @@ export async function stellen(id: string, vonBenutzer: string, pakete: PaketWuns
     const art = istXRechnung(r) ? "XRechnung (Behörde, Leitweg-ID)" : "E-Rechnung";
     throw new Error(`Für eine gültige ${art} fehlt noch: ${fehlt.join("; ")}.`);
   }
+  // Alles, woran eine Korrektur scheitern kann, vor dem Storno prüfen: Das Storno lässt sich nicht zurücknehmen.
+  const original = r.korrektur_zu ? await rechnungLaden(r.korrektur_zu) : null;
+  const grund = original ? grundPruefen(r.korrektur_grund ?? "") : "";
+  if (r.korrektur_zu && (!original?.nummer || !["gestellt", "bezahlt", "storniert"].includes(original.status))) {
+    throw new Error("Die Rechnung, die korrigiert werden soll, gibt es nicht mehr oder sie ist nicht gestellt.");
+  }
   const heute = berlinDatum();
   // Empfänger ohne Kunden: jetzt in die Kartei (gefunden oder neu). Stornos übernehmen den Kunden des Originals.
   const kundeId = r.kunde_id ?? (r.storno_zu ? null : await kundeAusBeleg(r.empfaenger, r.fahrzeug));
   await db()
     .from("rechnungen")
-    .update({ rechnungsdatum: heute, faellig_am: plusTage(heute, rechnung.zahlungszielTage), leistungsdatum: r.leistungsdatum ?? heute, kunde_id: kundeId })
+    .update({
+      rechnungsdatum: heute,
+      faellig_am: plusTage(heute, rechnung.zahlungszielTage),
+      leistungsdatum: r.leistungsdatum ?? heute,
+      kunde_id: kundeId,
+      ...(original ? { bereits_bezahlt_cent: bereitsBezahlt(original) } : {}),
+    })
     .eq("id", id)
     .eq("status", "entwurf");
-  const { data: nummer, error } = await dbRoh().rpc("rechnung_stellen", { p_id: id, p_firma: firma });
-  if (error) {
-    if (error.message.includes("KEINE_POSITIONEN")) throw new Error("Die Rechnung hat keine Positionen.");
-    throw new DbFehler(error);
+
+  let nummer: string;
+  if (original) {
+    // Erst gilt das Original nicht mehr, dann die neue Fassung. Scheitert das Stellen danach, bleibt der
+    // Entwurf stehen, und der nächste Versuch überspringt das schon erledigte Storno.
+    if (original.status !== "storniert") await stornieren(original.id, vonBenutzer, grund);
+    const { data, error } = await dbRoh().rpc("rechnung_korrektur_stellen", { p_id: id, p_firma: firma });
+    if (error) {
+      if (error.message.includes("KEINE_POSITIONEN")) throw new Error("Die Rechnung hat keine Positionen.");
+      if (error.message.includes("KEIN_GRUND")) throw new Error("Bitte den Grund der Korrektur angeben.");
+      throw new DbFehler(error, { funktion: "rechnung_korrektur_stellen" });
+    }
+    nummer = data as string;
+  } else {
+    const { data, error } = await dbRoh().rpc("rechnung_stellen", { p_id: id, p_firma: firma });
+    if (error) {
+      if (error.message.includes("KEINE_POSITIONEN")) throw new Error("Die Rechnung hat keine Positionen.");
+      throw new DbFehler(error);
+    }
+    nummer = data as string;
   }
-  await verlauf("rechnung", id, `Gestellt als ${nummer}`, vonBenutzer);
-  const neu = (await rechnungLaden(id))!;
+
+  await verlauf("rechnung", id, original ? `Gestellt als ${nummer}, berichtigt ${original.nummer}. Grund: ${grund}` : `Gestellt als ${nummer}`, vonBenutzer);
+  let neu = (await rechnungLaden(id))!;
+  if (original) {
+    await verlauf("rechnung", original.id, `Ersetzt durch die berichtigte Rechnung ${nummer}. Grund: ${grund}`, vonBenutzer);
+    const offen = offenerBetrag(neu);
+    if (durchZahlungErledigt(neu)) {
+      await db()
+        .from("rechnungen")
+        .update({ status: "bezahlt", bezahlt_am: original.bezahlt_am ?? heute, zahlungsart: original.zahlungsart ?? "ueberweisung" })
+        .eq("id", id)
+        .eq("status", "gestellt");
+      await verlauf("rechnung", id, `Bezahlt durch die Zahlung auf ${original.nummer}${offen < 0 ? `, zu erstatten: ${euro(-offen)}` : ""}`, vonBenutzer);
+      neu = (await rechnungLaden(id))!;
+    } else if (neu.bereits_bezahlt_cent) {
+      await verlauf("rechnung", id, `Auf ${original.nummer} schon bezahlt: ${euro(neu.bereits_bezahlt_cent)}, noch offen: ${euro(offen)}`, vonBenutzer);
+    }
+  }
   await melden("rechnung.gestellt", ereignisDaten(neu));
+  if (original) {
+    await melden("rechnung.korrigiert", {
+      ...ereignisDaten(neu),
+      original_id: original.id,
+      original_nummer: original.nummer,
+      grund,
+      bereits_bezahlt_cent: neu.bereits_bezahlt_cent ?? 0,
+    });
+  }
   try {
     await merken(neu, pakete);
   } catch (e) {
     await fehlerMelden(e, "Preise der gestellten Rechnung merken");
   }
-  return nummer as string;
+  return nummer;
+}
+
+/**
+ * Beginnt die Korrektur einer gestellten Rechnung: ein Entwurf mit allen Angaben des Originals, der sich wie
+ * jeder Entwurf bearbeiten lässt. Das Original bleibt bis zum Stellen der Korrektur gültig. Gibt es schon einen
+ * Korrekturentwurf, ist es dieser (mit dem neuen Grund).
+ */
+export async function korrekturAnlegen(id: string, grundEingabe: string, vonBenutzer: string): Promise<string> {
+  const grund = grundPruefen(grundEingabe);
+  const r = await rechnungLaden(id);
+  if (!r || !["gestellt", "bezahlt"].includes(r.status) || r.storno_zu) {
+    throw new Error("Korrigieren lassen sich nur offene oder bezahlte Rechnungen, keine Stornorechnungen und keine schon stornierten.");
+  }
+  if (!("korrektur_zu" in r)) {
+    throw new Error("Für Korrekturen fehlt die Migration 20261126100000_rechnung_korrigieren.sql. Bitte im SQL-Editor von Supabase ausführen.");
+  }
+  const vorhanden = async () => (await db().from("rechnungen").select("id, status, korrektur_grund").eq("korrektur_zu", id).maybeSingle()).data;
+  const da = await vorhanden();
+  if (da) {
+    if (da.status !== "entwurf") throw new Error("Diese Rechnung ist schon korrigiert.");
+    if (da.korrektur_grund !== grund) {
+      await db().from("rechnungen").update({ korrektur_grund: grund }).eq("id", da.id).eq("status", "entwurf");
+      await verlauf("rechnung", da.id, `Grund der Korrektur geändert: ${grund}`, vonBenutzer);
+    }
+    return da.id;
+  }
+  let neuId: string;
+  try {
+    neuId = await entwurfAnlegen(
+      {
+        kunde_id: r.kunde_id,
+        termin_id: r.termin_id,
+        empfaenger: r.empfaenger,
+        fahrzeug: r.fahrzeug,
+        positionen: r.positionen,
+        leistungsdatum: r.leistungsdatum,
+        hinweis: r.hinweis,
+        korrektur_zu: id,
+        korrektur_grund: grund,
+      },
+      vonBenutzer,
+    );
+  } catch (e) {
+    // Doppelklick: Der eindeutige Index lässt nur einen Korrekturentwurf je Original zu.
+    const doppelt = e instanceof DbFehler && e.code === "23505" ? await vorhanden() : null;
+    if (doppelt) return doppelt.id;
+    throw e;
+  }
+  await verlauf("rechnung", neuId, `Korrektur zu ${r.nummer}. Grund: ${grund}`, vonBenutzer);
+  await verlauf("rechnung", id, `Korrektur begonnen. Grund: ${grund}`, vonBenutzer);
+  return neuId;
+}
+
+export type KorrekturStand = { id: string; original: string; datum: string | null; fassung: string; gesendet: boolean; grund: string; bereits: number };
+
+/** Für den Korrekturentwurf: welches Original, welche Nummer die Fassung voraussichtlich bekommt, was verrechnet wird. */
+export async function korrekturStand(r: Rechnung): Promise<KorrekturStand | null> {
+  if (!r.korrektur_zu) return null;
+  const o = await rechnungLaden(r.korrektur_zu);
+  if (!o?.nummer) return null;
+  const wurzel = o.korrektur_zu ? o.nummer.replace(/\.[0-9]+$/, "") : o.nummer;
+  const { data } = await db().from("rechnungen").select("nummer").like("nummer", `${wurzel}.%`);
+  return {
+    id: o.id,
+    original: o.nummer,
+    datum: o.rechnungsdatum,
+    fassung: fassungsNummer(o.nummer, Boolean(o.korrektur_zu), (data ?? []).map((x) => String(x.nummer))),
+    gesendet: Boolean(o.gesendet_am),
+    grund: r.korrektur_grund ?? "",
+    bereits: bereitsBezahlt(o),
+  };
+}
+
+export type Bezug = { id: string; nummer: string | null; rechnungsdatum: string | null; status: Rechnung["status"] };
+
+/**
+ * Die Belege, auf die eine Rechnung verweist oder die auf sie verweisen. Für Ansicht, PDF und Mail.
+ * - original: bei einer Korrektur die ersetzte, bei einer Stornorechnung die stornierte Rechnung
+ * - stornoDesOriginals: bei einer Korrektur die Stornorechnung ihres Originals
+ * - storno: die Stornorechnung dieser Rechnung
+ * - korrektur: die Korrektur dieser Rechnung (Entwurf oder gestellt)
+ */
+export async function bezuegeLaden(r: Rechnung): Promise<{ original: Bezug | null; stornoDesOriginals: Bezug | null; storno: Bezug | null; korrektur: Bezug | null }> {
+  const felder = "id, nummer, rechnungsdatum, status";
+  const eins = async (spalte: "id" | "storno_zu" | "korrektur_zu", wert: string) =>
+    ((await db().from("rechnungen").select(felder).eq(spalte, wert).order("erstellt_am", { ascending: false }).limit(1).maybeSingle()).data as Bezug | null) ?? null;
+  // Vor der Migration gibt es korrektur_zu nicht; dann auch nicht danach filtern.
+  const mitKorrektur = "korrektur_zu" in r;
+  const bezugId = r.korrektur_zu ?? r.storno_zu;
+  const [original, stornoDesOriginals, storno, korrektur] = await Promise.all([
+    bezugId ? eins("id", bezugId) : null,
+    r.korrektur_zu ? eins("storno_zu", r.korrektur_zu) : null,
+    r.storno_zu || r.status === "entwurf" ? null : eins("storno_zu", r.id),
+    mitKorrektur && !r.storno_zu && r.status !== "entwurf" ? eins("korrektur_zu", r.id) : null,
+  ]);
+  return { original, stornoDesOriginals, storno, korrektur };
 }
 
 const ereignisDaten = (r: Rechnung) => ({
@@ -306,20 +469,23 @@ const ereignisDaten = (r: Rechnung) => ({
   kunde_id: r.kunde_id,
   termin_id: r.termin_id,
   empfaenger: r.empfaenger?.firma || r.empfaenger?.name,
+  korrektur_zu: r.korrektur_zu ?? null,
 });
 
 /** Die gespeicherten Daten einer gestellten Rechnung, so wie PDF und E-Rechnung sie brauchen. */
 async function gestellteDaten(r: Rechnung) {
   if (!r.nummer || !r.firma || !r.rechnungsdatum) throw new Error("Nur gestellte Rechnungen haben ein PDF. Für Entwürfe gibt es die Vorschau.");
-  let stornoZu: string | null = null;
-  if (r.storno_zu) {
-    const { data } = await db().from("rechnungen").select("nummer").eq("id", r.storno_zu).maybeSingle();
-    stornoZu = data?.nummer ?? null;
-  }
+  const b = await bezuegeLaden(r);
   return {
     nummer: r.nummer,
     storno: Boolean(r.storno_zu),
-    storno_zu_nummer: stornoZu,
+    storno_zu_nummer: r.storno_zu ? (b.original?.nummer ?? null) : null,
+    korrektur_zu: r.korrektur_zu && b.original?.nummer ? { nummer: b.original.nummer, datum: b.original.rechnungsdatum } : null,
+    korrektur_grund: r.korrektur_grund ?? "",
+    storno_des_originals: b.stornoDesOriginals?.nummer ?? null,
+    bereits_bezahlt_cent: r.bereits_bezahlt_cent ?? 0,
+    // Storniertes Original: Vermerk statt Zahlungsaufforderung, wie „bezahlt“ aus dem Status, nicht aus dem Beleg
+    storniert: r.status === "storniert" ? { durch: b.storno?.nummer ?? null, ersetzt: b.korrektur?.nummer ?? null } : null,
     rechnungsdatum: r.rechnungsdatum,
     leistungsdatum: r.leistungsdatum,
     faellig_am: r.faellig_am,
@@ -353,9 +519,14 @@ export async function pdfErzeugen(r: Rechnung): Promise<Buffer> {
 /** Vorschau eines Entwurfs (ohne Nummer, ohne E-Rechnung). */
 export async function vorschauPdf(r: Rechnung): Promise<Buffer> {
   const { firma, rechnung } = await einstellungen();
+  // Korrekturentwurf: Vermerk und Verrechnung schon in der Vorschau, so wie sie nach dem Stellen aussehen
+  const original = r.korrektur_zu ? await rechnungLaden(r.korrektur_zu) : null;
   return rechnungPdf({
     nummer: "ENTWURF",
     storno: false,
+    korrektur_zu: original?.nummer ? { nummer: original.nummer, datum: original.rechnungsdatum } : null,
+    korrektur_grund: r.korrektur_grund ?? "",
+    bereits_bezahlt_cent: original ? bereitsBezahlt(original) : 0,
     rechnungsdatum: berlinDatum(),
     leistungsdatum: r.leistungsdatum,
     faellig_am: plusTage(berlinDatum(), rechnung.zahlungszielTage),
@@ -372,9 +543,14 @@ export async function vorschauPdf(r: Rechnung): Promise<Buffer> {
 }
 
 export function dateiname(r: Pick<Rechnung, "nummer" | "storno_zu">, endung: "pdf" | "xml" = "pdf"): string {
-  return `${r.storno_zu ? "Stornorechnung" : "Rechnung"}-${(r.nummer ?? "Entwurf").replace(/[^A-Za-z0-9-]/g, "_")}.${endung}`;
+  // Punkt erlaubt: Die Fassung einer Korrektur (RE-2026-0001.1) soll im Dateinamen erkennbar bleiben.
+  return `${r.storno_zu ? "Stornorechnung" : "Rechnung"}-${(r.nummer ?? "Entwurf").replace(/[^A-Za-z0-9.-]/g, "_")}.${endung}`;
 }
 
+/**
+ * Sendet eine gestellte Rechnung per Mail. Eine Korrektur geht mit der Stornorechnung ihres Originals im
+ * Anhang: Wer das Original bekommen hat, braucht beide, um es auszubuchen.
+ */
 export async function versenden(id: string, an: string, vonBenutzer: string): Promise<void> {
   const r = await rechnungLaden(id);
   if (!r || r.status === "entwurf") throw new Error("Bitte die Rechnung zuerst stellen.");
@@ -383,21 +559,37 @@ export async function versenden(id: string, an: string, vonBenutzer: string): Pr
   const xrechnung = istXRechnung(r);
   const link = `${ENV.siteUrl}/r/${r.token}`;
   const storno = Boolean(r.storno_zu);
+  const b = await bezuegeLaden(r);
+  const korrektur = r.korrektur_zu && b.original?.nummer ? b.original : null;
+  const stornoDazu = korrektur && b.stornoDesOriginals ? await rechnungLaden(b.stornoDesOriginals.id) : null;
+  const bereits = r.bereits_bezahlt_cent ?? 0;
+  const offen = offenerBetrag(r);
+  // Nur zur Zahlung auffordern, solange etwas offen ist: nicht bei Storno, bezahlt, storniert oder verrechnet.
+  const zahlen = !storno && r.status === "gestellt" && offen > 0;
+  const ueberschrift = storno ? `Stornorechnung ${r.nummer}` : korrektur ? `Ihre berichtigte Rechnung ${r.nummer}` : `Ihre Rechnung ${r.nummer}`;
+  const einleitung = storno
+    ? "anbei die Stornorechnung."
+    : korrektur
+      ? `anbei die berichtigte Rechnung. Sie ersetzt unsere Rechnung ${korrektur.nummer}${korrektur.rechnungsdatum ? ` vom ${datum(korrektur.rechnungsdatum)}` : ""}${
+          stornoDazu ? `, die wir mit der ebenfalls angehängten Stornorechnung ${stornoDazu.nummer} storniert haben` : ""
+        }.${r.korrektur_grund ? ` Grund: ${r.korrektur_grund}.` : ""}`
+      : "vielen Dank für Ihren Auftrag. Ihre Rechnung hängt als PDF an dieser Mail.";
   const { html, text } = mail(firma, {
-    ueberschrift: storno ? `Stornorechnung ${r.nummer}` : `Ihre Rechnung ${r.nummer}`,
+    ueberschrift,
     bausteine: [
-      { art: "absatz", text: `Hallo ${r.empfaenger.name},\n${storno ? "anbei die Stornorechnung." : "vielen Dank für Ihren Auftrag. Ihre Rechnung hängt als PDF an dieser Mail."}` },
+      { art: "absatz", text: `Hallo ${r.empfaenger.name},\n${einleitung}` },
       {
         art: "fakten",
         zeilen: [
           ["Rechnungsnummer", r.nummer!],
           ["Betrag", euro(r.summe_brutto_cent)],
-          ...(!storno && r.status !== "bezahlt" && r.faellig_am ? ([["Zahlbar bis", datum(r.faellig_am)]] as [string, string][]) : []),
+          ...(bereits ? ([["Bereits bezahlt", euro(bereits)], [offen < 0 ? "Wird erstattet" : "Noch offen", euro(Math.abs(offen))]] as [string, string][]) : []),
+          ...(zahlen && r.faellig_am ? ([["Zahlbar bis", datum(r.faellig_am)]] as [string, string][]) : []),
           ...(r.fahrzeug?.kennzeichen ? ([["Fahrzeug", r.fahrzeug.kennzeichen]] as [string, string][]) : []),
         ],
       },
-      ...(!storno && r.status !== "bezahlt" && firma.iban
-        ? [{ art: "absatz" as const, text: `Bitte überweisen Sie auf ${firma.iban} mit dem Verwendungszweck ${r.nummer}. Auf dem PDF ist ein QR-Code für Ihre Banking-App.` }]
+      ...(zahlen && firma.iban
+        ? [{ art: "absatz" as const, text: `Bitte überweisen Sie ${bereits ? `${euro(offen)} ` : ""}auf ${firma.iban} mit dem Verwendungszweck ${r.nummer}. Auf dem PDF ist ein QR-Code für Ihre Banking-App.` }]
         : []),
       { art: "knopf", text: "Rechnung online ansehen", url: link },
       {
@@ -410,18 +602,24 @@ export async function versenden(id: string, an: string, vonBenutzer: string): Pr
   });
   const ergebnis = await mailer().senden({
     an,
-    betreff: `${storno ? "Stornorechnung" : "Rechnung"} ${r.nummer} von ${firma.name}`,
+    betreff: `${storno ? "Stornorechnung" : korrektur ? "Berichtigte Rechnung" : "Rechnung"} ${r.nummer} von ${firma.name}`,
     html,
     text,
     antwortAn: firma.email,
     anhaenge: [
       { dateiname: dateiname(r), inhalt: pdf, typ: "application/pdf" },
       ...(xrechnung ? [{ dateiname: dateiname(r, "xml"), inhalt: Buffer.from(await xmlErzeugen(r), "utf8"), typ: "application/xml" }] : []),
+      ...(stornoDazu ? [{ dateiname: dateiname(stornoDazu), inhalt: await pdfErzeugen(stornoDazu), typ: "application/pdf" }] : []),
+      ...(stornoDazu && xrechnung ? [{ dateiname: dateiname(stornoDazu, "xml"), inhalt: Buffer.from(await xmlErzeugen(stornoDazu), "utf8"), typ: "application/xml" }] : []),
     ],
   });
   if (!ergebnis.ok) throw new Error(`Die Mail wurde nicht versendet: ${ergebnis.fehler}`);
   await db().from("rechnungen").update({ gesendet_am: new Date().toISOString(), gesendet_an: an }).eq("id", id);
-  await verlauf("rechnung", id, `Per E-Mail an ${an} gesendet`, vonBenutzer);
+  await verlauf("rechnung", id, `Per E-Mail an ${an} gesendet${stornoDazu ? ` (mit Stornorechnung ${stornoDazu.nummer})` : ""}`, vonBenutzer);
+  if (stornoDazu) {
+    await db().from("rechnungen").update({ gesendet_am: new Date().toISOString(), gesendet_an: an }).eq("id", stornoDazu.id);
+    await verlauf("rechnung", stornoDazu.id, `Mit der berichtigten Rechnung ${r.nummer} an ${an} gesendet`, vonBenutzer);
+  }
   await melden("rechnung.versendet", { ...ereignisDaten(r), an });
 }
 
@@ -461,8 +659,9 @@ export async function alsUnbezahlt(id: string, vonBenutzer: string): Promise<voi
 /**
  * Storno: eine eigene Rechnung mit negativen Beträgen und eigener Nummer, die auf das Original verweist.
  * Das Original bleibt unverändert erhalten (GoBD) und bekommt nur den Status „storniert“.
+ * `korrekturGrund`: Das Storno gehört zu einer Korrektur und nennt deren Grund.
  */
-export async function stornieren(id: string, vonBenutzer: string): Promise<string> {
+export async function stornieren(id: string, vonBenutzer: string, korrekturGrund = ""): Promise<string> {
   const r = await rechnungLaden(id);
   if (!r || !["gestellt", "bezahlt"].includes(r.status) || r.storno_zu) throw new Error("Diese Rechnung kann nicht storniert werden.");
   const stornoId = await entwurfAnlegen(
@@ -473,7 +672,7 @@ export async function stornieren(id: string, vonBenutzer: string): Promise<strin
       fahrzeug: r.fahrzeug,
       leistungsdatum: r.leistungsdatum,
       positionen: vorzeichenWechseln(r.positionen),
-      hinweis: `Storno zu Rechnung ${r.nummer}`,
+      hinweis: korrekturGrund ? `Storno zu Rechnung ${r.nummer}. Grund: ${korrekturGrund}. Eine berichtigte Rechnung folgt.` : `Storno zu Rechnung ${r.nummer}`,
     },
     vonBenutzer,
   );

@@ -40,6 +40,37 @@ describe("Rechnungs-PDF mit E-Rechnung", () => {
   }, 30000);
 });
 
+describe("Berichtigte Rechnung (Korrektur)", () => {
+  const korrektur = {
+    ...daten,
+    nummer: "RE-2026-0001.1",
+    korrektur_zu: { nummer: "RE-2026-0001", datum: "2026-11-08" },
+    bereits_bezahlt_cent: 9000,
+  };
+
+  it("E-Rechnung: Art 384, Bezug aufs Original, Vorauszahlung mindert den Zahlbetrag", () => {
+    const xml = zugferdXml(korrektur);
+    expect(xml).toContain("<ram:TypeCode>384</ram:TypeCode>");
+    expect(xml).toContain("<ram:IssuerAssignedID>RE-2026-0001</ram:IssuerAssignedID>");
+    expect(xml).toContain('<qdt:DateTimeString format="102">20261108</qdt:DateTimeString>');
+    expect(xml).toContain("<ram:TotalPrepaidAmount>90.00</ram:TotalPrepaidAmount>");
+    expect(xml).toContain("<ram:DuePayableAmount>6.46</ram:DuePayableAmount>");
+    // Ohne Vorauszahlung wie bisher
+    expect(zugferdXml(daten)).not.toContain("TotalPrepaidAmount");
+    expect(zugferdXml(daten)).toContain("<ram:TypeCode>380</ram:TypeCode>");
+  });
+
+  it("PDF mit Vermerk und Verrechnung, storniertes Original ohne Zahlungsaufforderung", async () => {
+    const basis = { kundennummer: 10001, fahrzeug: {}, einleitung: "Test", fusstext: "", bezahlt: false };
+    const pdf = await rechnungPdf({ ...korrektur, ...basis, korrektur_grund: "falsche Anschrift", storno_des_originals: "RE-2026-0002" });
+    writeFileSync("/tmp/rechnung-korrektur-test.pdf", pdf);
+    expect((await PDFDocument.load(pdf)).getPageCount()).toBe(1);
+    const original = await rechnungPdf({ ...daten, ...basis, storniert: { durch: "RE-2026-0002", ersetzt: "RE-2026-0001.1" } });
+    writeFileSync("/tmp/rechnung-storniert-test.pdf", original);
+    expect((await PDFDocument.load(original)).getPageCount()).toBe(1);
+  }, 30000);
+});
+
 describe("Werkstattauftrag-PDF", () => {
   // 1×1 Pixel, dunkel: steht für die Unterschrift aus dem Zeichenfeld
   const unterschrift = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";

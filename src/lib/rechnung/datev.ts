@@ -3,6 +3,7 @@ import { zipSync } from "fflate";
 import type { Einstellungen } from "../einstellungen";
 import { db } from "../supabase/admin";
 import { dateiname, pdfErzeugen, type Rechnung } from "./rechnungen";
+import { zahlungseingang } from "./korrektur";
 
 /**
  * Monatsexport für den Steuerberater: DATEV-Buchungsstapel (EXTF, Format 700) mit den Ausgangsrechnungen
@@ -92,8 +93,11 @@ export async function monatsexport(monat: string, d: Einstellungen["automatik"][
     });
   }
   for (const r of (bezahlt ?? []) as Rechnung[]) {
+    // Korrektur: Was schon auf das Original gezahlt wurde, ist dort als Zahlung gebucht; hier nur der Rest.
+    const cent = zahlungseingang(r);
+    if (!cent) continue;
     buchungen.push({
-      cent: r.summe_brutto_cent,
+      cent,
       konto: r.zahlungsart === "bar" ? d.kasse : d.bank,
       gegenkonto: d.debitorSammel,
       datum: r.bezahlt_am!,
