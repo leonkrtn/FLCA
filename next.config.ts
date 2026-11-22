@@ -34,6 +34,10 @@ const nextConfig: NextConfig = {
     staleTimes: { dynamic: 30 },
   },
   images: {
+    // Ohne Vercels Bildoptimierung: Deren Kontingent im kostenlosen Tarif war erschöpft, Vercel lieferte jede noch nicht
+    // zwischengespeicherte Größe mit „402 Payment Required“, und das Hallenfoto im Startbereich blieb leer. Die Fotos in
+    // src/assets sind schon klein (150–400 KB) und werden so direkt ausgeliefert.
+    unoptimized: true,
     formats: ["image/avif", "image/webp"],
     remotePatterns: supabase ? [new URL(`${supabase}/storage/v1/object/public/website/**`)] : [],
   },
