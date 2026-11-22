@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { AnnahmeFormular, AuftragBereich, KvAmTerminBereich } from "@/components/admin/auftrag";
 import { TerminAktionen } from "@/components/admin/termin-aktionen";
 import { TerminLoeschen } from "@/components/admin/termin-loeschen";
+import { AusDerWerkstatt } from "@/components/admin/werkstatt-meldungen";
 import { Marke } from "@/components/admin/ui";
 import { Karte, MobilKopf } from "@/components/mobil/teile";
 import { ablehnenAktion, absagenAktion, bestaetigenAktion, erledigtAktion, gegenvorschlagAktion, rechnungAusTermin, verschiebenAktion } from "@/lib/aktionen/termine";
@@ -73,6 +74,10 @@ export default async function AppTermin({ params }: { params: Promise<{ id: stri
           </h2>
           <AuftragBereich t={t} ort="app" />
         </Karte>
+        {/* Befunde, angeforderte Teile und Arbeitszeit aus der Team-App; ohne sie bleibt die Karte weg */}
+        <div className="bg-flaeche px-4 py-3 empty:hidden">
+          <AusDerWerkstatt terminId={t.id} basis="/app" titel="Aus der Werkstatt" />
+        </div>
         <Karte>
           <details open={stand !== "kein" && !t.annahme?.tank && t.km_stand == null}>
             <summary className="cursor-pointer font-semibold">Fahrzeugannahme</summary>

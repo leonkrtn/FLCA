@@ -2,13 +2,13 @@
 
 import { useRef, useState } from "react";
 import { Formular, Senden } from "@/components/admin/formular";
-import { stempeln } from "@/lib/aktionen/team";
+import { pauseUmschalten, stempeln } from "@/lib/aktionen/team";
 
 /**
  * Ein- und Ausstempeln. Ist „nur vor Ort“ eingeschaltet, holt das Handy vor dem Einstempeln seinen Standort und
  * schickt ihn mit; der Server entscheidet. Ausstempeln geht ohne Standort.
  */
-export function Stempeln({ eingestempelt, nurVorOrt, text }: { eingestempelt: boolean; nurVorOrt: boolean; text: string }) {
+export function Stempeln({ eingestempelt, nurVorOrt, text, pause = false }: { eingestempelt: boolean; nurVorOrt: boolean; text: string; pause?: boolean }) {
   const form = useRef<HTMLFormElement | null>(null);
   const bereit = useRef(false);
   const [orten, setOrten] = useState(false);
@@ -64,6 +64,14 @@ export function Stempeln({ eingestempelt, nurVorOrt, text }: { eingestempelt: bo
         {nurVorOrt && !eingestempelt ? <p className="text-xs text-grau">Einstempeln geht nur in der Werkstatt (Standort wird geprüft).</p> : null}
         {hinweis ? <p role="status" className="text-sm font-semibold text-rot">{hinweis}</p> : null}
       </Formular>
+      {/* Pause als eigenes Formular: Ein Tipp, ohne Standort; stoppt auch die Uhr am Auftrag. */}
+      {eingestempelt ? (
+        <Formular aktion={pauseUmschalten} className="mt-2 grid">
+          <Senden art={pause ? "dunkel" : "rahmen"} className="min-h-12 w-full" vorab={pause ? "Weiter" : "Pause"}>
+            {pause ? "Pause beenden" : "Pause"}
+          </Senden>
+        </Formular>
+      ) : null}
     </div>
   );
 }

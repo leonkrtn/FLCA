@@ -116,6 +116,7 @@ function dbFehler(error: unknown, intern = false): never {
   if (text.includes("PERSON_BELEGT")) throw new PlanungsWarnung(["Der Mitarbeiter hat zu der Zeit schon einen anderen Termin."]);
   if (text.includes("SLOT_BELEGT")) throw new TerminFehler("Dieser Termin ist inzwischen vergeben. Bitte wählen Sie eine andere Uhrzeit.");
   if (text.includes("FALSCHER_STATUS")) throw new TerminFehler("Der Termin wurde in der Zwischenzeit schon bearbeitet.");
+  if (text.includes("SCHON_VERGEBEN")) throw new TerminFehler("Den hat gerade jemand anderes genommen.");
   if (text.includes("NICHT_GEFUNDEN")) throw new TerminFehler("Termin nicht gefunden.");
   // Alles andere ist ein Fehler im System, kein Planungsproblem: mit Ursache und Abhilfe weiterreichen.
   throw error instanceof Error ? error : new DbFehler(error as { message: string; code?: string });
@@ -183,7 +184,7 @@ export type Bedarf = { dauer_min: number; ids?: string[] };
 const fensterAm = (e: Einstellungen, datum: string) => e.oeffnungszeiten[String(wochentag(datum)) as keyof Einstellungen["oeffnungszeiten"]] ?? [];
 
 /**
- * Freie Startzeiten eines Datumsbereichs. Nimmt jemand Aufträge an, muss zusätzlich ein passender Mitarbeiter
+ * Freie Startzeiten eines Datumsbereichs. Wird jemand eingeplant, muss zusätzlich ein passender Mitarbeiter
  * frei sein (planung.ts); sonst zählen wie früher nur Öffnungszeiten und Arbeitsplätze.
  */
 async function slotsImBereich(bedarf: Bedarf, start: string, bisDatum: string, e: Einstellungen, ausser?: string): Promise<Map<string, PersonSlot[]>> {
@@ -705,7 +706,7 @@ async function personPruefen(profil: string | null, t: { beginn: Date; ende: Dat
   if (gruende.length) throw new PlanungsWarnung(gruende);
 }
 
-/** Wer frei ist und passt (nur wer Aufträge annimmt). null, wenn niemand oder die Planung aus ist. */
+/** Wer frei ist und passt (nur wer eingeplant wird). null, wenn niemand oder die Planung aus ist. */
 async function automatischePerson(t: { beginn: Date; ende: Date; bis: Date; leistungIds: string[]; id?: string }, ausser: string[] = []): Promise<string | null> {
   const datum = berlinDatum(t.beginn);
   if (!(await planungAktiv())) return null;
@@ -775,7 +776,7 @@ export async function terminEintragen(
   return termin;
 }
 
-const leistungIdsVon = (t: Pick<Termin, "leistung_ids" | "leistung_id">) => t.leistung_ids ?? (t.leistung_id ? [t.leistung_id] : []);
+export const leistungIdsVon = (t: Pick<Termin, "leistung_ids" | "leistung_id">) => t.leistung_ids ?? (t.leistung_id ? [t.leistung_id] : []);
 
 export async function bestaetigen(id: string, vonBenutzer: string | null, ueberbuchen = false, verlaufText?: string): Promise<void> {
   const { buchung } = await einstellungen();
@@ -906,6 +907,23 @@ export async function umplanen(
       personGeaendert ? melden("termin.zugewiesen", { ...ereignisDaten(neu), vorher: termin.zugewiesen_an }) : Promise.resolve(),
     ]);
   });
+  return neu;
+}
+
+/**
+ * Freien Auftrag selbst übernehmen (Team-App): dieselbe Prüfung wie beim Zuteilen (arbeitet, darf, ist frei),
+ * ohne „trotzdem“. Die Datenbank (`termin_uebernehmen`) nimmt ihn nur, solange er noch niemandem gehört.
+ */
+export async function uebernehmen(id: string, person: string): Promise<Termin> {
+  const termin = await terminLaden(id);
+  if (!termin) throw new TerminFehler("Termin nicht gefunden.");
+  if (termin.zugewiesen_an) throw new TerminFehler(termin.zugewiesen_an === person ? "Der Auftrag gehört schon dir." : "Den hat gerade jemand anderes genommen.");
+  await personPruefen(person, { beginn: new Date(termin.beginn), ende: new Date(termin.ende), bis: new Date(termin.belegt_bis), leistungIds: leistungIdsVon(termin), id }, false);
+  const { error } = await dbRoh().rpc("termin_uebernehmen", { p_id: id, p_person: person });
+  if (error) dbFehler(error, true);
+  const neu = (await terminLaden(id))!;
+  await verlauf("termin", id, `${neu.mitarbeiter?.name ?? "Mitarbeiter"} hat den Auftrag in der Team-App übernommen`, person);
+  after(() => melden("termin.zugewiesen", { ...ereignisDaten(neu), vorher: null }));
   return neu;
 }
 

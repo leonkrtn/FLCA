@@ -6,10 +6,13 @@ import { datumKurzText, euro } from "@/lib/format";
 import { TERMIN_TON } from "@/lib/status";
 import { db } from "@/lib/supabase/admin";
 import { STATUS_TEXT, TERMIN_FELDER, type Termin } from "@/lib/termine";
+import { MeldungZeile } from "@/components/admin/werkstatt-meldungen";
+import { weich } from "@/lib/fehler";
+import { offeneMeldungen } from "@/lib/werkstatt";
 
 export const metadata = { title: "Werkstattaufträge" };
 
-const ANSICHTEN = { offen: "Offen", fertig: "Abgeschlossen", alle: "Alle" } as const;
+const ANSICHTEN = { offen: "Offen", meldungen: "Aus der Werkstatt", fertig: "Abgeschlossen", alle: "Alle" } as const;
 
 /**
  * Alle Werkstattaufträge auf einen Blick. Ein Auftrag hängt immer an einem Termin (Spalten `auftrag_*`),
@@ -19,6 +22,7 @@ export default async function AuftragListe({ searchParams }: { searchParams: Pro
   await benutzerMitRecht("termine");
   const { ansicht: a = "offen", q = "" } = await searchParams;
   const ansicht = (a in ANSICHTEN ? a : "offen") as keyof typeof ANSICHTEN;
+  const meldungen = await weich(offeneMeldungen(), [], "Offene Meldungen aus der Werkstatt");
 
   let abfrage = db().from("termine").select(TERMIN_FELDER).not("auftrag_nummer", "is", null).limit(300);
   if (ansicht === "offen") abfrage = abfrage.in("status", ["angefragt", "bestaetigt"]).order("beginn");
@@ -36,7 +40,25 @@ export default async function AuftragListe({ searchParams }: { searchParams: Pro
       <Kopf titel="Werkstattaufträge" unter="Jeder Auftrag gehört zu einem Termin. Ein Klick öffnet ihn mit Positionen, Unterschrift und Rechnung.">
         <Link href="/admin/auftraege/neu" className="knopf knopf-dunkel">Neuer Werkstattauftrag</Link>
       </Kopf>
-      <Reiter aktiv={`/admin/auftraege?ansicht=${ansicht}`} eintraege={Object.entries(ANSICHTEN).map(([k, t]) => ({ href: `/admin/auftraege?ansicht=${k}`, text: t }))} />
+      <Reiter
+        aktiv={`/admin/auftraege?ansicht=${ansicht}`}
+        eintraege={Object.entries(ANSICHTEN).map(([k, t]) => ({ href: `/admin/auftraege?ansicht=${k}`, text: t, anzahl: k === "meldungen" ? meldungen.filter((m) => m.status === "offen").length : undefined }))}
+      />
+      {ansicht === "meldungen" ? (
+        meldungen.length ? (
+          <div className="bg-weiss p-4 md:p-6">
+            <p className="mb-2 text-sm text-grau">Befunde und angeforderte Teile aus der Team-App, dringende zuerst. Wer ein Teil angefordert hat, bekommt Bescheid, wenn es bestellt oder da ist.</p>
+            <ul className="divide-y divide-linie">
+              {meldungen.map((m) => (
+                <MeldungZeile key={m.id} m={m} mitTermin />
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <Leer>Nichts offen. Befunde und Teile aus der Team-App erscheinen hier.</Leer>
+        )
+      ) : (
+        <>
       <form className="mb-4 max-w-sm">
         <input type="hidden" name="ansicht" value={ansicht} />
         <input name="q" defaultValue={q} placeholder="Suche: Nr., Name, Kennzeichen, Telefon" className="feld" aria-label="Suche" />
@@ -65,6 +87,8 @@ export default async function AuftragListe({ searchParams }: { searchParams: Pro
         </div>
       ) : (
         <Leer>{q ? "Nichts passt zur Suche." : ansicht === "offen" ? "Keine offenen Werkstattaufträge." : "Keine Werkstattaufträge."}</Leer>
+      )}
+        </>
       )}
     </>
   );

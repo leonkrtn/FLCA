@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Karte, MobilKopf } from "@/components/mobil/teile";
 import { benutzerMitRecht } from "@/lib/auth";
 import { datumKurzText, zeit } from "@/lib/format";
@@ -14,7 +15,7 @@ export default async function Woche() {
   const heute = berlinDatum();
   const ende = plusTage(heute, 7);
   const [plan, { data: termine }, { data: abw }] = await Promise.all([
-    planPersonen(heute, ende, false).then((alle) => alle.find((p) => p.id === b.id) ?? null),
+    planPersonen(heute, ende, false, [b.id]).then((alle) => alle[0] ?? null),
     db().from("termine").select("id, beginn, ende, leistung_name, fahrzeug:fahrzeuge(kennzeichen)").eq("zugewiesen_an", b.id).eq("status", "bestaetigt").gte("beginn", berlin(heute).toISOString()).lt("beginn", berlin(ende).toISOString()).order("beginn"),
     db().from("abwesenheiten").select("art, von, bis, von_zeit, bis_zeit, status").eq("profil_id", b.id).lte("von", ende).gte("bis", heute).neq("status", "abgelehnt"),
   ]);
@@ -41,9 +42,11 @@ export default async function Woche() {
               {t.length ? (
                 <ul className="mt-2 space-y-1 text-sm">
                   {t.map((x) => (
-                    <li key={x.id} className="flex gap-3">
-                      <span className="zahlen text-grau">{zeit(x.beginn)}</span>
-                      <span className="min-w-0">{x.leistung_name} {x.fahrzeug ? <span className="text-grau">· {x.fahrzeug.kennzeichen}</span> : null}</span>
+                    <li key={x.id}>
+                      <Link href={`/team/auftrag/${x.id}`} className="flex gap-3 active:bg-papier">
+                        <span className="zahlen text-grau">{zeit(x.beginn)}</span>
+                        <span className="min-w-0">{x.leistung_name} {x.fahrzeug ? <span className="text-grau">· {x.fahrzeug.kennzeichen}</span> : null}</span>
+                      </Link>
                     </li>
                   ))}
                 </ul>

@@ -4,6 +4,7 @@ import { AnnahmeFormular, AuftragBereich, KvAmTerminBereich } from "@/components
 import { Formular, Senden } from "@/components/admin/formular";
 import { NotizenAbschnitt } from "@/components/admin/notizen";
 import { TerminAktionen } from "@/components/admin/termin-aktionen";
+import { AusDerWerkstatt } from "@/components/admin/werkstatt-meldungen";
 import { TerminKundeAendern } from "@/components/admin/termin-kunde-aendern";
 import { TerminLoeschen } from "@/components/admin/termin-loeschen";
 import { Abschnitt, Auswahl, Kopf, Marke, Textfeld } from "@/components/admin/ui";
@@ -134,6 +135,9 @@ export default async function TerminDetail({ params }: { params: Promise<{ id: s
           </Abschnitt>
 
           <Abschnitt titel="Werkstatt">
+            <div className="mb-6 empty:hidden">
+              <AusDerWerkstatt terminId={t.id} />
+            </div>
             <Formular aktion={detailsSpeichern.bind(null, t.id)} className="grid gap-4 sm:grid-cols-2">
               <Auswahl label="Mitarbeiter" name="zugewiesen_an" wert={t.zugewiesen_an} leer="niemand" optionen={z.team.map((p) => [p.id, p.name || "ohne Namen"])} />
               <Textfeld label="Interne Notiz" name="notiz_intern" wert={t.notiz_intern} zeilen={3} className="sm:col-span-2" />

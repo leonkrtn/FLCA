@@ -105,7 +105,7 @@ export default async function KalenderSeite({ searchParams }: { searchParams: Pr
 
   if (tagAnsicht) {
     const fenster = oeffnungszeiten[String(wochentag(bezug)) as keyof typeof oeffnungszeiten];
-    // Spalten: wer Aufträge annimmt, dazu jeder, der an dem Tag einen Termin hat; zuletzt „ohne Mitarbeiter“.
+    // Spalten: wer eingeplant wird, dazu jeder, der an dem Tag einen Termin hat; zuletzt „ohne Mitarbeiter“.
     const mitTermin = new Set(liste.map((t) => t.zugewiesen_an));
     const spaltenPersonen = personen.filter((p) => p.nimmtAuftraege || mitTermin.has(p.id));
     const spalten: TagSpalte[] = [
@@ -323,7 +323,7 @@ function Legende({ personen }: { personen: PlanPerson[] }) {
   return (
     <p className="mt-3 flex flex-wrap gap-4 text-sm text-grau">
       <span>Termin ziehen = andere Person oder Uhrzeit, Klick = Auswahl. Grau schraffiert: Person arbeitet nicht.</span>
-      {!personen.length ? <span>Noch niemand nimmt Aufträge an (Häkchen bei den Mitarbeitern).</span> : null}
+      {!personen.length ? <span>Noch wird niemand eingeplant (Mitarbeiter sind es von selbst, Inhaber und Büro auf ihrer Seite zuschalten).</span> : null}
     </p>
   );
 }

@@ -22,9 +22,9 @@ export type PlanAbwesenheit = {
 export type PlanPerson = {
   id: string;
   name: string;
-  /** Feste Farbe im Kalender (siehe farbeVon); -1 = nimmt keine Aufträge an */
+  /** Feste Farbe im Kalender (siehe farbeVon); -1 = wird nicht eingeplant */
   farbe: number;
-  /** Nimmt Aufträge an (Website, automatische Zuteilung) */
+  /** Wird eingeplant (Website, automatische Zuteilung); entscheidet die Werkstatt, nie die Person */
   nimmtAuftraege?: boolean;
   /** Kein eigener Wochenplan eingetragen: Der Wochenplan sind dann die Öffnungszeiten */
   planAusOeffnung?: boolean;
@@ -243,4 +243,26 @@ export function urlaubstage(p: Pick<PlanPerson, "wochenplan" | "ausnahmen" | "pl
     if (arbeitet) tage++;
   }
   return tage;
+}
+
+/**
+ * Soll-Arbeitszeit in Minuten für die Tage [von, bis]: Wochenplan mit Ausnahmen, genehmigte Abwesenheiten
+ * (Urlaub, krank, auch halbe Tage) zählen als erfüllt und fallen heraus. null, wenn die Person keinen eigenen
+ * Wochenplan hat: Die Öffnungszeiten sind kein Soll (sie enthalten keine Pausen und keine Teilzeit).
+ */
+export function sollMinuten(p: PlanPerson, von: string, bis: string): number | null {
+  if (p.planAusOeffnung) return null;
+  let summe = 0;
+  for (let d = von; d <= bis; d = plusTage(d, 1)) summe += verfuegbareMinuten(p, d);
+  return summe;
+}
+
+/**
+ * Darf eine Person eine neu angelegte Leistung? Sie gilt wie die Kategorie: Wer die meisten Leistungen der
+ * Kategorie darf, darf auch die neue. In einer neuen (leeren) Kategorie darf jeder. Rückgabe true = sperren.
+ */
+export function neueLeistungGesperrt(kategorie: string[], gesperrt: string[]): boolean {
+  if (!kategorie.length) return false;
+  const nicht = kategorie.filter((id) => gesperrt.includes(id)).length;
+  return nicht * 2 > kategorie.length;
 }

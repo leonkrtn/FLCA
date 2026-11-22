@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { annahmeAus, annahmeZeilen, auftragStand, bruttoVon, erteiltText, grenzeText, positionenAusLeistungen, ueberKostengrenze } from "./auftrag-regeln";
+import { annahmeAus, arbeitsMinuten, lohnEinsetzen, annahmeZeilen, auftragStand, bruttoVon, erteiltText, grenzeText, positionenAusLeistungen, ueberKostengrenze } from "./auftrag-regeln";
 
 describe("auftragStand", () => {
   it("ohne Nummer gibt es keinen Auftrag", () => {
@@ -89,5 +89,27 @@ describe("positionenAusLeistungen", () => {
   it("ohne Leistung eine Zeile mit dem Namen des Termins", () => {
     expect(positionenAusLeistungen([], "Klappern vorne links").map((x) => x.text)).toEqual(["Klappern vorne links"]);
     expect(positionenAusLeistungen([], "").map((x) => x.text)).toEqual(["Arbeit"]);
+  });
+});
+
+describe("arbeitsMinuten", () => {
+  it("zählt beendete und laufende Einträge", () => {
+    const jetzt = new Date("2026-12-01T10:30:00Z").getTime();
+    expect(arbeitsMinuten([{ beginn: "2026-12-01T08:00:00Z", ende: "2026-12-01T09:00:00Z" }, { beginn: "2026-12-01T10:00:00Z", ende: null }], jetzt)).toBe(90);
+  });
+});
+
+describe("lohnEinsetzen", () => {
+  const lohn = { text: "Arbeitslohn", menge: 0, einheit: "Std", einzel_netto_cent: 8000, mwst_satz: 19 };
+  const fest = { text: "Ölwechsel", menge: 1, einheit: "Stk", einzel_netto_cent: 5000, mwst_satz: 19 };
+  it("setzt Stunden auf Viertelstunden aufgerundet in leere Lohnpositionen", () => {
+    const e = lohnEinsetzen([fest, lohn], 70);
+    expect(e.eingesetzt).toBe(true);
+    expect(e.positionen[1].menge).toBe(1.25);
+    expect(e.positionen[0]).toBe(fest);
+  });
+  it("lässt feste Preise und gefüllte Lohnpositionen in Ruhe", () => {
+    expect(lohnEinsetzen([fest, { ...lohn, menge: 2 }], 70).eingesetzt).toBe(false);
+    expect(lohnEinsetzen([lohn], 0).eingesetzt).toBe(false);
   });
 });
