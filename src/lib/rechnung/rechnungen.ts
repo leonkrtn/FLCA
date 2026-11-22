@@ -5,7 +5,7 @@ import { melden, verlauf } from "../ereignisse";
 import { datum, euro } from "../format";
 import { mail } from "../email/vorlagen";
 import { mailer } from "../services/email";
-import { db, pruefe } from "../supabase/admin";
+import { db, DbFehler, dbRoh, pruefe } from "../supabase/admin";
 import { berlinDatum, plusTage } from "../zeit";
 import { laufendeAngebote } from "../angebote/daten";
 import { angeboteAnwenden, type GebuchterAngebotsPreis } from "../angebote/preise";
@@ -15,6 +15,7 @@ import { kundeAusBeleg, markeUndModell } from "../kunden";
 import { merken, type PaketWunsch } from "./preisgedaechtnis";
 import { rechnungPdf } from "./pdf";
 import { alsZugferd, eRechnungPruefen, istXRechnung, zugferdXml } from "./zugferd";
+import { fehlerMelden } from "../fehler";
 
 export type Empfaenger = {
   name: string;
@@ -250,7 +251,7 @@ export async function entwurfSpeichern(
     .eq("id", id)
     .eq("status", "entwurf")
     .select("id");
-  if (error) throw new Error(error.message);
+  if (error) throw new DbFehler(error);
   if (!data?.length) throw new Error("Nur Entwürfe lassen sich ändern. Für eine gestellte Rechnung bitte eine Stornorechnung erstellen.");
 }
 
@@ -279,10 +280,10 @@ export async function stellen(id: string, vonBenutzer: string, pakete: PaketWuns
     .update({ rechnungsdatum: heute, faellig_am: plusTage(heute, rechnung.zahlungszielTage), leistungsdatum: r.leistungsdatum ?? heute, kunde_id: kundeId })
     .eq("id", id)
     .eq("status", "entwurf");
-  const { data: nummer, error } = await db().rpc("rechnung_stellen", { p_id: id, p_firma: firma });
+  const { data: nummer, error } = await dbRoh().rpc("rechnung_stellen", { p_id: id, p_firma: firma });
   if (error) {
     if (error.message.includes("KEINE_POSITIONEN")) throw new Error("Die Rechnung hat keine Positionen.");
-    throw new Error(error.message);
+    throw new DbFehler(error);
   }
   await verlauf("rechnung", id, `Gestellt als ${nummer}`, vonBenutzer);
   const neu = (await rechnungLaden(id))!;
@@ -290,7 +291,7 @@ export async function stellen(id: string, vonBenutzer: string, pakete: PaketWuns
   try {
     await merken(neu, pakete);
   } catch (e) {
-    console.error("Preise der Rechnung nicht gemerkt", id, e);
+    await fehlerMelden(e, "Preise der gestellten Rechnung merken");
   }
   return nummer as string;
 }
@@ -431,7 +432,7 @@ export async function alsBezahlt(id: string, zahlungsart: "bar" | "ueberweisung"
     .eq("id", id)
     .eq("status", "gestellt")
     .select("id");
-  if (error) throw new Error(error.message);
+  if (error) throw new DbFehler(error);
   if (!data?.length) throw new Error("Nur offene Rechnungen lassen sich als bezahlt markieren.");
   await verlauf("rechnung", id, `Bezahlt (${zahlungsart === "bar" ? "bar" : "Überweisung"}) am ${datum(am)}`, vonBenutzer);
   const r = (await rechnungLaden(id))!;
@@ -450,7 +451,7 @@ export async function alsUnbezahlt(id: string, vonBenutzer: string): Promise<voi
     .eq("id", id)
     .eq("status", "bezahlt")
     .select("id");
-  if (error) throw new Error(error.message);
+  if (error) throw new DbFehler(error);
   if (!data?.length) throw new Error("Nur bezahlte Rechnungen lassen sich als nicht bezahlt markieren.");
   await verlauf("rechnung", id, "Zahlung zurückgenommen, wieder offen", vonBenutzer);
   const r = (await rechnungLaden(id))!;

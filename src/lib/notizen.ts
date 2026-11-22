@@ -3,7 +3,7 @@ import type { Benutzer } from "./auth";
 import { melden } from "./ereignisse";
 import { darf } from "./rollen";
 import { pushSenden } from "./services/push";
-import { db } from "./supabase/admin";
+import { db, DbFehler } from "./supabase/admin";
 import { naechsteWiederholung, type Wiederholung } from "./zeit";
 
 /**
@@ -75,7 +75,7 @@ export async function notizenLaden(
     q = q.order("erinnern_am", { ascending: true, nullsFirst: false }).order("erstellt_am", { ascending: false });
   }
   const { data, error } = await q;
-  if (error) throw new Error(error.message);
+  if (error) throw new DbFehler(error);
   return (data ?? []) as unknown as Notiz[];
 }
 
@@ -128,7 +128,7 @@ export async function erinnerungenSenden(einmalig: (art: string, bezug: string) 
     // Erinnerungen nicht hinter die Grenze von 200 drängen.
     .order("erinnern_am", { ascending: false })
     .limit(200);
-  if (error) throw new Error(error.message);
+  if (error) throw new DbFehler(error);
   let gesendet = 0;
   for (const n of (data ?? []) as unknown as (Notiz & { kunde: { name: string } | null })[]) {
     // Schon erinnert und nicht wiederkehrend: bleibt als „fällig“ stehen, bis jemand sie erledigt.

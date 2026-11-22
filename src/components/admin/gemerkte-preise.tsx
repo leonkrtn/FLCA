@@ -5,7 +5,7 @@ import { datum, euro } from "@/lib/format";
 import { grundform } from "@/lib/rechnung/aehnlich";
 import { berechne } from "@/lib/rechnung/berechnung";
 import type { Gemerkt, Paket } from "@/lib/rechnung/preisgedaechtnis";
-import { db } from "@/lib/supabase/admin";
+import { dbRoh } from "@/lib/supabase/admin";
 
 const ANSICHTEN = { preise: "Preise", pakete: "Pakete" } as const;
 const zahlText = (n: number | null | undefined) => (n == null ? "" : String(n).replace(".", ","));
@@ -25,8 +25,8 @@ export async function GemerktePreise({ sp }: { sp: { ansicht?: string; q?: strin
   const passt = (...felder: string[]) => !q || q.split(" ").every((w) => grundform(felder.join(" ")).includes(w));
 
   const [pr, pk] = await Promise.all([
-    db().from("preis_gedaechtnis").select("*").order("marke").order("modell").order("text").limit(5000),
-    db().from("pakete").select("*").order("name").limit(1000),
+    dbRoh().from("preis_gedaechtnis").select("*").order("marke").order("modell").order("text").limit(5000),
+    dbRoh().from("pakete").select("*").order("name").limit(1000),
   ]);
   const fehlt = pr.error?.code === "42P01" || pk.error?.code === "42P01";
   const preise = ((pr.data ?? []) as Gemerkt[]).filter((g) => passt(g.marke, g.modell, g.text));

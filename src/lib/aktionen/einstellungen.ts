@@ -5,8 +5,10 @@ import { revalidatePath } from "next/cache";
 import { benutzerMitRecht } from "../auth";
 import { type Einstellungen, einstellungen, einstellungenSpeichern, type Fenster } from "../einstellungen";
 import { EREIGNIS_TYPEN, signatur } from "../ereignisse";
-import { centAus, type Ergebnis, ja, sicher, text, zahl } from "../forms";
-import { db } from "../supabase/admin";
+import { centAus, type Ergebnis, ja, text, zahl } from "../forms";
+import { sicher } from "../sicher";
+import { db, DbFehler, dbRoh } from "../supabase/admin";
+import { alsErledigt } from "../fehlerprotokoll";
 
 const alles = () => revalidatePath("/", "layout");
 
@@ -94,7 +96,7 @@ export async function rechnungEinstellungen(_v: Ergebnis, fd: FormData): Promise
     });
     // Nummernkreis nur, solange noch keine Rechnung gestellt ist (die Datenbank prüft das selbst).
     if (fd.get("nummernkreis") === "1") {
-      const { error } = await db().rpc("nummernkreis_einstellen", {
+      const { error } = await dbRoh().rpc("nummernkreis_einstellen", {
         p_praefix: text(fd, "praefix", 10),
         p_mit_jahr: ja(fd, "mit_jahr"),
         p_stellen: zahlIn(fd, "stellen", 1, 8, 4),
@@ -102,7 +104,7 @@ export async function rechnungEinstellungen(_v: Ergebnis, fd: FormData): Promise
       });
       if (error) {
         if (error.message.includes("GESPERRT")) return { status: "fehler", meldung: "Texte gespeichert. Der Nummernkreis ist gesperrt, weil schon Rechnungen gestellt sind." };
-        throw new Error(error.message);
+        throw new DbFehler(error);
       }
     }
     revalidatePath("/admin/einstellungen");
@@ -185,7 +187,7 @@ export async function webhookAnlegen(_v: Ergebnis, fd: FormData): Promise<Ergebn
     if (!/^https:\/\/[^\s]+$/.test(url)) return { status: "fehler", meldung: "Die Adresse muss mit https:// beginnen." };
     const typen = fd.getAll("typen").filter((t): t is string => typeof t === "string" && (t === "*" || t in EREIGNIS_TYPEN));
     const { data, error } = await db().from("webhooks").insert({ name: text(fd, "name", 80) || url, url, typen: typen.length ? typen : ["*"] }).select("geheimnis").single();
-    if (error) throw new Error(error.message);
+    if (error) throw new DbFehler(error);
     revalidatePath("/admin/einstellungen");
     return { status: "ok", meldung: `Angelegt. Geheimnis zum Prüfen der Signatur: ${data.geheimnis}` };
   });
@@ -227,5 +229,15 @@ export async function apiSchluesselWiderrufen(id: string, _v: Ergebnis): Promise
     await db().from("api_schluessel").update({ widerrufen_am: new Date().toISOString() }).eq("id", id);
     revalidatePath("/admin/einstellungen");
     return { status: "ok", meldung: "Widerrufen." };
+  });
+}
+
+/** Fehler im Protokoll als erledigt markieren (`id` null = alle offenen). Tritt er wieder auf, ist er wieder offen. */
+export async function fehlerErledigt(id: number | null, _v: Ergebnis): Promise<Ergebnis> {
+  return sicher(null, async () => {
+    await benutzerMitRecht("einstellungen");
+    await alsErledigt(id);
+    revalidatePath("/admin", "layout");
+    return { status: "ok", meldung: id === null ? "Alle als erledigt markiert." : "Erledigt." };
   });
 }

@@ -6,7 +6,7 @@ import { datum, euro } from "../format";
 import { mail } from "../email/vorlagen";
 import { mailer } from "../services/email";
 import { pushSenden } from "../services/push";
-import { db, pruefe } from "../supabase/admin";
+import { db, DbFehler, dbRoh, pruefe } from "../supabase/admin";
 import { berlinDatum, plusTage } from "../zeit";
 import { berechne, type Position } from "./berechnung";
 import { rechnungPdf } from "./pdf";
@@ -14,6 +14,7 @@ import { entwurfAnlegen, einzigerEntwurf, type Empfaenger, type Rechnung, rechnu
 import { auftragAusKv } from "../auftrag";
 import { positionenAusLeistungen } from "../auftrag-regeln";
 import { alsBelegFahrzeug, alsEmpfaenger, kundeAusBeleg, kundeLaden } from "../kunden";
+import { fehlerMelden } from "../fehler";
 
 export type Kostenvoranschlag = {
   id: string;
@@ -98,7 +99,7 @@ export async function kvSpeichern(id: string, k: Inhalt): Promise<void> {
     .eq("id", id)
     .eq("status", "entwurf")
     .select("id");
-  if (error) throw new Error(error.message);
+  if (error) throw new DbFehler(error);
   if (!data?.length) throw new Error("Nur Entwürfe lassen sich ändern. Für eine Änderung bitte als neuen Entwurf kopieren.");
 }
 
@@ -118,10 +119,10 @@ export async function kvAbschliessen(id: string, vonBenutzer: string): Promise<s
     .update({ kunde_id: kundeId, datum: heute, gueltig_bis: k.gueltig_bis && k.gueltig_bis >= heute ? k.gueltig_bis : plusTage(heute, kostenvoranschlag.gueltigTage) })
     .eq("id", id)
     .eq("status", "entwurf");
-  const { data: nummer, error } = await db().rpc("kostenvoranschlag_abschliessen", { p_id: id, p_firma: firma });
+  const { data: nummer, error } = await dbRoh().rpc("kostenvoranschlag_abschliessen", { p_id: id, p_firma: firma });
   if (error) {
     if (error.message.includes("KEINE_POSITIONEN")) throw new Error("Der Kostenvoranschlag hat keine Positionen.");
-    throw new Error(error.message);
+    throw new DbFehler(error);
   }
   await verlauf("kostenvoranschlag", id, `Abgeschlossen als ${nummer}`, vonBenutzer);
   await melden("kostenvoranschlag.abgeschlossen", ereignisDaten((await kvLaden(id))!));
@@ -228,7 +229,7 @@ export async function kvBeantworten(id: string, antwort: "angenommen" | "abgeleh
     .eq("id", id)
     .eq("status", "offen")
     .select("id");
-  if (error) throw new Error(error.message);
+  if (error) throw new DbFehler(error);
   if (!data?.length) throw new Error("Dieser Kostenvoranschlag ist schon beantwortet.");
 
   const wer = von.kunde ? "vom Kunden online" : "in der Verwaltung vermerkt";
@@ -238,7 +239,7 @@ export async function kvBeantworten(id: string, antwort: "angenommen" | "abgeleh
     try {
       await auftragAusKv(k.termin_id, k, von.benutzer ?? null);
     } catch (error) {
-      console.error("Auftrag aus Kostenvoranschlag nicht angelegt", id, error);
+      await fehlerMelden(error, "Werkstattauftrag aus angenommenem Kostenvoranschlag anlegen");
     }
   }
   await melden(`kostenvoranschlag.${antwort}`, { ...ereignisDaten(k), status: antwort, online: Boolean(von.kunde) });
@@ -318,7 +319,7 @@ export async function kvMitTerminVerknuepfen(id: string, terminId: string, vonBe
   if (k.termin_id === terminId) return;
   if (k.termin_id) throw new Error("Der Kostenvoranschlag gehört schon zu einem anderen Termin. Bitte dort zuerst lösen.");
   const { error } = await db().from("kostenvoranschlaege").update({ termin_id: terminId }).eq("id", id).is("termin_id", null);
-  if (error) throw new Error(error.message);
+  if (error) throw new DbFehler(error);
   if (k.rechnung_id && !(await rechnungZumTermin(terminId))) {
     await db().from("rechnungen").update({ termin_id: terminId }).or(`id.eq.${k.rechnung_id},storno_zu.eq.${k.rechnung_id}`).is("termin_id", null);
   }

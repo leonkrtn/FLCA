@@ -2,7 +2,8 @@ import "server-only";
 import { createHmac } from "node:crypto";
 import { headers } from "next/headers";
 import { ENV } from "./env";
-import { db } from "./supabase/admin";
+import { db, DbFehler } from "./supabase/admin";
+import { fehlerMelden } from "./fehler";
 
 const STUNDE = 60 * 60;
 const VIERTELSTUNDE = 15 * 60;
@@ -65,10 +66,10 @@ export async function imLimit(art: keyof typeof limits, kennung?: string): Promi
       maximal,
       fenster_sekunden: fenster,
     });
-    if (error) throw error;
+    if (error) throw new DbFehler(error);
     return data ? "ok" : "limit";
   } catch (error) {
-    console.error("Formular-Limit konnte nicht geprüft werden", error);
+    await fehlerMelden(error, "Formular-Limit prüfen");
     return "fehler";
   }
 }

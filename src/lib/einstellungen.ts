@@ -1,7 +1,8 @@
 import "server-only";
 import { cache } from "react";
 import { KONFIGURIERT } from "./env";
-import { db } from "./supabase/admin";
+import { db, DbFehler, dbRoh } from "./supabase/admin";
+import { fehlerMelden } from "./fehler";
 
 /** Zeitfenster als „HH:MM“, z. B. ["08:30", "13:00"]. */
 export type Fenster = [string, string];
@@ -237,9 +238,10 @@ export function zusammenfuehren<T>(basis: T, ueber: Tief<T> | undefined): T {
 /** Einstellungen mit Standardwerten. Ohne Datenbank (lokale Vorschau) gelten nur die Standardwerte. */
 export const einstellungen = cache(async (): Promise<Einstellungen> => {
   if (!KONFIGURIERT.supabaseAdmin) return STANDARD;
-  const { data, error } = await db().from("einstellungen").select("daten").eq("id", 1).maybeSingle();
+  const { data, error } = await dbRoh().from("einstellungen").select("daten").eq("id", 1).maybeSingle();
   if (error) {
-    console.error("Einstellungen konnten nicht geladen werden", error);
+    // Ohne Einstellungen gelten die Standardwerte (Website bleibt erreichbar), der Fehler soll aber auffallen.
+    await fehlerMelden(new DbFehler(error, { tabelle: "einstellungen" }), "Einstellungen laden");
     return STANDARD;
   }
   return zusammenfuehren(STANDARD, (data?.daten ?? {}) as Tief<Einstellungen>);
@@ -250,7 +252,7 @@ export async function einstellungenSpeichern<K extends keyof Einstellungen>(bere
   const { data } = await db().from("einstellungen").select("daten").eq("id", 1).single();
   const daten = { ...((data?.daten as Record<string, unknown>) ?? {}), [bereich]: wert };
   const { error } = await db().from("einstellungen").update({ daten }).eq("id", 1);
-  if (error) throw new Error(error.message);
+  if (error) throw new DbFehler(error);
 }
 
 export const WOCHENTAGE = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"] as const;

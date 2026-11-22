@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { auftragErteilen } from "@/lib/auftrag";
-import { type Ergebnis, ja, sicher, text } from "@/lib/forms";
+import { type Ergebnis, ja, text } from "@/lib/forms";
+import { sicher } from "@/lib/sicher";
 import { imLimit } from "@/lib/limit";
 import { stornieren, terminPerToken, TerminFehler, vorschlagAntworten } from "@/lib/termine";
 
@@ -19,7 +20,7 @@ export async function kundeStorniert(token: string, _v: Ergebnis): Promise<Ergeb
     }
     revalidatePath(`/t/${token}`);
     return { status: "ok", meldung: "Ihr Termin ist abgesagt. Sie bekommen eine Bestätigung per E-Mail." };
-  });
+  }, true);
 }
 
 /** Antwort auf einen Gegenvorschlag: „Passt“ bestätigt den Termin, „Passt nicht“ zieht die Anfrage zurück. */
@@ -37,7 +38,7 @@ export async function vorschlagBeantworten(token: string, annehmen: boolean, _v:
       status: "ok",
       meldung: annehmen ? "Danke, Ihr Termin steht. Die Bestätigung kommt per E-Mail." : "Schade. Ihre Anfrage ist zurückgezogen, gern können Sie einen anderen Termin wählen.",
     };
-  });
+  }, true);
 }
 
 /** Der Kunde erteilt den Werkstattauftrag über seinen Terminlink (Name und Häkchen statt Unterschrift). */
@@ -59,5 +60,5 @@ export async function auftragOnlineErteilen(token: string, _v: Ergebnis, fd: For
     revalidatePath("/admin", "layout");
     revalidatePath("/app", "layout");
     return { status: "ok", meldung: "Danke, Ihr Auftrag ist bei uns. Eine Bestätigung mit dem PDF kommt per E-Mail." };
-  });
+  }, true);
 }

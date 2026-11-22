@@ -6,6 +6,7 @@ import { PushAbgleich } from "@/components/mobil/push-abgleich";
 import { benutzerMitRecht } from "@/lib/auth";
 import { erinnerungenNachholen } from "@/lib/automatik";
 import { db } from "@/lib/supabase/admin";
+import { weich } from "@/lib/fehler";
 
 export const metadata: Metadata = {
   title: { default: "Werkstatt", template: "%s · Werkstatt" },
@@ -27,8 +28,8 @@ export const viewport: Viewport = { themeColor: "#ecebe7", viewportFit: "cover" 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   await benutzerMitRecht("termine");
   // Fällige Erinnerungen nachholen, falls die Zeitsteuerung nicht anruft (nach der Antwort, bremst nichts)
-  after(() => erinnerungenNachholen().catch((e) => console.error("Erinnerungen nachholen fehlgeschlagen", e)));
-  const { count } = await db().from("termine").select("id", { count: "exact", head: true }).eq("status", "angefragt");
+  after(() => weich(erinnerungenNachholen(), undefined, "Erinnerungen nachholen"));
+  const count = await weich(db().from("termine").select("id", { count: "exact", head: true }).eq("status", "angefragt").then((r) => r.count), 0, "Zähler Anfragen (App)");
   return (
     <div className="handy-app min-h-dvh bg-boden pb-[calc(4.5rem+env(safe-area-inset-bottom))]" data-leiste="dunkel">
       <div className="mx-auto max-w-xl">{children}</div>

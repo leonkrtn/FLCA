@@ -1,4 +1,3 @@
-import { unstable_rethrow } from "next/navigation";
 import { zahlAusText } from "./format";
 
 /** Ergebnis einer Server Action für Formulare mit useActionState. */
@@ -49,26 +48,6 @@ export function werteAus(formData: FormData): Record<string, string> {
   const werte: Record<string, string> = {};
   for (const [k, v] of formData.entries()) if (typeof v === "string" && !k.startsWith("$")) werte[k] = v;
   return werte;
-}
-
-/**
- * Führt eine Server Action aus und wandelt Ausnahmen in eine Meldung um, damit das Formular stehen bleibt
- * und die Eingaben behält, statt einer Fehlerseite zu weichen.
- */
-export async function sicher(formData: FormData | null, aktion: () => Promise<Ergebnis>): Promise<Ergebnis> {
-  try {
-    return await aktion();
-  } catch (error) {
-    // redirect() und notFound() werfen absichtlich; die müssen durch.
-    unstable_rethrow(error);
-    console.error(error);
-    return {
-      status: "fehler",
-      meldung: error instanceof Error ? error.message : "Das hat nicht geklappt. Bitte noch einmal versuchen.",
-      werte: formData ? werteAus(formData) : undefined,
-      versuch: Date.now(),
-    };
-  }
 }
 
 /** Unsichtbares Feld gegen Spam (Name bewusst nichtssagend, damit Passwort-Manager es nicht füllen). */

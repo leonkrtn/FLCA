@@ -12,6 +12,8 @@ import { ohneMitarbeiterAnzahl } from "@/lib/mitarbeiter";
 import { faelligeAnzahl } from "@/lib/notizen";
 import { darf, rollenName } from "@/lib/rollen";
 import { db } from "@/lib/supabase/admin";
+import { weich } from "@/lib/fehler";
+import { offeneFehlerAnzahl } from "@/lib/fehlerprotokoll";
 
 export const metadata: Metadata = { title: { default: "Verwaltung", template: "%s | Verwaltung FLC" }, robots: { index: false } };
 
@@ -19,16 +21,18 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const b = await benutzerMitRecht();
   if (b.rolle === "mitarbeiter") redirect("/team");
   // Fällige Erinnerungen nachholen, falls die Zeitsteuerung nicht anruft (nach der Antwort, bremst nichts)
-  after(() => erinnerungenNachholen().catch((e) => console.error("Erinnerungen nachholen fehlgeschlagen", e)));
+  after(() => weich(erinnerungenNachholen(), undefined, "Erinnerungen nachholen"));
   const e = await einstellungen();
+  // Ein kaputter Zähler darf nicht jede Seite der Verwaltung umwerfen: dann 0, aber im Fehlerprotokoll.
   const zaehlen = (tabelle: string, spalte: string, wert: string) =>
-    db().from(tabelle).select("id", { count: "exact", head: true }).eq(spalte, wert).then((r) => r.count ?? 0);
-  const [anfragen, abwesenheiten, bewerbungen, erinnerungen, ohnePerson] = await Promise.all([
+    weich(db().from(tabelle).select("id", { count: "exact", head: true }).eq(spalte, wert).then((r) => r.count ?? 0), 0, `Menü-Zähler ${tabelle}`);
+  const [anfragen, abwesenheiten, bewerbungen, erinnerungen, ohnePerson, fehler] = await Promise.all([
     zaehlen("termine", "status", "angefragt"),
     darf(b.rolle, "team") ? zaehlen("abwesenheiten", "status", "beantragt") : 0,
     darf(b.rolle, "karriere") ? zaehlen("bewerbungen", "status", "neu") : 0,
-    darf(b.rolle, "notizen") ? faelligeAnzahl(b) : 0,
+    darf(b.rolle, "notizen") ? weich(faelligeAnzahl(b), 0, "Menü-Zähler Erinnerungen") : 0,
     ohneMitarbeiterAnzahl(),
+    darf(b.rolle, "einstellungen") ? offeneFehlerAnzahl() : 0,
   ]);
 
   const alle: (NavEintrag & { recht: Parameters<typeof darf>[1]; modul?: keyof typeof e.module })[] = [
@@ -47,7 +51,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: "/admin/karriere", text: "Karriere", recht: "karriere", anzahl: bewerbungen, modul: "karriere" },
     { href: "/admin/website", text: "Website", recht: "website" },
     // Das Büro sieht dort nur den Reiter „Gemerkte Preise“ (Recht „rechnungen“)
-    { href: "/admin/einstellungen", text: "Einstellungen", recht: darf(b.rolle, "einstellungen") ? "einstellungen" : "rechnungen" },
+    { href: "/admin/einstellungen", text: "Einstellungen", recht: darf(b.rolle, "einstellungen") ? "einstellungen" : "rechnungen", anzahl: fehler },
   ];
   const eintraege = alle.filter((n) => darf(b.rolle, n.recht) && (!n.modul || e.module[n.modul]));
 

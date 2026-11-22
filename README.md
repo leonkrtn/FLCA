@@ -59,6 +59,7 @@ Website, Terminvergabe, Werkstatt-Verwaltung, Rechnungen, Team und Karriere für
    - `supabase/migrations/20261122110000_gegenvorschlag.sql` (jede Zeit anfragbar, Gegenvorschlag an den Kunden)
    - `supabase/migrations/20261122120000_angebote.sql` (Angebote: zeitlich begrenzte Preise, Angebotspreis am Termin)
    - `supabase/migrations/20261123100000_werkstattauftrag.sql` (Werkstattauftrag am Termin mit Nummer `WA-`, Erteilung, Fahrzeugannahme)
+   - `supabase/migrations/20261124100000_fehlerprotokoll.sql` (Fehlerprotokoll unter *Einstellungen → Fehler*)
    - Zuletzt die Zeitsteuerung: `supabase/zeitsteuerung-einrichten.sql` (Adresse darin prüfen, derzeit `https://flca.vercel.app`). Das Skript richtet den Takt jede Minute ein und zeigt in der Spalte `cron_secret_fuer_vercel` das Geheimnis; diesen Wert in Vercel als `CRON_SECRET` eintragen und neu deployen. Jederzeit wiederholbar. Ist das Geheimnis verloren, vorher `select cron.unschedule('flc-takt');` ausführen, dann gibt es ein neues. (Ersetzt `20261108100100_zeitsteuerung.sql` und `20261121130000_zeitsteuerung_minuetlich.sql`.)
 3. *Authentication → Sign In / Providers*: „Allow new users to sign up“ **aus** (Konten legt nur der Inhaber an), Provider „Email“ an.
 4. *Authentication → Emails → SMTP Settings*: eigenen SMTP eintragen, sonst schickt Supabase nur 2 Mails pro Stunde. Mit Resend: Host `smtp.resend.com`, Port 465, Benutzer `resend`, Passwort = Resend-API-Key, Absender wie `MAIL_FROM`.
@@ -105,6 +106,8 @@ Die Website läuft derzeit unter `https://flca.vercel.app`. Beim Wechsel auf `ht
 ### 5. In der Verwaltung
 
 *Einstellungen → Firma*: **Steuernummer oder USt-IdNr. und IBAN** eintragen (ohne Steuernummer lässt sich keine Rechnung stellen). *Rechnungen*: Nummernkreis festlegen (nur bis zur ersten Rechnung änderbar). *Rechtstexte*: Adressen des Rechtstexte-Dienstes. *Automatik*: DATEV-Kontonummern mit dem Steuerberater abstimmen.
+
+*Einstellungen → Fehler*: Alles, was auf dem Server schiefgeht (Seiten, Formulare, Takt, Mails, Push), steht hier mit Ort, Ursache und Abhilfe, z. B. „Eine Spalte fehlt in der Datenbank, wahrscheinlich ist eine Migration noch nicht ausgeführt“. Gleiche Fehler stehen einmal da und werden gezählt. Offene Fehler zählt das Menü an „Einstellungen“, die Übersicht weist darauf hin. Die Fehlerseite zeigt einen Fehlercode; unter diesem Code steht der Fehler im Protokoll.
 
 ## Entwicklung
 

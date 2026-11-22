@@ -1,10 +1,11 @@
 import "server-only";
 import { cache } from "react";
 import { KONFIGURIERT } from "../env";
-import { db } from "../supabase/admin";
+import { db, DbFehler, dbRoh } from "../supabase/admin";
 import type { Leistung } from "../termine";
 import { berlinDatum } from "../zeit";
 import { type Angebot, type GebuchterAngebotsPreis, mitAngebot } from "./preise";
+import { fehlerMelden } from "../fehler";
 
 /** Tabelle fehlt (Migration „angebote“ noch nicht ausgeführt): Dann gibt es eben keine Angebote. */
 const TABELLE_FEHLT = ["42P01", "PGRST205"];
@@ -20,9 +21,9 @@ function alsAngebot(z: Record<string, unknown>): Angebot {
 
 /** Alle Angebote für die Verwaltung, neueste Laufzeit zuerst. */
 export async function alleAngebote(): Promise<{ angebote: Angebot[]; unmigriert: boolean }> {
-  const { data, error } = await db().from("angebote").select("*").order("von", { ascending: false });
+  const { data, error } = await dbRoh().from("angebote").select("*").order("von", { ascending: false });
   if (error && TABELLE_FEHLT.includes(error.code)) return { angebote: [], unmigriert: true };
-  if (error) throw new Error(error.message);
+  if (error) throw new DbFehler(error);
   return { angebote: (data ?? []).map(alsAngebot), unmigriert: false };
 }
 
@@ -38,9 +39,9 @@ export async function angebotLaden(id: string): Promise<Angebot | null> {
 export const laufendeAngebote = cache(async (): Promise<Angebot[]> => {
   if (!KONFIGURIERT.supabaseAdmin) return [];
   const heute = berlinDatum();
-  const { data, error } = await db().from("angebote").select("*").eq("aktiv", true).lte("von", heute).or(`bis.is.null,bis.gte.${heute}`).order("von");
+  const { data, error } = await dbRoh().from("angebote").select("*").eq("aktiv", true).lte("von", heute).or(`bis.is.null,bis.gte.${heute}`).order("von");
   if (error) {
-    if (!TABELLE_FEHLT.includes(error.code)) console.error("Angebote konnten nicht geladen werden", error.message);
+    if (!TABELLE_FEHLT.includes(error.code)) await fehlerMelden(new DbFehler(error, { tabelle: "angebote" }), "Laufende Angebote laden (Website zeigt Listenpreise)");
     return [];
   }
   return (data ?? []).map(alsAngebot);
@@ -60,6 +61,6 @@ export async function angebotsPreiseFesthalten(terminId: string, leistungen: Lei
     if (p.angebot) preise[l.id] = { angebot_id: p.angebot.id, titel: p.angebot.titel, rabatt: p.angebot.rabatt, cent: p.preis_cent, listen_cent: p.angebot.listen_cent };
   }
   if (!Object.keys(preise).length) return;
-  const { error } = await db().from("termine").update({ angebot_preise: preise }).eq("id", terminId);
-  if (error) console.error("Angebotspreise nicht am Termin gespeichert", error.message);
+  const { error } = await dbRoh().from("termine").update({ angebot_preise: preise }).eq("id", terminId);
+  if (error) await fehlerMelden(new DbFehler(error, { tabelle: "termine" }), "Angebotspreise am Termin festhalten");
 }

@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { benutzerMitRecht } from "../auth";
 import { einstellungen, einstellungenSpeichern } from "../einstellungen";
-import { type Ergebnis, ja, sicher, text, zahl } from "../forms";
-import { db } from "../supabase/admin";
+import { type Ergebnis, ja, text, zahl } from "../forms";
+import { sicher } from "../sicher";
+import { db, DbFehler } from "../supabase/admin";
 
 function websiteNeu() {
   revalidatePath("/", "layout");
@@ -23,7 +24,7 @@ export async function galerieSpeichern(id: string | null, _v: Ergebnis, fd: Form
     };
     if (!daten.vorher_pfad || !daten.nachher_pfad) return { status: "fehler", meldung: "Bitte beide Bilder hochladen." };
     const { error } = id ? await db().from("galerie").update(daten).eq("id", id) : await db().from("galerie").insert(daten);
-    if (error) throw new Error(error.message);
+    if (error) throw new DbFehler(error);
     websiteNeu();
     revalidatePath("/admin/website");
     return { status: "ok", meldung: "Gespeichert." };
@@ -43,7 +44,7 @@ export async function bewertungSpeichern(id: string | null, _v: Ergebnis, fd: Fo
     };
     if (!daten.name || !daten.text) return { status: "fehler", meldung: "Name und Text bitte." };
     const { error } = id ? await db().from("bewertungen").update(daten).eq("id", id) : await db().from("bewertungen").insert(daten);
-    if (error) throw new Error(error.message);
+    if (error) throw new DbFehler(error);
     websiteNeu();
     revalidatePath("/admin/website");
     return { status: "ok", meldung: "Gespeichert." };

@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { benutzerMitRecht } from "../auth";
-import { type Ergebnis, ja, sicher, text, zahl } from "../forms";
+import { type Ergebnis, ja, text, zahl } from "../forms";
+import { sicher } from "../sicher";
 import { KATEGORIEN } from "../inhalte";
-import { db } from "../supabase/admin";
+import { db, DbFehler, dbRoh } from "../supabase/admin";
 import { istDatum } from "../zeit";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -56,7 +57,7 @@ export async function angebotSpeichern(id: string | null, _v: Ergebnis, fd: Form
       bis: bis || null,
       aktiv: ja(fd, "aktiv"),
     };
-    const antwort = id ? await db().from("angebote").update(daten).eq("id", id).select("id").single() : await db().from("angebote").insert(daten).select("id").single();
+    const antwort = id ? await dbRoh().from("angebote").update(daten).eq("id", id).select("id").single() : await dbRoh().from("angebote").insert(daten).select("id").single();
     if (antwort.error) return { status: "fehler", meldung: antwort.error.message };
     ueberallNeu();
     if (!id) ziel = `/admin/angebote/${antwort.data.id}`;
@@ -71,7 +72,7 @@ export async function angebotSchalten(id: string, an: boolean, _v: Ergebnis, fd:
   return sicher(fd, async () => {
     await benutzerMitRecht("angebote");
     const { error } = await db().from("angebote").update({ aktiv: an }).eq("id", id);
-    if (error) throw new Error(error.message);
+    if (error) throw new DbFehler(error);
     ueberallNeu();
     revalidatePath("/admin/angebote");
     return { status: "ok", meldung: an ? "Eingeschaltet." : "Ausgeschaltet." };
@@ -83,7 +84,7 @@ export async function angebotLoeschen(id: string, _v: Ergebnis, fd: FormData): P
   const e = await sicher(fd, async () => {
     await benutzerMitRecht("angebote");
     const { error } = await db().from("angebote").delete().eq("id", id);
-    if (error) throw new Error(error.message);
+    if (error) throw new DbFehler(error);
     ueberallNeu();
     return { status: "ok" };
   });

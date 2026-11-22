@@ -4,10 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { benutzerMitRecht } from "../auth";
 import { melden } from "../ereignisse";
-import { type Ergebnis, ja, sicher, text } from "../forms";
+import { type Ergebnis, ja, text } from "../forms";
+import { sicher } from "../sicher";
 import { notizEreignis, notizLaden } from "../notizen";
 import { darf } from "../rollen";
-import { db } from "../supabase/admin";
+import { db, DbFehler } from "../supabase/admin";
 import { berlin, berlinDatum, istDatum, plusTage, type Wiederholung } from "../zeit";
 
 /** Notiz-Aktionen. Verwaltung und Werkstatt-App teilen sie; die Team-App nutzt nur erledigt und später. */
@@ -65,12 +66,12 @@ export async function notizSpeichern(basis: Basis, id: string | null, _v: Ergebn
 
     if (alt) {
       const { error } = await db().from("notizen").update(daten).eq("id", alt.id);
-      if (error) throw new Error(error.message);
+      if (error) throw new DbFehler(error);
       neuLaden();
       return { status: "ok", meldung: "Gespeichert." };
     }
     const { data, error } = await db().from("notizen").insert({ ...daten, erstellt_von: b.id }).select("*").single();
-    if (error) throw new Error(error.message);
+    if (error) throw new DbFehler(error);
     await melden("notiz.angelegt", notizEreignis(data));
     neuLaden();
     ziel = basis;

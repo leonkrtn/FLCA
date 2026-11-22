@@ -7,10 +7,12 @@ import { monatsexport } from "./rechnung/datev";
 import { zeit } from "./format";
 import { mailer } from "./services/email";
 import { pushSenden } from "./services/push";
-import { db } from "./supabase/admin";
+import { db, dbRoh } from "./supabase/admin";
 import { erinnerungenSenden } from "./notizen";
 import { erinnerungSenden, TERMIN_FELDER, type Termin } from "./termine";
 import { berlin, berlinDatum, berlinUhrzeit, plusTage } from "./zeit";
+import { fehlerMelden } from "./fehler";
+import { protokollAufraeumen } from "./fehlerprotokoll";
 
 /** Push an jeden mit bestätigten Aufträgen heute: wie viele und welche. Wer heute nichts hat, bekommt nichts. */
 async function tagesvorschau(heute: string): Promise<number> {
@@ -43,7 +45,7 @@ async function tagesvorschau(heute: string): Promise<number> {
 
 /** Trägt eine erledigte Aufgabe ein. false = gab es schon (dann nichts tun). */
 async function einmalig(art: string, bezug: string): Promise<boolean> {
-  const { error } = await db().from("automatik_log").insert({ art, bezug });
+  const { error } = await dbRoh().from("automatik_log").insert({ art, bezug });
   return !error;
 }
 
@@ -61,7 +63,7 @@ export async function takt(): Promise<Bericht> {
     try {
       bericht[name] = await fn();
     } catch (error) {
-      console.error(`Takt: ${name} fehlgeschlagen`, error);
+      await fehlerMelden(error, `Takt: ${name}`);
       bericht[name] = `Fehler: ${error instanceof Error ? error.message : error}`;
     }
   };
@@ -176,6 +178,9 @@ export async function takt(): Promise<Bericht> {
       await db().from("ereignisse").delete().lt("erstellt_am", halbesJahr);
       return `${alt?.length ?? 0} Bewerbungen gelöscht`;
     });
+
+    // Eigener Schritt: Fehlt die Migration fürs Fehlerprotokoll noch, soll das Aufräumen oben trotzdem laufen.
+    await schritt("fehlerprotokoll", async () => `${await protokollAufraeumen()} alte Fehler entfernt`);
   }
   // Spur für die Anzeige „Zeitsteuerung läuft“ in App und Verwaltung (und für den Rückfall unten)
   await db().from("automatik_log").upsert({ art: "takt", bezug: "letzter", erstellt_am: new Date().toISOString() }, { onConflict: "art,bezug" });

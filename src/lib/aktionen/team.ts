@@ -5,14 +5,15 @@ import { after } from "next/server";
 import { benutzerMitRecht } from "../auth";
 import { ENV } from "../env";
 import { melden } from "../ereignisse";
-import { type Ergebnis, ja, sicher, text, zahl } from "../forms";
+import { type Ergebnis, ja, text, zahl } from "../forms";
+import { sicher } from "../sicher";
 import { mail } from "../email/vorlagen";
 import { einstellungen, einstellungenSpeichern, type Fenster } from "../einstellungen";
 import { mailer } from "../services/email";
 import { pushSenden } from "../services/push";
 import type { Rolle } from "../rollen";
 import { abstandM, abstandText, vorOrt } from "../standort";
-import { db } from "../supabase/admin";
+import { db, DbFehler, dbRoh } from "../supabase/admin";
 import { nachAbwesenheitUmverteilen } from "../termine";
 import { nachFertig } from "../auftrag";
 import { berlin, istDatum, plusTage } from "../zeit";
@@ -48,7 +49,7 @@ export async function einladen(_v: Ergebnis, fd: FormData): Promise<Ergebnis> {
       .from("profile")
       .update({ name, rolle, zeiterfassung: ja(fd, "zeiterfassung"), nimmt_auftraege: ja(fd, "nimmt_auftraege") })
       .eq("id", data.user.id);
-    if (fehler) throw new Error(fehler.message);
+    if (fehler) throw new DbFehler(fehler);
     neu();
     return { status: "ok", meldung: `Einladung an ${email} ist unterwegs.` };
   });
@@ -72,7 +73,7 @@ export async function profilSpeichern(id: string, _v: Ergebnis, fd: FormData): P
         urlaubstage: Math.round(zahl(fd, "urlaubstage") ?? 0),
       })
       .eq("id", id);
-    if (error) throw new Error(error.message);
+    if (error) throw new DbFehler(error);
     neu();
     return { status: "ok", meldung: "Gespeichert." };
   });
@@ -103,7 +104,7 @@ export async function arbeitszeitenSpeichern(id: string, _v: Ergebnis, fd: FormD
     await db().from("arbeitszeiten").delete().eq("profil_id", id);
     if (zeilen.length) {
       const { error } = await db().from("arbeitszeiten").insert(zeilen);
-      if (error) throw new Error(error.message);
+      if (error) throw new DbFehler(error);
     }
     neu();
     return { status: "ok", meldung: "Arbeitszeiten gespeichert. Freie Termine auf der Website richten sich sofort danach." };
@@ -138,7 +139,7 @@ export async function ausnahmeSpeichern(id: string, _v: Ergebnis, fd: FormData):
     const { error } = await db()
       .from("arbeitszeit_ausnahmen")
       .upsert(tage.map((d) => ({ profil_id: id, datum: d, fenster, notiz: text(fd, "notiz", 200) })), { onConflict: "profil_id,datum" });
-    if (error) throw new Error(error.message);
+    if (error) throw new DbFehler(error);
     neu();
     return { status: "ok", meldung: fenster.length ? "Abweichende Zeit gespeichert." : "Als frei eingetragen." };
   });
@@ -167,7 +168,7 @@ export async function faehigkeitenSpeichern(profil: string | null, _v: Ergebnis,
     await db().from("leistung_sperren").delete().in("profil_id", personen).in("leistung_id", leistungen);
     if (gesperrt.length) {
       const { error } = await db().from("leistung_sperren").insert(gesperrt);
-      if (error) throw new Error(error.message);
+      if (error) throw new DbFehler(error);
     }
     neu();
     return { status: "ok", meldung: "Fähigkeiten gespeichert." };
@@ -222,7 +223,7 @@ export async function abwesenheitMelden(fuer: string | null, _v: Ergebnis, fd: F
     const zeile = { profil_id: profil, art, von, bis, von_zeit: stunden ? vonZeit : null, bis_zeit: stunden ? bisZeit : null };
     const notiz = text(fd, "notiz", 500);
     const { error } = await db().from("abwesenheiten").insert({ ...zeile, status, notiz, entschieden_von: fuer ? b.id : null });
-    if (error) throw new Error(error.message);
+    if (error) throw new DbFehler(error);
     const zeitraum = `${von}${bis !== von ? ` bis ${bis}` : ""}${stunden ? `, ${vonZeit}–${bisZeit} Uhr` : ""}`;
     if (!fuer) {
       const { firma } = await einstellungen();
@@ -308,7 +309,7 @@ export async function stempeln(_v: Ergebnis, fd: FormData): Promise<Ergebnis> {
         return { status: "fehler", meldung: `Einstempeln geht nur in der Werkstatt. Du bist etwa ${abstandText(abstand)} entfernt.` };
       }
     }
-    const { error } = await db().from("zeiteintraege").insert({ profil_id: b.id, beginn: new Date().toISOString(), ...(abstand !== null && { abstand_m: abstand }) });
+    const { error } = await dbRoh().from("zeiteintraege").insert({ profil_id: b.id, beginn: new Date().toISOString(), ...(abstand !== null && { abstand_m: abstand }) });
     if (error) return { status: "fehler", meldung: "Sie sind schon eingestempelt." };
     await melden("zeit.gestempelt", { profil_id: b.id, art: "kommt", abstand_m: abstand });
     neu();
@@ -349,7 +350,7 @@ export async function auftragStatus(terminId: string, _v: Ergebnis, fd: FormData
     if (b.rolle === "mitarbeiter") q = q.eq("zugewiesen_an", b.id);
     // Ohne geänderte Zeile (fremder Auftrag, falsche ID) keine Meldung „Auftrag fertig“ an das Büro
     const { data, error } = await q.select("id, auftrag_erteilt_am");
-    if (error) throw new Error(error.message);
+    if (error) throw new DbFehler(error);
     if (!data?.length) return { status: "fehler", meldung: "Das ist nicht Ihr Auftrag." };
     // Fertig: Der Rechnungsentwurf entsteht sofort, das Büro bekommt einen Push dorthin.
     if (status === "fertig") await nachFertig(terminId, b.id, b.name || "Werkstatt");

@@ -5,12 +5,13 @@ import { after } from "next/server";
 import { einstellungen } from "@/lib/einstellungen";
 import { ENV } from "@/lib/env";
 import { melden } from "@/lib/ereignisse";
-import { type Ergebnis, istEmail, istSpam, istTelefon, sicher, text, werteAus } from "@/lib/forms";
+import { type Ergebnis, istEmail, istSpam, istTelefon, text, werteAus } from "@/lib/forms";
+import { sicher } from "@/lib/sicher";
 import { imLimit } from "@/lib/limit";
 import { mail } from "@/lib/email/vorlagen";
 import { mailer } from "@/lib/services/email";
 import { pushSenden } from "@/lib/services/push";
-import { db } from "@/lib/supabase/admin";
+import { db, DbFehler } from "@/lib/supabase/admin";
 
 const TYPEN: Record<string, string> = { "application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png" };
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -76,7 +77,7 @@ export async function bewerben(_v: Ergebnis, formData: FormData): Promise<Ergebn
       })
       .select("id, nummer")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw new DbFehler(error);
 
     after(async () => {
       const { firma, benachrichtigung } = await einstellungen();
@@ -106,5 +107,5 @@ export async function bewerben(_v: Ergebnis, formData: FormData): Promise<Ergebn
       ]);
     });
     return { status: "ok" };
-  });
+  }, true);
 }

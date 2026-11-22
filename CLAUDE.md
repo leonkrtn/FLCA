@@ -17,6 +17,8 @@ npm run dev | build | lint | typecheck | test
 ## Architektur
 
 - **Zugriff:** Alle Tabellen haben RLS ohne Richtlinien. Gelesen und geschrieben wird nur serverseitig mit `db()` (`src/lib/supabase/admin.ts`, Secret Key), und zwar erst nach `benutzerMitRecht(bereich)` (`src/lib/auth.ts`). Rollen und Rechte: `src/lib/rollen.ts`. `src/proxy.ts` leitet nur nicht Angemeldete um, die Rolle prüft jede Seite und Server Action selbst.
+- **Datenbankfehler:** Jede Abfrage über `db()` wirft bei einem Fehler einen `DbFehler` (Tabelle, Ursache, Abhilfe, `code`); `data` ist also nie still `null` wegen eines Fehlers. Nur wer `error` selbst in eine Meldung übersetzt (doppeltes Kennzeichen, belegter Termin, fehlende Migration), nimmt `dbRoh()`. Zeigt eine Tabelle mehrfach auf dieselbe andere (`termine` → `profile`), beim Einbetten den Fremdschlüssel nennen (`profile!termine_zugewiesen_an_fkey(...)`).
+- **Fehlerprotokoll:** Systemfehler kommen über `fehlerMelden()` (`src/lib/fehler.ts`) in die Tabelle `fehlerprotokoll` (Einstellungen → Fehler): automatisch aus `sicher()`, `onRequestError` (`src/instrumentation.ts`) und dem Takt. Was eine Seite nicht umwerfen darf (Menü-Zähler, Website-Abschnitte), läuft über `weich(versuch, ersatz, ort)`, nie über ein leeres `catch` oder `console.error`.
 - **Umgebungsvariablen** nur über `src/lib/env.ts` (`ENV`, `KONFIGURIERT`).
 - **Dienste** hinter Schnittstellen in `src/lib/services/` (Mail, Push). Feature-Code ruft `mailer()` und `pushSenden()` auf, nie Resend direkt.
 - **Termine:** `src/lib/termine.ts` ist der einzige Weg, Termine anzulegen, zu bestätigen, zu verschieben oder abzusagen oder zu löschen (Mails und Ereignisse hängen daran). Kapazitätsprüfung in der Datenbank (`termin_anlegen`, `termin_bestaetigen`, `termin_verschieben` mit Advisory-Lock); `src/lib/slots.ts` rechnet dieselbe Logik für die Anzeige freier Zeiten.
@@ -30,7 +32,7 @@ npm run dev | build | lint | typecheck | test
 - **Ereignisse:** jede fachliche Änderung ruft `melden(typ, daten)` (`src/lib/ereignisse.ts`). Neue Typen dort eintragen; Webhooks und `/api/v1/ereignisse` liefern sie automatisch aus.
 - **Takt:** `/api/cron/takt` (jede Minute aus Supabase pg_cron) ruft `takt()` in `src/lib/automatik.ts`. Jede Aufgabe ist über `automatik_log` idempotent.
 - **Sprache:** `src/lib/sprache/` versteht gesprochenen Text mit festen Regeln (kein KI-Dienst) und füllt nur vor: Notiz und Termin über die Adresse des Formulars (`vorgabe.ts`), Rechnung und Kostenvoranschlag als Entwurf (`src/lib/aktionen/sprache.ts`). Läuft im Browser (Vorschau) und auf dem Server, deshalb ohne Abhängigkeiten. Begriffe (Preisliste mit `sprachnamen`, Team, Kartei-Fahrzeuge) nie fest eintragen, sondern über `sprachGrundlagen()` (`src/lib/sprache/daten.ts`) aus der Datenbank laden. Neue Redewendungen mit Test in `verstehen.test.ts`.
-- **Server Actions** für Formulare liegen in `src/lib/aktionen/*` und geben `Ergebnis` (`src/lib/forms.ts`) zurück; Admin und Handy-Apps teilen sie.
+- **Server Actions** für Formulare liegen in `src/lib/aktionen/*`, laufen in `sicher()` (`src/lib/sicher.ts`; auf der Website mit `oeffentlich`, dann ohne technische Meldung) und geben `Ergebnis` (`src/lib/forms.ts`) zurück; Admin und Handy-Apps teilen sie.
 - **Migrationen** in `supabase/migrations/` werden vom Betreiber selbst im SQL-Editor ausgeführt. Neue Tabellen in den RLS-Block am Ende aufnehmen.
 
 ## Gestaltung

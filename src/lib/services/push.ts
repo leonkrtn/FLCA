@@ -3,6 +3,7 @@ import { sendNotification, setVapidDetails } from "web-push";
 import { ENV, KONFIGURIERT } from "../env";
 import type { Rolle } from "../rollen";
 import { db } from "../supabase/admin";
+import { fehlerMelden } from "../fehler";
 
 export type PushNachricht = { titel: string; text: string; url: string; tag?: string };
 
@@ -42,7 +43,7 @@ export async function pushSenden(ziel: { rollen?: Rolle[]; profile?: string[] },
       } catch (error) {
         const code = (error as { statusCode?: number }).statusCode;
         if (code === 404 || code === 410) await db().from("push_abos").delete().eq("id", abo.id);
-        else console.error("Push fehlgeschlagen", code, error);
+        else await fehlerMelden(error, `Push senden (Status ${code ?? "unbekannt"})`);
       }
     }),
   );

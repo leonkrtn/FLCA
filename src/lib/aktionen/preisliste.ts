@@ -4,9 +4,10 @@ import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { benutzerMitRecht } from "../auth";
-import { centAus, type Ergebnis, ja, sicher, text, zahl } from "../forms";
+import { centAus, type Ergebnis, ja, text, zahl } from "../forms";
+import { sicher } from "../sicher";
 import { darf } from "../rollen";
-import { db } from "../supabase/admin";
+import { dbRoh } from "../supabase/admin";
 
 function adresse(roh: string): string {
   return roh
@@ -83,17 +84,17 @@ export async function preislisteSpeichern(id: string | null, _v: Ergebnis, fd: F
     if (!id) daten.slug = (art === "position" ? `position-${adresse(name)}` : gewuenscht || adresse(name)) || `position-${randomBytes(4).toString("hex")}`;
     else if (website && art === "leistung" && gewuenscht) daten.slug = gewuenscht;
 
-    let antwort = id ? await db().from("leistungen").update(daten).eq("id", id).select("id").single() : await db().from("leistungen").insert(daten).select("id").single();
+    let antwort = id ? await dbRoh().from("leistungen").update(daten).eq("id", id).select("id").single() : await dbRoh().from("leistungen").insert(daten).select("id").single();
     // Spalte „sprachnamen“ gibt es erst nach der Migration: dann ohne sie speichern statt gar nicht
     let ohneSprachnamen = false;
     if (antwort.error && SPALTE_FEHLT.includes(antwort.error.code) && /sprachnamen/.test(antwort.error.message)) {
       delete daten.sprachnamen;
       ohneSprachnamen = true;
-      antwort = id ? await db().from("leistungen").update(daten).eq("id", id).select("id").single() : await db().from("leistungen").insert(daten).select("id").single();
+      antwort = id ? await dbRoh().from("leistungen").update(daten).eq("id", id).select("id").single() : await dbRoh().from("leistungen").insert(daten).select("id").single();
     }
     if (antwort.error?.code === "23505" && art === "position") {
       daten.slug = `${daten.slug ?? `position-${adresse(name)}`}-${randomBytes(2).toString("hex")}`;
-      antwort = id ? await db().from("leistungen").update(daten).eq("id", id).select("id").single() : await db().from("leistungen").insert(daten).select("id").single();
+      antwort = id ? await dbRoh().from("leistungen").update(daten).eq("id", id).select("id").single() : await dbRoh().from("leistungen").insert(daten).select("id").single();
     }
     if (antwort.error) return { status: "fehler", meldung: antwort.error.code === "23505" ? "Diese Webadresse (Slug) gibt es schon." : antwort.error.message };
     if (!id) ziel = `/admin/preisliste/${antwort.data.id}`;
