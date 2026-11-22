@@ -7,9 +7,11 @@ import {
   freieSlotsMitPersonen,
   kalenderwoche,
   konflikte,
+  neueLeistungGesperrt,
   type PersonBelegung,
   type PlanPerson,
   schnitt,
+  sollMinuten,
   urlaubstage,
 } from "./planung";
 import { berlin, berlinUhrzeit } from "./zeit";
@@ -143,4 +145,29 @@ describe("urlaubstage", () => {
   it("zählt nur Arbeitstage", () => expect(urlaubstage(p, { von: "2026-11-30", bis: "2026-12-06", von_zeit: null })).toBe(5));
   it("halber Tag = 0,5", () => expect(urlaubstage(p, { von: TAG, bis: TAG, von_zeit: "08:00" })).toBe(0.5));
   it("nur Tage im Jahr", () => expect(urlaubstage(p, { von: "2026-12-28", bis: "2027-01-08", von_zeit: null }, "2026")).toBe(4));
+});
+
+describe("sollMinuten", () => {
+  it("summiert den Wochenplan, Urlaub und halbe Tage fallen heraus", () => {
+    // 2026-11-30 (Mo) bis 2026-12-06 (So): fünf Tage à 8 Stunden
+    expect(sollMinuten(person("a"), "2026-11-30", "2026-12-06")).toBe(5 * 8 * 60);
+    const urlaub = person("a", { abwesenheiten: [{ art: "urlaub", von: "2026-12-01", bis: "2026-12-01", von_zeit: null, bis_zeit: null }] });
+    expect(sollMinuten(urlaub, "2026-11-30", "2026-12-06")).toBe(4 * 8 * 60);
+    const arzt = person("a", { abwesenheiten: [{ art: "sonstiges", von: "2026-12-01", bis: "2026-12-01", von_zeit: "08:00", bis_zeit: "10:00" }] });
+    expect(sollMinuten(arzt, "2026-12-01", "2026-12-01")).toBe(6 * 60);
+  });
+  it("ohne eigenen Plan gibt es kein Soll", () => {
+    expect(sollMinuten(person("a", { planAusOeffnung: true }), "2026-12-01", "2026-12-01")).toBeNull();
+  });
+});
+
+describe("neueLeistungGesperrt", () => {
+  it("folgt der Mehrheit der Kategorie", () => {
+    expect(neueLeistungGesperrt([], [])).toBe(false);
+    expect(neueLeistungGesperrt(["x", "y", "z"], [])).toBe(false);
+    expect(neueLeistungGesperrt(["x", "y", "z"], ["x"])).toBe(false);
+    expect(neueLeistungGesperrt(["x", "y", "z"], ["x", "y"])).toBe(true);
+    // Gleichstand: darf (lieber zu viel erlauben als jemanden still aussperren)
+    expect(neueLeistungGesperrt(["x", "y"], ["x"])).toBe(false);
+  });
 });

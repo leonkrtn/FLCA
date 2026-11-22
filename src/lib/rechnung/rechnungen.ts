@@ -10,13 +10,13 @@ import { berlinDatum, plusTage } from "../zeit";
 import { laufendeAngebote } from "../angebote/daten";
 import { angeboteAnwenden, type GebuchterAngebotsPreis } from "../angebote/preise";
 import { berechne, type Position, vorzeichenWechseln } from "./berechnung";
-import { positionenAusLeistungen } from "../auftrag-regeln";
+import { arbeitsMinuten, lohnEinsetzen, positionenAusLeistungen } from "../auftrag-regeln";
 import { kundeAusBeleg, markeUndModell } from "../kunden";
 import { merken, type PaketWunsch } from "./preisgedaechtnis";
 import { rechnungPdf } from "./pdf";
 import { alsZugferd, eRechnungPruefen, istXRechnung, zugferdXml } from "./zugferd";
 import { bereitsBezahlt, durchZahlungErledigt, fassungsNummer, grundPruefen, offenerBetrag } from "./korrektur";
-import { fehlerMelden } from "../fehler";
+import { fehlerMelden, weich } from "../fehler";
 
 export type Empfaenger = {
   name: string;
@@ -206,6 +206,17 @@ export async function entwurfAusTermin(terminId: string, vonBenutzer: string): P
     );
   }
 
+  // In der Team-App erfasste Arbeitszeit: füllt leere Lohnpositionen, sonst nur als Vermerk im Verlauf.
+  // weich: auftrag_zeiten gibt es erst seit der Migration „team_werkstatt“.
+  const minuten = await weich(
+    async () => arbeitsMinuten(pruefe<{ beginn: string; ende: string | null }[]>(await db().from("auftrag_zeiten").select("beginn, ende").eq("termin_id", terminId))),
+    0,
+    "Arbeitszeit für den Rechnungsentwurf lesen",
+  );
+  const ausKv = Boolean(angenommen && positionen === angenommen.positionen);
+  const lohn = lohnEinsetzen(positionen, minuten);
+  positionen = lohn.positionen;
+
   const id = await entwurfAnlegen(
     {
       termin_id: t.id,
@@ -221,7 +232,11 @@ export async function entwurfAusTermin(terminId: string, vonBenutzer: string): P
     vonBenutzer,
   );
   if (herkunft) await verlauf("rechnung", id, herkunft, vonBenutzer);
-  if (angenommen && positionen === angenommen.positionen) {
+  if (minuten) {
+    const h = `${Math.floor(minuten / 60)}:${String(minuten % 60).padStart(2, "0")} h`;
+    await verlauf("rechnung", id, lohn.eingesetzt ? `Erfasste Arbeitszeit ${h} als Lohnstunden eingesetzt` : `In der Werkstatt erfasste Arbeitszeit: ${h}`, vonBenutzer);
+  }
+  if (angenommen && ausKv) {
     await db().from("kostenvoranschlaege").update({ rechnung_id: id }).eq("id", angenommen.id).is("rechnung_id", null);
   }
   return einzigerEntwurf(terminId, id);

@@ -26,20 +26,22 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // Ein kaputter Zähler darf nicht jede Seite der Verwaltung umwerfen: dann 0, aber im Fehlerprotokoll.
   const zaehlen = (tabelle: string, spalte: string, wert: string) =>
     weich(db().from(tabelle).select("id", { count: "exact", head: true }).eq(spalte, wert).then((r) => r.count ?? 0), 0, `Menü-Zähler ${tabelle}`);
-  const [anfragen, abwesenheiten, bewerbungen, erinnerungen, ohnePerson, fehler] = await Promise.all([
+  const [anfragen, abwesenheiten, bewerbungen, erinnerungen, ohnePerson, fehler, meldungen] = await Promise.all([
     zaehlen("termine", "status", "angefragt"),
     darf(b.rolle, "team") ? zaehlen("abwesenheiten", "status", "beantragt") : 0,
     darf(b.rolle, "karriere") ? zaehlen("bewerbungen", "status", "neu") : 0,
     darf(b.rolle, "notizen") ? weich(faelligeAnzahl(b), 0, "Menü-Zähler Erinnerungen") : 0,
     ohneMitarbeiterAnzahl(),
     darf(b.rolle, "einstellungen") ? offeneFehlerAnzahl() : 0,
+    // Befunde und angeforderte Teile aus der Team-App
+    darf(b.rolle, "termine") ? zaehlen("auftrag_meldungen", "status", "offen") : 0,
   ]);
 
   const alle: (NavEintrag & { recht: Parameters<typeof darf>[1]; modul?: keyof typeof e.module })[] = [
     { href: "/admin", text: "Übersicht", recht: "termine" },
     { href: "/admin/kalender", text: "Kalender", recht: "termine", gruppe: "Werkstatt", anzahl: ohnePerson },
     { href: "/admin/termine", text: "Termine", recht: "termine", anzahl: anfragen },
-    { href: "/admin/auftraege", text: "Werkstattaufträge", recht: "termine" },
+    { href: "/admin/auftraege", text: "Werkstattaufträge", recht: "termine", anzahl: meldungen },
     { href: "/admin/notizen", text: "Notizen", recht: "notizen", anzahl: erinnerungen },
     { href: "/admin/kunden", text: "Kunden", recht: "kunden" },
     { href: "/admin/einlagerung", text: "Einlagerung", recht: "einlagerung", modul: "einlagerung" },

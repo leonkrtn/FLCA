@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Karte, MobilKopf } from "@/components/mobil/teile";
+import { ZeitkontoKacheln } from "@/components/zeitkonto";
 import { benutzerMitRecht } from "@/lib/auth";
 import { einstellungen } from "@/lib/einstellungen";
 import { datumKurzText, zeit } from "@/lib/format";
-import { berlinDatum, jetztMs } from "@/lib/zeit";
-import { monatszeiten, stunden } from "@/lib/zeiterfassung";
+import { zeitkonto } from "@/lib/mitarbeiter";
+import { berlinDatum } from "@/lib/zeit";
+import { monatszeiten, nettoMinuten, stunden } from "@/lib/zeiterfassung";
 
 export const metadata = { title: "Zeiten" };
 
@@ -15,7 +17,7 @@ export default async function Zeiten({ searchParams }: { searchParams: Promise<{
   if (!module.zeiterfassung || !b.zeiterfassung) notFound();
   const { monat: m } = await searchParams;
   const monat = m && /^\d{4}-\d{2}$/.test(m) ? m : berlinDatum().slice(0, 7);
-  const { eintraege, minuten } = await monatszeiten(b.id, monat);
+  const [{ eintraege, minuten }, konto] = await Promise.all([monatszeiten(b.id, monat), zeitkonto(b.id, monat)]);
   const vor = new Date(Date.UTC(Number(monat.slice(0, 4)), Number(monat.slice(5)) - 2, 1)).toISOString().slice(0, 7);
   const nach = new Date(Date.UTC(Number(monat.slice(0, 4)), Number(monat.slice(5)), 1)).toISOString().slice(0, 7);
   return (
@@ -30,14 +32,20 @@ export default async function Zeiten({ searchParams }: { searchParams: Promise<{
           </div>
         }
       />
+      <div className="p-2">
+        <Karte>
+          <ZeitkontoKacheln k={konto} />
+        </Karte>
+      </div>
       <div className="grid grid-cols-1 gap-px bg-linie">
         {eintraege.map((z) => (
           <Karte key={z.id}>
             <div className="zahlen grid grid-cols-[6rem_minmax(0,1fr)_auto] gap-3">
               <span className="font-sans">{datumKurzText(z.beginn)}</span>
               <span>{zeit(z.beginn)}–{z.ende ? zeit(z.ende) : "läuft"}</span>
-              <span className="text-right">{stunden(Math.round(((z.ende ? new Date(z.ende).getTime() : jetztMs()) - new Date(z.beginn).getTime()) / 60000))}</span>
+              <span className="text-right">{stunden(nettoMinuten(z))}</span>
             </div>
+            {z.pause_minuten || z.pause_seit ? <p className="text-xs text-grau">ohne {z.pause_minuten ?? 0} min Pause{z.pause_seit ? " (Pause läuft)" : ""}</p> : null}
           </Karte>
         ))}
       </div>

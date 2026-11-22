@@ -8,6 +8,8 @@ import { centAus, type Ergebnis, ja, text, zahl } from "../forms";
 import { sicher } from "../sicher";
 import { darf } from "../rollen";
 import { dbRoh } from "../supabase/admin";
+import { weich } from "../fehler";
+import { sperrenFuerNeueLeistung } from "../mitarbeiter";
 
 function adresse(roh: string): string {
   return roh
@@ -97,7 +99,11 @@ export async function preislisteSpeichern(id: string | null, _v: Ergebnis, fd: F
       antwort = id ? await dbRoh().from("leistungen").update(daten).eq("id", id).select("id").single() : await dbRoh().from("leistungen").insert(daten).select("id").single();
     }
     if (antwort.error) return { status: "fehler", meldung: antwort.error.code === "23505" ? "Diese Webadresse (Slug) gibt es schon." : antwort.error.message };
-    if (!id) ziel = `/admin/preisliste/${antwort.data.id}`;
+    if (!id) {
+      ziel = `/admin/preisliste/${antwort.data.id}`;
+      // Wer was darf, folgt bei neuen Leistungen der Kategorie (Mitarbeiter → Fähigkeiten)
+      await weich(sperrenFuerNeueLeistung(antwort.data.id, String(daten.kategorie ?? "")), undefined, "Fähigkeiten für neue Leistung");
+    }
     revalidatePath("/", "layout");
     if (ohneSprachnamen && sprachnamen.length) return { status: "ok", meldung: "Gespeichert, ohne die weiteren Namen: Dafür fehlt noch die Migration „sprachnamen“." };
     return { status: "ok", meldung: website ? "Gespeichert. Die Website zeigt es in wenigen Minuten." : "Gespeichert." };

@@ -18,6 +18,27 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-22 · Mitarbeiter: „Nimmt Aufträge an“ klang nach Entscheidung der Person, neue Mitarbeiter fehlten in der Planung
+
+- **Stand:** behoben
+- **Wo:** `src/app/admin/(panel)/mitarbeiter/page.tsx` (Fähigkeiten, Wochenplan, Personen), `…/mitarbeiter/[id]/page.tsx`,
+  `src/lib/aktionen/team.ts` (`einladen`, `profilSpeichern`), `src/app/admin/(panel)/kalender/page.tsx`
+- **Was man sah:** Unter *Fähigkeiten* stand „Noch niemand nimmt Aufträge an“, im Wochenplan „nimmt keine Aufträge“.
+  Das liest sich, als müssten die Angestellten selbst zusagen. Gemeldet vom Betreiber: Wer Aufträge bekommt,
+  entscheidet die Werkstatt.
+- **Ursache:** Der Schalter `nimmt_auftraege` war eine freie Einstellung je Person mit Standard „aus“ (Migration
+  `mitarbeiterplanung`) und wurde in der Oberfläche als Tätigkeit der Person beschriftet. Wer beim Einladen das
+  Häkchen vergaß, fehlte still in Planung, Website-Terminen und Fähigkeiten.
+- **Behebung:** Rolle Mitarbeiter ist immer planbar (`istPlanbar`, beim Speichern gesetzt, bestehende per Migration
+  `team_werkstatt` nachgezogen); nur Inhaber und Büro werden zugeschaltet („In der Werkstatt einplanen“). Texte
+  sprechen von „eingeplant“. Das Büro darf mitplanen (Recht `team`), Personalsachen bleiben beim Inhaber (`personal`).
+- **Muster:** Ein Schalter, der eine Entscheidung des Betriebs über eine Person speichert, mit Standard „aus“ und
+  einer Beschriftung im Aktiv der Person („nimmt an“, „macht mit“). Folgen: Neue Personen fallen still heraus, und
+  die Oberfläche legt nahe, die Person entscheide selbst.
+- **Weitere Stellen:** alle Texte mit „nimmt … an“ / „annimmt“ gesucht: Kalender (Leertext, Kommentar),
+  `planung.ts`, `termine.ts` (Kommentare) mitgeändert. `zeiterfassung` ist ebenfalls ein Schalter mit Standard „aus“,
+  dort ist „aus“ aber gewollt (nicht jeder stempelt) und die Beschriftung spricht vom Betrieb: gelassen.
+
 ### 2026-11-22 · Stornierte Rechnung forderte im PDF und in der Mail weiter zur Zahlung auf
 
 - **Stand:** behoben

@@ -14,7 +14,10 @@ import { pushSenden } from "../services/push";
 import type { Rolle } from "../rollen";
 import { abstandM, abstandText, vorOrt } from "../standort";
 import { db, DbFehler, dbRoh } from "../supabase/admin";
-import { nachAbwesenheitUmverteilen } from "../termine";
+import { nachAbwesenheitUmverteilen, PlanungsWarnung, terminLaden, uebernehmen } from "../termine";
+import { weich } from "../fehler";
+import { istPlanbar } from "../mitarbeiter";
+import { zeitStarten, zeitStoppen } from "../werkstatt";
 import { nachFertig } from "../auftrag";
 import { berlin, istDatum, plusTage } from "../zeit";
 
@@ -47,7 +50,7 @@ export async function einladen(_v: Ergebnis, fd: FormData): Promise<Ergebnis> {
     if (error) return { status: "fehler", meldung: error.message.includes("already") ? "Diese Adresse hat schon ein Konto." : error.message };
     const { error: fehler } = await db()
       .from("profile")
-      .update({ name, rolle, zeiterfassung: ja(fd, "zeiterfassung"), nimmt_auftraege: ja(fd, "nimmt_auftraege") })
+      .update({ name, rolle, zeiterfassung: ja(fd, "zeiterfassung"), nimmt_auftraege: istPlanbar(rolle, ja(fd, "nimmt_auftraege")) })
       .eq("id", data.user.id);
     if (fehler) throw new DbFehler(fehler);
     neu();
@@ -55,9 +58,10 @@ export async function einladen(_v: Ergebnis, fd: FormData): Promise<Ergebnis> {
   });
 }
 
+/** Personalsachen (Rolle, Konto, Urlaubsanspruch, Zeiterfassung): nur der Inhaber. */
 export async function profilSpeichern(id: string, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
   return sicher(fd, async () => {
-    const b = await benutzerMitRecht("team");
+    const b = await benutzerMitRecht("personal");
     const rolle = text(fd, "rolle") as Rolle;
     if (!ROLLEN.includes(rolle)) return { status: "fehler", meldung: "Ungültige Rolle." };
     if (id === b.id && (rolle !== "inhaber" || !ja(fd, "aktiv"))) return { status: "fehler", meldung: "Sie können sich nicht selbst die Inhaber-Rolle nehmen." };
@@ -69,13 +73,27 @@ export async function profilSpeichern(id: string, _v: Ergebnis, fd: FormData): P
         rolle,
         aktiv: ja(fd, "aktiv"),
         zeiterfassung: ja(fd, "zeiterfassung"),
-        nimmt_auftraege: ja(fd, "nimmt_auftraege"),
+        // Mitarbeiter sind immer planbar; das entscheidet die Werkstatt, nicht die Person
+        nimmt_auftraege: istPlanbar(rolle, ja(fd, "nimmt_auftraege")),
         urlaubstage: Math.round(zahl(fd, "urlaubstage") ?? 0),
       })
       .eq("id", id);
     if (error) throw new DbFehler(error);
     neu();
     return { status: "ok", meldung: "Gespeichert." };
+  });
+}
+
+/** Inhaber oder Büro in der Werkstatt einplanen (Mitarbeiter sind es immer). Darf auch das Büro. */
+export async function einplanenSpeichern(id: string, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
+  return sicher(fd, async () => {
+    await benutzerMitRecht("team");
+    const { data: p } = await db().from("profile").select("rolle").eq("id", id).maybeSingle();
+    if (!p) return { status: "fehler", meldung: "Person nicht gefunden." };
+    const an = istPlanbar(p.rolle, ja(fd, "nimmt_auftraege"));
+    await db().from("profile").update({ nimmt_auftraege: an }).eq("id", id);
+    neu();
+    return { status: "ok", meldung: an ? "Wird in der Werkstatt eingeplant." : "Wird nicht mehr eingeplant." };
   });
 }
 
@@ -225,11 +243,13 @@ export async function abwesenheitMelden(fuer: string | null, _v: Ergebnis, fd: F
     const { error } = await db().from("abwesenheiten").insert({ ...zeile, status, notiz, entschieden_von: fuer ? b.id : null });
     if (error) throw new DbFehler(error);
     const zeitraum = `${von}${bis !== von ? ` bis ${bis}` : ""}${stunden ? `, ${vonZeit}–${bisZeit} Uhr` : ""}`;
+    // Krank gilt sofort: Termine gehen an Kollegen, bevor das Büro Bescheid bekommt, damit der Push sagt, was offen ist.
+    const zusatz = status === "genehmigt" ? await abwesenheitWirkt(zeile, fuer ? b.id : null) : "";
     if (!fuer) {
       const { firma } = await einstellungen();
       const titel = art === "krank" ? `${b.name || b.email} ist krank gemeldet` : `${b.name || b.email} beantragt ${art === "urlaub" ? "Urlaub" : "frei"}`;
       await Promise.all([
-        pushSenden({ rollen: ["inhaber"] }, { titel, text: zeitraum, url: "/admin/mitarbeiter?ansicht=urlaub" }),
+        pushSenden({ rollen: ["inhaber", "buero"] }, { titel, text: `${zeitraum}${zusatz}`, url: zusatz.includes("jemand Neues") ? "/admin/kalender" : "/admin/mitarbeiter?ansicht=urlaub" }),
         mailer().senden({
           an: firma.email,
           betreff: titel,
@@ -237,7 +257,7 @@ export async function abwesenheitMelden(fuer: string | null, _v: Ergebnis, fd: F
             ueberschrift: titel,
             gruss: false,
             bausteine: [
-              { art: "fakten", zeilen: [["Wann", zeitraum], ["Notiz", notiz || "–"]] },
+              { art: "fakten", zeilen: [["Wann", zeitraum], ["Notiz", notiz || "–"], ...(zusatz ? [["Termine", zusatz.trim()] as [string, string]] : [])] },
               { art: "knopf", text: "Bei den Mitarbeitern ansehen", url: `${ENV.siteUrl}/admin/mitarbeiter?ansicht=urlaub` },
             ],
           }),
@@ -245,9 +265,22 @@ export async function abwesenheitMelden(fuer: string | null, _v: Ergebnis, fd: F
         melden("abwesenheit.beantragt", { profil_id: profil, art, von, bis, von_zeit: zeile.von_zeit, bis_zeit: zeile.bis_zeit }),
       ]);
     }
-    const zusatz = status === "genehmigt" ? await abwesenheitWirkt(zeile, fuer ? b.id : null) : "";
     neu();
     return { status: "ok", meldung: (art === "krank" ? "Gute Besserung. Die Meldung ist raus." : fuer ? "Eingetragen." : "Beantragt. Sie bekommen Bescheid.") + (fuer ? zusatz : "") };
+  });
+}
+
+/** Eigenen, noch nicht entschiedenen Antrag zurückziehen (Team-App). */
+export async function abwesenheitZurueckziehen(id: string, _v: Ergebnis): Promise<Ergebnis> {
+  return sicher(null, async () => {
+    const b = await benutzerMitRecht("werkstatt");
+    const { data } = await db().from("abwesenheiten").delete().eq("id", id).eq("profil_id", b.id).eq("status", "beantragt").select("art, von, bis");
+    if (!data?.length) return { status: "fehler", meldung: "Der Antrag ist schon entschieden. Bitte im Büro melden." };
+    after(() =>
+      pushSenden({ rollen: ["inhaber", "buero"] }, { titel: `${b.name || b.email} zieht den Antrag zurück`, text: `${data[0].von} bis ${data[0].bis}`, url: "/admin/mitarbeiter?ansicht=urlaub" }),
+    );
+    neu();
+    return { status: "ok", meldung: "Zurückgezogen." };
   });
 }
 
@@ -289,9 +322,13 @@ export async function stempeln(_v: Ergebnis, fd: FormData): Promise<Ergebnis> {
   return sicher(fd, async () => {
     const b = await benutzerMitRecht("werkstatt");
     if (!b.zeiterfassung) return { status: "fehler", meldung: "Für Sie ist keine Zeiterfassung eingeschaltet." };
-    const { data: offen } = await db().from("zeiteintraege").select("id, beginn").eq("profil_id", b.id).is("ende", null).maybeSingle();
+    const { data: offen } = await db().from("zeiteintraege").select("*").eq("profil_id", b.id).is("ende", null).maybeSingle();
     if (offen) {
-      await db().from("zeiteintraege").update({ ende: new Date().toISOString() }).eq("id", offen.id);
+      const jetzt = new Date();
+      // Läuft noch eine Pause, endet sie mit dem Ausstempeln; eine laufende Auftragszeit auch.
+      const pause = offen.pause_seit ? { pause_minuten: (offen.pause_minuten ?? 0) + pausenMinuten(offen.pause_seit, jetzt), pause_seit: null } : {};
+      await db().from("zeiteintraege").update({ ende: jetzt.toISOString(), ...pause }).eq("id", offen.id);
+      await weich(zeitStoppen(b.id), undefined, "Auftragszeit beim Ausstempeln stoppen");
       await melden("zeit.gestempelt", { profil_id: b.id, art: "geht" });
       neu();
       return { status: "ok", meldung: "Ausgestempelt. Schönen Feierabend." };
@@ -317,15 +354,40 @@ export async function stempeln(_v: Ergebnis, fd: FormData): Promise<Ergebnis> {
   });
 }
 
+/** Pause beginnen oder beenden (nur eingestempelt). */
+export async function pauseUmschalten(_v: Ergebnis): Promise<Ergebnis> {
+  return sicher(null, async () => {
+    const b = await benutzerMitRecht("werkstatt");
+    const { data: offen } = await db().from("zeiteintraege").select("*").eq("profil_id", b.id).is("ende", null).maybeSingle();
+    if (!offen) return { status: "fehler", meldung: "Erst einstempeln." };
+    const jetzt = new Date();
+    if (offen.pause_seit) {
+      await db().from("zeiteintraege").update({ pause_minuten: (offen.pause_minuten ?? 0) + pausenMinuten(offen.pause_seit, jetzt), pause_seit: null }).eq("id", offen.id);
+      await melden("zeit.pause", { profil_id: b.id, art: "ende" });
+      neu();
+      return { status: "ok", meldung: "Weiter geht's." };
+    }
+    await db().from("zeiteintraege").update({ pause_seit: jetzt.toISOString() }).eq("id", offen.id);
+    // In der Pause läuft keine Zeit am Auftrag weiter
+    await zeitStoppen(b.id);
+    await melden("zeit.pause", { profil_id: b.id, art: "beginn" });
+    neu();
+    return { status: "ok", meldung: "Pause." };
+  });
+}
+
+const pausenMinuten = (seit: string, jetzt: Date) => Math.max(0, Math.round((jetzt.getTime() - new Date(seit).getTime()) / 60000));
+
 /** Zeiteintrag nachtragen oder korrigieren (Inhaber). */
 export async function zeitNachtragen(profilId: string, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
   return sicher(fd, async () => {
-    const b = await benutzerMitRecht("team");
+    const b = await benutzerMitRecht("personal");
     const datum = text(fd, "datum", 10);
     const von = text(fd, "von", 5);
     const bis = text(fd, "bis", 5);
     if (!istDatum(datum) || !/^\d{2}:\d{2}$/.test(von) || !/^\d{2}:\d{2}$/.test(bis) || bis <= von) return { status: "fehler", meldung: "Bitte Datum, Beginn und Ende prüfen." };
-    await db().from("zeiteintraege").insert({ profil_id: profilId, beginn: berlin(datum, von).toISOString(), ende: berlin(datum, bis).toISOString(), notiz: text(fd, "notiz", 300) || "nachgetragen", korrigiert_von: b.id });
+    const pause = Math.max(0, Math.round(zahl(fd, "pause") ?? 0));
+    await db().from("zeiteintraege").insert({ profil_id: profilId, beginn: berlin(datum, von).toISOString(), ende: berlin(datum, bis).toISOString(), notiz: text(fd, "notiz", 300) || "nachgetragen", korrigiert_von: b.id, ...(pause && { pause_minuten: pause }) });
     neu();
     return { status: "ok", meldung: "Nachgetragen." };
   });
@@ -333,7 +395,7 @@ export async function zeitNachtragen(profilId: string, _v: Ergebnis, fd: FormDat
 
 export async function zeitLoeschen(id: string, _v: Ergebnis): Promise<Ergebnis> {
   return sicher(null, async () => {
-    await benutzerMitRecht("team");
+    await benutzerMitRecht("personal");
     await db().from("zeiteintraege").delete().eq("id", id);
     neu();
     return { status: "ok", meldung: "Gelöscht." };
@@ -352,6 +414,9 @@ export async function auftragStatus(terminId: string, _v: Ergebnis, fd: FormData
     const { data, error } = await q.select("id, auftrag_erteilt_am");
     if (error) throw new DbFehler(error);
     if (!data?.length) return { status: "fehler", meldung: "Das ist nicht Ihr Auftrag." };
+    // Anfangen startet die Uhr am Auftrag, Fertig stoppt sie (vor dem Rechnungsentwurf, damit die Zeit drin ist).
+    if (status === "in_arbeit") await weich(zeitStarten(terminId, b.id), undefined, "Auftragszeit starten");
+    else await weich(zeitStoppen(b.id, terminId), undefined, "Auftragszeit stoppen");
     // Fertig: Der Rechnungsentwurf entsteht sofort, das Büro bekommt einen Push dorthin.
     if (status === "fertig") await nachFertig(terminId, b.id, b.name || "Werkstatt");
     neu();
@@ -378,5 +443,114 @@ export async function fotoHinzufuegen(terminId: string, pfad: string, art: "arbe
     revalidatePath(`/admin/termine/${terminId}`);
     revalidatePath(`/app/termine/${terminId}`);
     return { status: "ok", meldung: "Foto gespeichert." };
+  });
+}
+
+/** Mitarbeiter dürfen nur an eigenen Aufträgen arbeiten; Inhaber und Büro überall. */
+async function eigenerAuftrag(terminId: string, b: { id: string; rolle: string | null }): Promise<boolean> {
+  if (b.rolle !== "mitarbeiter") return true;
+  const { data } = await db().from("termine").select("id").eq("id", terminId).eq("zugewiesen_an", b.id).maybeSingle();
+  return Boolean(data);
+}
+
+/** Uhr am Auftrag: Start (stoppt einen anderen laufenden) oder Stopp. Status geht beim Start auf „in Arbeit“. */
+export async function auftragZeit(terminId: string, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
+  return sicher(fd, async () => {
+    const b = await benutzerMitRecht("werkstatt");
+    if (!(await eigenerAuftrag(terminId, b))) return { status: "fehler", meldung: "Das ist nicht Ihr Auftrag." };
+    if (text(fd, "aktion") === "stopp") {
+      await zeitStoppen(b.id, terminId);
+      neu();
+      return { status: "ok", meldung: "Unterbrochen." };
+    }
+    const { data: z } = await db().from("zeiteintraege").select("pause_seit").eq("profil_id", b.id).is("ende", null).maybeSingle();
+    if (z?.pause_seit) return { status: "fehler", meldung: "Du bist in der Pause. Erst die Pause beenden." };
+    await zeitStarten(terminId, b.id);
+    await db().from("termine").update({ auftrag_status: "in_arbeit" }).eq("id", terminId).eq("auftrag_status", "offen");
+    neu();
+    revalidatePath("/app", "layout");
+    return { status: "ok", meldung: "Läuft." };
+  });
+}
+
+/** Befund oder Teil aus der Werkstatt ans Büro (Team-App). Das Büro bekommt einen Push. */
+export async function meldungAnlegen(terminId: string, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
+  return sicher(fd, async () => {
+    const b = await benutzerMitRecht("werkstatt");
+    if (!(await eigenerAuftrag(terminId, b))) return { status: "fehler", meldung: "Das ist nicht Ihr Auftrag." };
+    const art = text(fd, "art") === "teil" ? "teil" : "befund";
+    const inhalt = text(fd, "text", 500);
+    if (!inhalt) return { status: "fehler", meldung: art === "teil" ? "Welches Teil wird gebraucht?" : "Was ist aufgefallen?" };
+    const menge = art === "teil" ? Math.min(Math.max(zahl(fd, "menge") ?? 1, 0.01), 9999) : 1;
+    const dringend = ja(fd, "dringend");
+    const { error } = await dbRoh().from("auftrag_meldungen").insert({ termin_id: terminId, profil_id: b.id, art, text: inhalt, menge, dringend });
+    if (error) throw new DbFehler(error, { tabelle: "auftrag_meldungen" });
+    const t = await terminLaden(terminId);
+    const wer = b.name || b.email;
+    await Promise.all([
+      pushSenden(
+        { rollen: ["inhaber", "buero"] },
+        {
+          titel: `${dringend ? "Dringend: " : ""}${art === "teil" ? "Teil angefordert" : "Befund"} von ${wer}`,
+          text: `${art === "teil" ? `${String(menge).replace(".", ",")} × ` : ""}${inhalt}${t?.fahrzeug ? ` · ${t.fahrzeug.kennzeichen}` : ""}`,
+          url: `/app/termine/${terminId}`,
+        },
+      ),
+      melden("auftrag.meldung", { termin_id: terminId, profil_id: b.id, art, text: inhalt, menge, dringend }),
+    ]);
+    neu();
+    revalidatePath(`/admin/termine/${terminId}`);
+    revalidatePath("/admin/auftraege");
+    return { status: "ok", meldung: art === "teil" ? "Angefordert. Das Büro kümmert sich." : "Gemeldet." };
+  });
+}
+
+/** Büro: Meldung als bestellt oder erledigt markieren (oder wieder öffnen). */
+export async function meldungStatus(id: string, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
+  return sicher(fd, async () => {
+    const b = await benutzerMitRecht("termine");
+    const status = text(fd, "status");
+    if (!["offen", "bestellt", "erledigt"].includes(status)) return { status: "fehler", meldung: "Ungültig." };
+    const { data } = await db()
+      .from("auftrag_meldungen")
+      .update({ status, erledigt_von: status === "offen" ? null : b.id, erledigt_am: status === "erledigt" ? new Date().toISOString() : null })
+      .eq("id", id)
+      .select("termin_id, profil_id, art, text")
+      .maybeSingle();
+    if (!data) return { status: "fehler", meldung: "Meldung nicht gefunden." };
+    // Wer ein Teil angefordert hat, erfährt, dass es bestellt oder da ist.
+    if (data.art === "teil" && data.profil_id && data.profil_id !== b.id && status !== "offen") {
+      await pushSenden({ profile: [data.profil_id] }, { titel: status === "bestellt" ? "Teil bestellt" : "Teil ist da", text: data.text, url: `/team/auftrag/${data.termin_id}` });
+    }
+    neu();
+    revalidatePath(`/admin/termine/${data.termin_id}`);
+    revalidatePath(`/app/termine/${data.termin_id}`);
+    revalidatePath("/admin/auftraege");
+    return { status: "ok" };
+  });
+}
+
+/**
+ * Freien Auftrag selbst übernehmen (Team-App). Geht nur, wenn die Person planbar ist, alle Leistungen darf, zu
+ * der Zeit arbeitet und frei ist; die Prüfung macht uebernehmen() in termine.ts wie beim Zuteilen in der
+ * Verwaltung, die Datenbank verhindert dazu, dass zwei denselben Auftrag oder dieselbe Zeit bekommen.
+ */
+export async function auftragUebernehmen(terminId: string, _v: Ergebnis): Promise<Ergebnis> {
+  return sicher(null, async () => {
+    const b = await benutzerMitRecht("werkstatt");
+    const { data: p } = await db().from("profile").select("nimmt_auftraege").eq("id", b.id).maybeSingle();
+    if (!p?.nimmt_auftraege) return { status: "fehler", meldung: "Du wirst nicht in der Werkstatt eingeplant. Bitte im Büro melden." };
+    const t = await terminLaden(terminId);
+    if (!t || t.status !== "bestaetigt") return { status: "fehler", meldung: "Diesen Auftrag gibt es nicht mehr." };
+    try {
+      await uebernehmen(terminId, b.id);
+    } catch (e) {
+      if (e instanceof PlanungsWarnung) return { status: "fehler", meldung: `Geht nicht: ${e.gruende.join(" ")}` };
+      throw e;
+    }
+    await pushSenden({ rollen: ["inhaber", "buero"] }, { titel: `${b.name || b.email} übernimmt`, text: `${t.leistung_name}${t.fahrzeug ? ` · ${t.fahrzeug.kennzeichen}` : ""}`, url: `/app/termine/${terminId}` });
+    neu();
+    revalidatePath("/admin/termine", "layout");
+    return { status: "ok", meldung: "Gehört jetzt dir." };
   });
 }

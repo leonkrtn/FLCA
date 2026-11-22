@@ -138,3 +138,26 @@ export function positionenAusLeistungen(leistungen: LeistungFuerBeleg[], leistun
   if (frei || !positionen.length) positionen.push({ text: frei || name || "Arbeit", menge: 1, einheit: "Pauschal", einzel_netto_cent: 0, mwst_satz: 19 });
   return positionen;
 }
+
+/** Erfasste Arbeitszeit eines Auftrags in Minuten; laufende Einträge zählen bis `jetzt`. */
+export function arbeitsMinuten(zeiten: { beginn: string; ende: string | null }[], jetzt = Date.now()): number {
+  return Math.round(zeiten.reduce((s, z) => s + Math.max(0, (z.ende ? new Date(z.ende).getTime() : jetzt) - new Date(z.beginn).getTime()), 0) / 60000);
+}
+
+/**
+ * Erfasste Arbeitszeit in den Rechnungsentwurf: Lohnpositionen (Einheit „Std“) ohne Menge bekommen die Stunden,
+ * auf Viertelstunden aufgerundet. Feste Preise aus der Preisliste bleiben, wie sie sind, damit nichts doppelt
+ * berechnet wird. Gibt die Positionen zurück und ob etwas eingesetzt wurde.
+ */
+export function lohnEinsetzen(positionen: Position[], minuten: number): { positionen: Position[]; eingesetzt: boolean } {
+  if (minuten <= 0) return { positionen, eingesetzt: false };
+  const stunden = Math.ceil(minuten / 15) / 4;
+  let eingesetzt = false;
+  const neu = positionen.map((p) => {
+    if (p.rabatt || p.einheit.toLowerCase() !== "std" || p.menge > 0) return p;
+    eingesetzt = true;
+    return { ...p, menge: stunden };
+  });
+  // Ohne Änderung dasselbe Array: Aufrufer erkennen daran übernommene Positionen (z. B. aus dem KV)
+  return { positionen: eingesetzt ? neu : positionen, eingesetzt };
+}
