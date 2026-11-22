@@ -18,6 +18,22 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-22 · Team-Ansicht öffnete sich in der Web-App im Safari-Fenster
+
+- **Stand:** behoben im Code (seit 2026-11-20), auf dem Gerät erst nach Neuinstallation
+- **Wo:** `src/lib/manifest.ts` (`scope`), installierte Web-Apps auf dem iPhone
+- **Was man sah:** In der Web-App vom Home-Bildschirm öffnete sich `/team` in einem eingeblendeten Fenster mit „X“,
+  Adresse `flca.vercel.app` und Safari-Leiste unten statt im Vollbild der App.
+- **Ursache:** Der Bereich (`scope`) der Manifeste war bis zum 20.11. nur `/app` bzw. `/team`; `/team` lag für die
+  Werkstatt-App außerhalb. iOS liest das Manifest nur beim Hinzufügen zum Home-Bildschirm und aktualisiert es nie.
+  Vorher installierte Apps behalten den alten, engen Bereich, auch nach der Korrektur auf `scope: "/"`.
+- **Behebung:** Code war schon richtig. Auf dem Gerät: App-Symbol löschen und über Safari neu „Zum Home-Bildschirm“
+  hinzufügen (angemeldet, auf `/app` bzw. `/team`).
+- **Muster:** Jede Änderung an Manifest oder `appleWebApp` (Bereich, Name, Icon, Startseite, Farben) wirkt auf dem
+  iPhone erst nach Neuinstallation. Bei solchen Änderungen den Betreiber darauf hinweisen.
+- **Weitere Stellen:** beide Manifeste haben `scope: "/"`; Login, Verwaltung und Website haben kein eigenes Manifest
+  und liegen damit im Bereich beider Apps.
+
 ### 2026-11-22 · Sofort-Rückmeldung am Knopf wirkte ausgegraut statt bestätigt
 
 - **Stand:** behoben
