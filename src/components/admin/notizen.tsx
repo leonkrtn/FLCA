@@ -61,7 +61,7 @@ export function NotizFormular({
         </div>
       ) : null}
       <fieldset className={`grid gap-3 border-t border-linie pt-4 ${kompakt ? "grid-cols-2" : "sm:col-span-2 sm:grid-cols-4"}`}>
-        <legend className="mb-2 font-semibold">Erinnerung per Push</legend>
+        <legend className="font-semibold">Erinnerung per Push</legend>
         <Feld label="Datum" name="datum" typ="date" wert={am ? berlinDatum(am) : (v?.datum ?? "")} />
         <Feld label="Uhrzeit" name="uhrzeit" typ="time" wert={am ? berlinUhrzeit(am) : (v?.uhrzeit ?? "")} />
         <Auswahl

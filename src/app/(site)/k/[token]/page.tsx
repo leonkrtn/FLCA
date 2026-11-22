@@ -38,7 +38,7 @@ export default async function KundenKostenvoranschlag({ params }: { params: Prom
           : ["Offen", `Gültig bis zum ${datum(k.gueltig_bis)}. Passt alles? Dann nehmen Sie ihn unten an.`];
 
   return (
-    <div className="rand max-w-3xl pb-24 pt-8 md:pt-14">
+    <div className="rand pb-24 *:max-w-3xl pt-8 md:pt-14">
       <p className="mb-2 text-sm font-medium uppercase tracking-[0.14em] text-grau">Kostenvoranschlag {k.nummer}</p>
       {/* „Kostenvoranschlag“ ist ein langes Wort: auf schmalen Telefonen eine Stufe kleiner, sonst ragt es über den Rand. */}
       <h1 className="schmal mb-2 text-3xl break-words min-[400px]:text-4xl md:text-5xl">Ihr Kostenvoranschlag</h1>

@@ -31,7 +31,6 @@
   --color-auf-rot: #ffffff;
   --color-fehler: #a40403;
   /* Logo beim Überfahren mit der Maus: echtes Verkehrsrot, auch auf der Website, wo „rot“ grau ist */
-  --color-logo-rot: #cc0605;
   /* Mitarbeiter im Kalender der Verwaltung (nur hell): gedämpfte, unterscheidbare Töne, Schrift bleibt tinte */
   --color-person-1: #9cc3e6;
   --color-person-2: #f2c38b;
@@ -115,6 +114,14 @@
      schiebt dann Felder über den Rand, statt sie schmaler zu machen. */
   fieldset {
     min-width: 0;
+  }
+  /* Die erste Legende sitzt im Browser mitten auf der Rahmenlinie des fieldset; bei einem Trennstrich oben
+     (border-t) läuft die Linie dann auf halber Schrifthöhe neben dem Text her. Als float ist sie gewöhnlicher
+     Inhalt und steht sauber unter der Linie; im Raster nimmt sie die ganze Zeile. */
+  fieldset:where(.border-t) > legend {
+    float: left;
+    width: 100%;
+    grid-column: 1 / -1;
   }
   /* Ein Raster ohne eigene Spalten hat eine Spalte, die so breit ist wie ihr längster Inhalt und damit breiter
      als der Bildschirm werden kann. Als minmax(0, 1fr) bleibt sie in der Breite des Rasters; jede
