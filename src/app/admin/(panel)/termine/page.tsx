@@ -41,7 +41,7 @@ export default async function TerminListe({ searchParams }: { searchParams: Prom
   return (
     <>
       <Kopf titel="Termine">
-        <Link href="/admin/termine/neu?auftrag=1" className="knopf knopf-rahmen">Neuer Auftrag</Link>
+        <Link href="/admin/auftraege/neu" className="knopf knopf-rahmen">Neuer Auftrag</Link>
         <Link href="/admin/termine/neu" className="knopf knopf-dunkel">Termin eintragen</Link>
       </Kopf>
       <Reiter

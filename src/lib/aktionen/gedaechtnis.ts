@@ -6,7 +6,8 @@ import { centAus, type Ergebnis, sicher, text, zahl } from "../forms";
 import { textNorm } from "../rechnung/aehnlich";
 import { db } from "../supabase/admin";
 
-const PFAD = "/admin/gemerkte-preise";
+// Reiter „Gemerkte Preise“ in den Einstellungen
+const PFAD = "/admin/einstellungen";
 
 /** Gemerkten Preis von Hand korrigieren: Netto, Menge, bei Teilen der Einkauf. */
 export async function gemerktAendern(id: string, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
