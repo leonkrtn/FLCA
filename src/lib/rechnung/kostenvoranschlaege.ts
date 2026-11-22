@@ -64,14 +64,12 @@ export function kvTon(k: Pick<Kostenvoranschlag, "status" | "gueltig_bis">): "ok
 }
 
 export async function kvLaden(id: string): Promise<Kostenvoranschlag | null> {
-  const { data } = await db().from("kostenvoranschlaege").select("*, kunde:kunden(nummer)").eq("id", id).maybeSingle();
-  return data as Kostenvoranschlag | null;
+  return pruefe<Kostenvoranschlag | null>(await db().from("kostenvoranschlaege").select("*, kunde:kunden(nummer)").eq("id", id).maybeSingle());
 }
 
 export async function kvPerToken(token: string): Promise<Kostenvoranschlag | null> {
   if (!/^[a-f0-9]{64}$/.test(token)) return null;
-  const { data } = await db().from("kostenvoranschlaege").select("*, kunde:kunden(nummer)").eq("token", token).neq("status", "entwurf").maybeSingle();
-  return data as Kostenvoranschlag | null;
+  return pruefe<Kostenvoranschlag | null>(await db().from("kostenvoranschlaege").select("*, kunde:kunden(nummer)").eq("token", token).neq("status", "entwurf").maybeSingle());
 }
 
 type Inhalt = Pick<Kostenvoranschlag, "empfaenger" | "fahrzeug" | "positionen" | "hinweis"> & { kunde_id?: string | null; termin_id?: string | null; gueltig_bis?: string | null };

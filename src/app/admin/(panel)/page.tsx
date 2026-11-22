@@ -16,7 +16,7 @@ export default async function Uebersicht() {
     db().from("termine").select(TERMIN_FELDER).in("status", ["bestaetigt", "erledigt", "angefragt"]).gte("beginn", berlin(heute).toISOString()).lt("beginn", berlin(plusTage(heute, 1)).toISOString()).order("beginn"),
     db().from("termine").select(TERMIN_FELDER).eq("status", "angefragt").order("beginn").limit(8),
     db().from("rechnungen").select("summe_brutto_cent, faellig_am").eq("status", "gestellt"),
-    db().from("abwesenheiten").select("id, art, von, bis, status, profil:profile(name)").lte("von", heute).gte("bis", heute).neq("status", "abgelehnt"),
+    db().from("abwesenheiten").select("id, art, von, bis, status, profil:profile!abwesenheiten_profil_id_fkey(name)").lte("von", heute).gte("bis", heute).neq("status", "abgelehnt"),
   ]);
   const heuteTermine = (heuteRes.data ?? []) as Termin[];
   const anfragen = (anfragenRes.data ?? []) as Termin[];

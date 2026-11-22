@@ -97,14 +97,12 @@ export async function preislisteFuerBelege(): Promise<PreislistenPosition[]> {
 }
 
 export async function rechnungLaden(id: string): Promise<Rechnung | null> {
-  const { data } = await db().from("rechnungen").select("*, kunde:kunden(nummer)").eq("id", id).maybeSingle();
-  return data as Rechnung | null;
+  return pruefe<Rechnung | null>(await db().from("rechnungen").select("*, kunde:kunden(nummer)").eq("id", id).maybeSingle());
 }
 
 export async function rechnungPerToken(token: string): Promise<Rechnung | null> {
   if (!/^[a-f0-9]{64}$/.test(token)) return null;
-  const { data } = await db().from("rechnungen").select("*, kunde:kunden(nummer)").eq("token", token).neq("status", "entwurf").maybeSingle();
-  return data as Rechnung | null;
+  return pruefe<Rechnung | null>(await db().from("rechnungen").select("*, kunde:kunden(nummer)").eq("token", token).neq("status", "entwurf").maybeSingle());
 }
 
 /**
