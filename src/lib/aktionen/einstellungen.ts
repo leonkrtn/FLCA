@@ -88,6 +88,10 @@ export async function rechnungEinstellungen(_v: Ergebnis, fd: FormData): Promise
       einleitung: text(fd, "kv_einleitung", 500),
       fusstext: text(fd, "kv_fusstext", 500),
     });
+    await einstellungenSpeichern("auftrag", {
+      einleitung: text(fd, "wa_einleitung", 500),
+      fusstext: text(fd, "wa_fusstext", 800),
+    });
     // Nummernkreis nur, solange noch keine Rechnung gestellt ist (die Datenbank prüft das selbst).
     if (fd.get("nummernkreis") === "1") {
       const { error } = await db().rpc("nummernkreis_einstellen", {

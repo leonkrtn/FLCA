@@ -46,6 +46,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             menue: [
               { href: "/app/sprechen", text: "Sprechen" },
               { href: "/app/neu", text: "Termin" },
+              { href: "/app/neu?auftrag=1", text: "Auftrag" },
               { href: "/app/kostenvoranschlaege/neu", text: "Kostenvoranschlag" },
               { href: "/app/rechnungen/neu", text: "Rechnung" },
               { href: "/app/kunden/neu", text: "Kunde" },

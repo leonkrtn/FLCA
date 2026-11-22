@@ -3,6 +3,7 @@ import { Marke } from "@/components/admin/ui";
 import { AuftragKnoepfe } from "@/components/mobil/auftrag";
 import { Karte, MobilKopf } from "@/components/mobil/teile";
 import { Stempeln } from "@/components/mobil/stempeln";
+import { grenzeText } from "@/lib/auftrag-regeln";
 import { benutzerMitRecht } from "@/lib/auth";
 import { einstellungen } from "@/lib/einstellungen";
 import { datumLangText, zeit } from "@/lib/format";
@@ -68,11 +69,16 @@ export default async function TeamHeute() {
                 <p className="zahlen text-sm text-grau">{zeit(t.beginn)}–{zeit(t.ende)} Uhr</p>
                 <p className="text-lg font-semibold">{t.leistung_name}</p>
                 <p>{[t.fahrzeug?.kennzeichen, t.fahrzeug?.marke_modell].filter(Boolean).join(" · ")}</p>
-                {t.notiz_kunde ? <p className="mt-1 text-sm text-grau">Kunde: „{t.notiz_kunde}“</p> : null}
+                {t.auftrag_beschreibung || t.notiz_kunde ? <p className="mt-1 text-sm text-grau">Kunde: „{t.auftrag_beschreibung || t.notiz_kunde}“</p> : null}
                 {t.notiz_intern ? <p className="mt-1 text-sm">Hinweis: {t.notiz_intern}</p> : null}
               </div>
-              <Marke ton={AUFTRAG[t.auftrag_status][1]}>{AUFTRAG[t.auftrag_status][0]}</Marke>
+              <span className="flex shrink-0 flex-col items-end gap-1">
+                <Marke ton={AUFTRAG[t.auftrag_status][1]}>{AUFTRAG[t.auftrag_status][0]}</Marke>
+                {/* Arbeiten geht auch so, aber jeder sieht, dass der Kunde noch nicht zugestimmt hat. */}
+                {!t.auftrag_erteilt_am && t.auftrag_status !== "fertig" ? <Marke ton="warnung">nicht erteilt</Marke> : null}
+              </span>
             </div>
+            {grenzeText(t) ? <p className="mt-2 text-sm font-semibold text-rot">{grenzeText(t)}</p> : null}
             <AuftragKnoepfe id={t.id} status={t.auftrag_status} />
           </Karte>
         ))}

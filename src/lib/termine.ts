@@ -14,6 +14,7 @@ import { arbeitsende, type Belegung, freieSlots, type Slot } from "./slots";
 import { db, pruefe } from "./supabase/admin";
 import { berlin, berlinDatum, berlinUhrzeit, minuten, plusTage, uhrzeit as uhrzeitAus, wochentag } from "./zeit";
 import { markeModellTrennen } from "./rechnung/aehnlich";
+import type { AuftragFelder } from "./auftrag-regeln";
 import { angebotsPreiseFesthalten } from "./angebote/daten";
 import type { AngebotsPreis, GebuchterAngebotsPreis } from "./angebote/preise";
 
@@ -79,7 +80,7 @@ export type Termin = {
   kunde: { id: string; name: string; email: string; telefon: string; firma: string } | null;
   fahrzeug: { id: string; kennzeichen: string; marke_modell: string } | null;
   mitarbeiter: { id: string; name: string } | null;
-};
+} & AuftragFelder;
 
 export const TERMIN_FELDER =
   "*, kunde:kunden(id, name, email, telefon, firma), fahrzeug:fahrzeuge(id, kennzeichen, marke_modell), mitarbeiter:profile(id, name)";
@@ -551,17 +552,97 @@ export async function anfrageStellen(e: AnfrageEingabe): Promise<Termin> {
   const gewaehlt = await terminLeistungen(e.leistungIds, true);
   if (!gewaehlt.length) throw new TerminFehler("Bitte mindestens eine Leistung wählen.");
   if (gewaehlt.length !== new Set(e.leistungIds).size) throw new TerminFehler("Eine der gewählten Leistungen kann nicht online angefragt werden.");
+  const { termin, eng } = await anfrageSpeichern(
+    {
+      bedarf: { dauer_min: gesamtDauer(gewaehlt), ids: gewaehlt.map((l) => l.id) },
+      leistungen: gewaehlt,
+      leistungName: gewaehlt.map((l) => l.name).join(", "),
+      datum: e.datum,
+      uhrzeit: e.uhrzeit,
+      notiz: e.notiz ?? "",
+      kontakt: async () => {
+        const kundeId = await kundeFindenOderAnlegen({ name: e.name, email: e.email, telefon: e.telefon });
+        return { kundeId, fahrzeugId: await fahrzeugFindenOderAnlegen(e.kennzeichen, kundeId, e.fahrzeug) };
+      },
+    },
+    einst,
+  );
+  after(async () => {
+    await Promise.all([kundenMail(termin, eng ? "eingang_eng" : "eingang"), betriebBenachrichtigen(termin, "neu"), melden("termin.angefragt", { ...ereignisDaten(termin), wunschzeit_frei: !eng })]);
+  });
+  return termin;
+}
 
-  const bedarf = { dauer_min: gesamtDauer(gewaehlt), ids: gewaehlt.map((l) => l.id) };
-  if (e.datum > plusTage(berlinDatum(), einst.buchung.maxTage)) throw new TerminFehler("So weit im Voraus können wir noch keine Termine vergeben.");
-  // Frei: Termin wird gehalten und bekommt einen Mitarbeiter. Belegt, aber in der Öffnungszeit: Anfrage trotzdem
-  // möglich, sie hält nichts frei; der Betrieb sagt zu, lehnt ab oder schlägt eine andere Zeit vor.
-  const frei = (await slotsImBereich(bedarf, e.datum, plusTage(e.datum, 1), einst)).get(e.datum)?.find((s) => zeit(s.beginn) === e.uhrzeit);
-  const eng = frei ? null : zeitraumInOeffnung(bedarf, e.datum, e.uhrzeit, einst);
+/**
+ * Was ein Kostenvoranschlag an Werkstattzeit braucht: die Leistungen aus der Preisliste unter seinen Positionen
+ * (mit ihrer Dauer). Stehen nur Teile oder freie Texte drin, gilt eine Stunde.
+ */
+export async function bedarfAusPositionen(artikelIds: (string | null | undefined)[]): Promise<{ bedarf: Bedarf; leistungen: Leistung[] }> {
+  const leistungen = await terminLeistungen(artikelIds.filter((x): x is string => Boolean(x)));
+  return { bedarf: { dauer_min: leistungen.length ? gesamtDauer(leistungen) : 60, ids: leistungen.map((l) => l.id) }, leistungen };
+}
+
+/**
+ * Der Kunde hat einen Kostenvoranschlag angenommen und wählt über seinen Link gleich einen Termin: eine Anfrage
+ * wie von der Website, mit Kunde und Fahrzeug aus dem Kostenvoranschlag. Verknüpft (und damit zum erteilten
+ * Auftrag) wird sie vom Aufrufer über kvMitTerminVerknuepfen.
+ */
+export async function anfrageAusKv(
+  kv: { nummer: string | null; kunde_id: string | null; empfaenger: { name: string; email?: string }; fahrzeug: { kennzeichen?: string; marke?: string; modell?: string }; positionen: { artikel_id?: string | null }[] },
+  datum: string,
+  uhrzeit: string,
+): Promise<Termin> {
+  const einst = await einstellungen();
+  if (!einst.buchung.aktiv) throw new TerminFehler("Online-Termine sind gerade pausiert. Bitte rufen Sie uns an.");
+  const { bedarf, leistungen: gewaehlt } = await bedarfAusPositionen(kv.positionen.map((p) => p.artikel_id));
+  const { termin, eng } = await anfrageSpeichern(
+    {
+      bedarf,
+      leistungen: [],
+      leistungName: gewaehlt.map((l) => l.name).join(", ") || `Arbeiten laut Kostenvoranschlag ${kv.nummer ?? ""}`.trim(),
+      datum,
+      uhrzeit,
+      notiz: `Zum Kostenvoranschlag ${kv.nummer ?? ""}`.trim(),
+      kontakt: async () => {
+        const kundeId = kv.kunde_id ?? (await kundeFindenOderAnlegen({ name: kv.empfaenger.name, email: kv.empfaenger.email ?? "", telefon: "" }));
+        const markeModell = [kv.fahrzeug?.marke, kv.fahrzeug?.modell].filter(Boolean).join(" ");
+        return { kundeId, fahrzeugId: await fahrzeugFindenOderAnlegen(kv.fahrzeug?.kennzeichen ?? "", kundeId, markeModell) };
+      },
+    },
+    einst,
+  );
+  after(async () => {
+    await Promise.all([kundenMail(termin, eng ? "eingang_eng" : "eingang"), betriebBenachrichtigen(termin, "neu"), melden("termin.angefragt", { ...ereignisDaten(termin), wunschzeit_frei: !eng })]);
+  });
+  return termin;
+}
+
+/**
+ * Speichert eine Anfrage zur gewählten Zeit. Frei: Termin wird gehalten und bekommt einen Mitarbeiter. Belegt,
+ * aber in der Öffnungszeit: Anfrage trotzdem möglich, sie hält nichts frei; der Betrieb sagt zu, lehnt ab oder
+ * schlägt eine andere Zeit vor. Kunde und Fahrzeug (`kontakt`) entstehen erst, wenn die Zeit passt.
+ */
+async function anfrageSpeichern(
+  a: {
+    bedarf: Bedarf;
+    /** Leistungen, deren Angebotspreis am Termin festgehalten wird (vom Kostenvoranschlag: keine, dort gilt sein Preis) */
+    leistungen: Leistung[];
+    leistungName: string;
+    datum: string;
+    uhrzeit: string;
+    notiz: string;
+    kontakt: () => Promise<{ kundeId: string; fahrzeugId: string | null }>;
+  },
+  einst: Einstellungen,
+): Promise<{ termin: Termin; eng: boolean }> {
+  const { bedarf } = a;
+  if (a.datum > plusTage(berlinDatum(), einst.buchung.maxTage)) throw new TerminFehler("So weit im Voraus können wir noch keine Termine vergeben.");
+  const frei = (await slotsImBereich(bedarf, a.datum, plusTage(a.datum, 1), einst)).get(a.datum)?.find((s) => zeit(s.beginn) === a.uhrzeit);
+  const eng = frei ? null : zeitraumInOeffnung(bedarf, a.datum, a.uhrzeit, einst);
   if (!frei && !eng) throw new TerminFehler("Zu dieser Uhrzeit können wir den Termin nicht annehmen. Bitte wählen Sie eine andere Uhrzeit.");
   const slot = frei ?? { ...eng!, kandidaten: [] };
-  const kundeId = await kundeFindenOderAnlegen({ name: e.name, email: e.email, telefon: e.telefon });
-  const fahrzeugId = await fahrzeugFindenOderAnlegen(e.kennzeichen, kundeId, e.fahrzeug);
+  const { kundeId, fahrzeugId } = await a.kontakt();
+  const ids = bedarf.ids ?? [];
 
   // Der am wenigsten Ausgelastete zuerst. Hat ihn gerade jemand anders bekommen (gleichzeitige Anfrage), der Nächste.
   // Ist auch der Letzte weg, wird es eine Anfrage zur belegten Zeit statt einer Fehlermeldung.
@@ -575,12 +656,12 @@ export async function anfrageStellen(e: AnfrageEingabe): Promise<Termin> {
         beginn: slot.beginn.toISOString(),
         ende: k.ende.toISOString(),
         belegt_bis: k.bis.toISOString(),
-        leistung_id: gewaehlt[0].id,
-        leistung_ids: gewaehlt.map((l) => l.id),
-        leistung_name: gewaehlt.map((l) => l.name).join(", "),
+        leistung_id: ids[0] ?? null,
+        leistung_ids: ids,
+        leistung_name: a.leistungName,
         kunde_id: kundeId,
         fahrzeug_id: fahrzeugId,
-        notiz_kunde: e.notiz ?? "",
+        notiz_kunde: a.notiz,
         quelle: "website",
         // Eine Anfrage zur belegten Zeit hält nichts frei, sonst sperrte sie anderen Kunden die Zeit.
         halten_bis: new Date(Date.now() + (k.eng ? 0 : einst.buchung.haltenStd * 3600000)).toISOString(),
@@ -598,13 +679,8 @@ export async function anfrageStellen(e: AnfrageEingabe): Promise<Termin> {
   }
   if (!id) throw new TerminFehler("Die Anfrage konnte gerade nicht gespeichert werden. Bitte noch einmal versuchen.");
   if (warEng) await db().from("termine").update({ wunschzeit_frei: false }).eq("id", id);
-  await angebotsPreiseFesthalten(id, gewaehlt);
-
-  const termin = (await terminLaden(id))!;
-  after(async () => {
-    await Promise.all([kundenMail(termin, warEng ? "eingang_eng" : "eingang"), betriebBenachrichtigen(termin, "neu"), melden("termin.angefragt", { ...ereignisDaten(termin), wunschzeit_frei: !warEng })]);
-  });
-  return termin;
+  await angebotsPreiseFesthalten(id, a.leistungen);
+  return { termin: (await terminLaden(id))!, eng: warEng };
 }
 
 /** Planungsdaten rund um einen Zeitraum: wer kommt in Frage, was ist schon belegt. */

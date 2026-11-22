@@ -150,7 +150,10 @@ export async function kundeAusBeleg(e: Empfaenger, f: Rechnung["fahrzeug"] | nul
     const gleicheNamen = ((data ?? []) as unknown as Treffer[]).filter((k) => !e.firma || !k.firma || gleich(k.firma, e.firma));
     // Passt die Adresse (oder gehört das Auto ihm), ist es derselbe; ohne Adresse im Beleg reicht ein eindeutiger Name
     const passend = gleicheNamen.filter((k) => (auto?.kunde_id === k.id) || (e.strasse && gleich(k.strasse, e.strasse)) || (e.plz && gleich(k.plz, e.plz) && (!e.strasse || !k.strasse)));
-    kunde = passend.length === 1 ? passend[0] : !e.strasse && !e.plz && gleicheNamen.length === 1 ? gleicheNamen[0] : null;
+    // Ein eindeutiger Name reicht auch, wenn der Beleg eine Adresse hat, die Kartei aber noch keine (Kunde kam
+    // über eine Anfrage mit Name und Telefon): Dann ist es derselbe, und die Adresse wird ergänzt.
+    const ohneAdresse = gleicheNamen.length === 1 && !gleicheNamen[0].strasse?.trim() && !gleicheNamen[0].plz?.trim();
+    kunde = passend.length === 1 ? passend[0] : gleicheNamen.length === 1 && ((!e.strasse && !e.plz) || ohneAdresse) ? gleicheNamen[0] : null;
   }
 
   let id: string;

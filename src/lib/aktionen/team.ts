@@ -14,6 +14,7 @@ import type { Rolle } from "../rollen";
 import { abstandM, abstandText, vorOrt } from "../standort";
 import { db } from "../supabase/admin";
 import { nachAbwesenheitUmverteilen } from "../termine";
+import { nachFertig } from "../auftrag";
 import { berlin, istDatum, plusTage } from "../zeit";
 
 const ROLLEN: Rolle[] = ["inhaber", "buero", "mitarbeiter"];
@@ -347,18 +348,21 @@ export async function auftragStatus(terminId: string, _v: Ergebnis, fd: FormData
     let q = db().from("termine").update({ auftrag_status: status }).eq("id", terminId);
     if (b.rolle === "mitarbeiter") q = q.eq("zugewiesen_an", b.id);
     // Ohne geänderte Zeile (fremder Auftrag, falsche ID) keine Meldung „Auftrag fertig“ an das Büro
-    const { data, error } = await q.select("id");
+    const { data, error } = await q.select("id, auftrag_erteilt_am");
     if (error) throw new Error(error.message);
     if (!data?.length) return { status: "fehler", meldung: "Das ist nicht Ihr Auftrag." };
-    if (status === "fertig") await pushSenden({ rollen: ["inhaber", "buero"] }, { titel: "Auftrag fertig", text: `${b.name}: Auftrag abgeschlossen`, url: `/app/termine/${terminId}` });
+    // Fertig: Der Rechnungsentwurf entsteht sofort, das Büro bekommt einen Push dorthin.
+    if (status === "fertig") await nachFertig(terminId, b.id, b.name || "Werkstatt");
     neu();
     revalidatePath("/app", "layout");
+    // Anfangen geht auch ohne erteilten Auftrag, aber nicht unbemerkt.
+    if (status === "in_arbeit" && !data[0].auftrag_erteilt_am) return { status: "fehler", meldung: "In Arbeit. Achtung: Der Kunde hat den Auftrag noch nicht erteilt." };
     return { status: "ok" };
   });
 }
 
 /** Foto zu einem Auftrag (Pfad kommt aus dem direkten Upload in den privaten Speicher). */
-export async function fotoHinzufuegen(terminId: string, pfad: string): Promise<Ergebnis> {
+export async function fotoHinzufuegen(terminId: string, pfad: string, art: "arbeit" | "vorschaden" = "arbeit"): Promise<Ergebnis> {
   return sicher(null, async () => {
     const b = await benutzerMitRecht("werkstatt");
     if (!/^[a-z0-9-]+\/[0-9a-f-]{36}\.(jpg|png|webp|heic)$/.test(pfad)) return { status: "fehler", meldung: "Ungültige Datei." };
@@ -366,9 +370,12 @@ export async function fotoHinzufuegen(terminId: string, pfad: string): Promise<E
       const { data } = await db().from("termine").select("id").eq("id", terminId).eq("zugewiesen_an", b.id).maybeSingle();
       if (!data) return { status: "fehler", meldung: "Das ist nicht Ihr Auftrag." };
     }
-    await db().from("termin_fotos").insert({ termin_id: terminId, pfad, erstellt_von: b.id });
+    // Vorschäden gehören zur Annahme und kommen von Büro oder Inhaber (Handy-App), nicht aus der Team-App.
+    if (art === "vorschaden" && b.rolle === "mitarbeiter") return { status: "fehler", meldung: "Keine Berechtigung." };
+    await db().from("termin_fotos").insert({ termin_id: terminId, pfad, erstellt_von: b.id, ...(art === "vorschaden" && { art }) });
     revalidatePath("/team", "layout");
     revalidatePath(`/admin/termine/${terminId}`);
+    revalidatePath(`/app/termine/${terminId}`);
     return { status: "ok", meldung: "Foto gespeichert." };
   });
 }

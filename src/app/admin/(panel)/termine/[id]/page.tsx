@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AnnahmeFormular, AuftragBereich, KvAmTerminBereich } from "@/components/admin/auftrag";
 import { Formular, Senden } from "@/components/admin/formular";
 import { NotizenAbschnitt } from "@/components/admin/notizen";
 import { TerminAktionen } from "@/components/admin/termin-aktionen";
 import { TerminKundeAendern } from "@/components/admin/termin-kunde-aendern";
 import { TerminLoeschen } from "@/components/admin/termin-loeschen";
-import { Abschnitt, Auswahl, Feld, Kopf, Marke, Textfeld } from "@/components/admin/ui";
+import { Abschnitt, Auswahl, Kopf, Marke, Textfeld } from "@/components/admin/ui";
 import {
   ablehnenAktion,
   absagenAktion,
@@ -19,6 +20,8 @@ import {
   rechnungVerknuepfen,
   verschiebenAktion,
 } from "@/lib/aktionen/termine";
+import { auftragLaden } from "@/lib/auftrag";
+import { AUFTRAG_STAND_TEXT, AUFTRAG_STAND_TON, auftragStand } from "@/lib/auftrag-regeln";
 import { benutzerMitRecht } from "@/lib/auth";
 import { datum, datumLangText, datumZeit, euro, preis, telHref, zeit } from "@/lib/format";
 import { kundenSuchen } from "@/lib/kunden";
@@ -26,22 +29,25 @@ import { RECHNUNG_STATUS } from "@/lib/rechnung/rechnungen";
 import { darf } from "@/lib/rollen";
 import { db } from "@/lib/supabase/admin";
 import { TERMIN_TON } from "@/lib/status";
-import { freieRechnungen, terminZusatz } from "@/lib/termin-daten";
-import { anfrageLage, STATUS_TEXT, terminLaden } from "@/lib/termine";
+import { freieRechnungen, kvsZumTermin, terminZusatz } from "@/lib/termin-daten";
+import { anfrageLage, STATUS_TEXT } from "@/lib/termine";
 import { berlinDatum, berlinUhrzeit } from "@/lib/zeit";
 
 export default async function TerminDetail({ params }: { params: Promise<{ id: string }> }) {
   const b = await benutzerMitRecht("termine");
   const { id } = await params;
-  const t = await terminLaden(id);
+  const t = await auftragLaden(id);
   if (!t) notFound();
   const mitRechnungen = darf(b.rolle, "rechnungen");
-  const [z, zuletzt, frei, lage] = await Promise.all([
+  const [z, zuletzt, frei, lage, kvs] = await Promise.all([
     terminZusatz(id),
     darf(b.rolle, "kunden") ? kundenSuchen("", 8) : Promise.resolve([]),
     mitRechnungen ? freieRechnungen(t.kunde?.id ?? null) : Promise.resolve([]),
     t.status === "angefragt" ? anfrageLage(t) : Promise.resolve(undefined),
+    mitRechnungen ? kvsZumTermin(id, t.kunde?.id ?? null) : Promise.resolve(null),
   ]);
+  const stand = auftragStand(t);
+  const entwurf = z.rechnungen.find((r) => r.status === "entwurf" && !r.storno_zu);
   const angebotPreise = Object.entries(t.angebot_preise ?? {});
   // Namen stehen nur als Text am Termin; je Leistung den Namen aus der Preisliste holen
   const { data: namen } = angebotPreise.length ? await db().from("leistungen").select("id, name").in("id", angebotPreise.map(([lid]) => lid)) : { data: [] };
@@ -61,6 +67,7 @@ export default async function TerminDetail({ params }: { params: Promise<{ id: s
         unter={
           <span className="flex flex-wrap items-center gap-2">
             <Marke ton={TERMIN_TON[t.status]}>{STATUS_TEXT[t.status]}</Marke>
+            {stand !== "kein" ? <Marke ton={AUFTRAG_STAND_TON[stand]}>{`Auftrag ${AUFTRAG_STAND_TEXT[stand].toLowerCase()}`}</Marke> : null}
             <span>
               {datumLangText(t.beginn)}, {zeit(t.beginn)} bis {zeit(t.ende)} Uhr · Nr. {t.nummer} · {t.quelle === "website" ? "über die Website" : "eingetragen"}
             </span>
@@ -118,18 +125,25 @@ export default async function TerminDetail({ params }: { params: Promise<{ id: s
             {darf(b.rolle, "kunden") ? <TerminKundeAendern hatKunde={Boolean(t.kunde)} zuletzt={zuletzt} aktion={kundeVerknuepfen.bind(null, t.id)} /> : null}
           </Abschnitt>
 
+          <Abschnitt titel="Werkstattauftrag">
+            <AuftragBereich t={t} ort="admin" />
+          </Abschnitt>
+
+          <Abschnitt titel="Fahrzeugannahme">
+            <AnnahmeFormular t={t} fotos={z.fotos} />
+          </Abschnitt>
+
           <Abschnitt titel="Werkstatt">
             <Formular aktion={detailsSpeichern.bind(null, t.id)} className="grid gap-4 sm:grid-cols-2">
               <Auswahl label="Mitarbeiter" name="zugewiesen_an" wert={t.zugewiesen_an} leer="niemand" optionen={z.team.map((p) => [p.id, p.name || "ohne Namen"])} />
-              <Feld label="Kilometerstand" name="km_stand" wert={t.km_stand} inputMode="numeric" />
               <Textfeld label="Interne Notiz" name="notiz_intern" wert={t.notiz_intern} zeilen={3} className="sm:col-span-2" />
               <div className="sm:col-span-2">
                 <Senden vorab="Gespeichert">Speichern</Senden>
               </div>
             </Formular>
-            {z.fotos.length ? (
+            {z.fotos.some((f) => f.art !== "vorschaden") ? (
               <div className="mt-6 grid grid-cols-3 gap-2 sm:grid-cols-4">
-                {z.fotos.map((f) => (
+                {z.fotos.filter((f) => f.art !== "vorschaden").map((f) => (
                   <a key={f.id} href={f.url} target="_blank" rel="noreferrer" className="block aspect-square overflow-hidden bg-boden">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={f.url} alt={f.notiz || "Foto vom Fahrzeug"} className="size-full object-cover" loading="lazy" />
@@ -180,7 +194,17 @@ export default async function TerminDetail({ params }: { params: Promise<{ id: s
             />
             {!["angefragt", "bestaetigt"].includes(t.status) ? <p className="text-grau">Keine offene Entscheidung.</p> : null}
           </Abschnitt>
+          {kvs ? (
+            <Abschnitt titel="Kostenvoranschlag">
+              <KvAmTerminBereich terminId={t.id} ort="admin" kvs={kvs} />
+            </Abschnitt>
+          ) : null}
           <Abschnitt titel="Rechnung">
+            {entwurf ? (
+              <Link href={`/admin/rechnungen/${entwurf.id}`} className="knopf knopf-dunkel mb-4 w-full">
+                Rechnungsentwurf bearbeiten
+              </Link>
+            ) : null}
             {z.rechnungen.length ? (
               <ul className="mb-4 space-y-2">
                 {z.rechnungen.map((r) => (
@@ -204,6 +228,7 @@ export default async function TerminDetail({ params }: { params: Promise<{ id: s
             {!z.rechnungen.some((r) => r.status !== "storniert" && !r.storno_zu) ? (
               <form action={rechnungAusTermin.bind(null, t.id, "/admin/rechnungen")}>
                 <button className="knopf knopf-dunkel w-full">Rechnung erstellen</button>
+                <p className="mt-2 text-sm text-grau">Entsteht sonst von selbst, wenn die Werkstatt fertig meldet.</p>
               </form>
             ) : null}
             {frei.length ? (

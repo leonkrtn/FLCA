@@ -64,6 +64,11 @@ export type Einstellungen = {
     einleitung: string;
     fusstext: string;
   };
+  /** Werkstattauftrag: Texte auf dem PDF, das der Kunde unterschreibt oder online erteilt */
+  auftrag: {
+    einleitung: string;
+    fusstext: string;
+  };
   /** Einstempeln in der Team-App nur in der Nähe der Werkstatt (Standort des Handys) */
   standort: {
     nurVorOrt: boolean;
@@ -176,6 +181,11 @@ export const STANDARD: Einstellungen = {
     gueltigTage: 30,
     einleitung: "vielen Dank für Ihre Anfrage. Für die gewünschten Arbeiten bieten wir Ihnen an:",
     fusstext: "Zeigt sich bei der Arbeit, dass mehr zu tun ist, melden wir uns vorher bei Ihnen. Ohne Ihre Zustimmung wird nichts zusätzlich berechnet.",
+  },
+  auftrag: {
+    einleitung: "Sie beauftragen uns mit den folgenden Arbeiten an Ihrem Fahrzeug:",
+    fusstext:
+      "Es gelten unsere Allgemeinen Geschäftsbedingungen. Mit einer Kostengrenze führen wir Arbeiten darüber hinaus erst nach Rücksprache aus. Für Wertsachen im Fahrzeug übernehmen wir keine Haftung.",
   },
   standort: { nurVorOrt: false, lat: null, lng: null, radiusM: 150 },
   benachrichtigung: { emails: [] },

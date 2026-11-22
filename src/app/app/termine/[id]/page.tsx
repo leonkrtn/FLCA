@@ -1,26 +1,35 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AnnahmeFormular, AuftragBereich, KvAmTerminBereich } from "@/components/admin/auftrag";
 import { TerminAktionen } from "@/components/admin/termin-aktionen";
 import { TerminLoeschen } from "@/components/admin/termin-loeschen";
 import { Marke } from "@/components/admin/ui";
 import { Karte, MobilKopf } from "@/components/mobil/teile";
 import { ablehnenAktion, absagenAktion, bestaetigenAktion, erledigtAktion, gegenvorschlagAktion, rechnungAusTermin, verschiebenAktion } from "@/lib/aktionen/termine";
+import { auftragLaden } from "@/lib/auftrag";
+import { AUFTRAG_STAND_TEXT, auftragStand } from "@/lib/auftrag-regeln";
 import { benutzerMitRecht } from "@/lib/auth";
+import { darf } from "@/lib/rollen";
+import { kvsZumTermin, terminZusatz } from "@/lib/termin-daten";
 import { datumLangText, euro, telHref, whatsappHref, zeit } from "@/lib/format";
 import { TERMIN_TON } from "@/lib/status";
 import { db } from "@/lib/supabase/admin";
-import { anfrageLage, STATUS_TEXT, terminLaden } from "@/lib/termine";
+import { anfrageLage, STATUS_TEXT } from "@/lib/termine";
 import { berlinDatum, berlinUhrzeit } from "@/lib/zeit";
 
 export default async function AppTermin({ params }: { params: Promise<{ id: string }> }) {
-  await benutzerMitRecht("termine");
+  const b = await benutzerMitRecht("termine");
   const { id } = await params;
-  const t = await terminLaden(id);
+  const t = await auftragLaden(id);
   if (!t) notFound();
-  const [{ data: rechnungen }, lage] = await Promise.all([
+  const mitRechnungen = darf(b.rolle, "rechnungen");
+  const [{ data: rechnungen }, lage, z, kvs] = await Promise.all([
     db().from("rechnungen").select("id, nummer, status, summe_brutto_cent, storno_zu").eq("termin_id", id),
     t.status === "angefragt" ? anfrageLage(t) : Promise.resolve(undefined),
+    terminZusatz(id),
+    mitRechnungen ? kvsZumTermin(id, t.kunde?.id ?? null) : Promise.resolve(null),
   ]);
+  const stand = auftragStand(t);
   const offene = (rechnungen ?? []).find((r) => r.status !== "storniert" && !r.storno_zu);
   return (
     <>
@@ -58,9 +67,30 @@ export default async function AppTermin({ params }: { params: Promise<{ id: stri
           {!["angefragt", "bestaetigt"].includes(t.status) ? <p className="text-grau">Keine offene Entscheidung.</p> : null}
         </Karte>
         <Karte>
+          <h2 className="mb-3 flex items-center justify-between gap-2 font-semibold">
+            Werkstattauftrag
+            {stand === "kein" ? null : <span className="text-sm font-normal text-grau">{AUFTRAG_STAND_TEXT[stand]}</span>}
+          </h2>
+          <AuftragBereich t={t} ort="app" />
+        </Karte>
+        <Karte>
+          <details open={stand !== "kein" && !t.annahme?.tank && t.km_stand == null}>
+            <summary className="cursor-pointer font-semibold">Fahrzeugannahme</summary>
+            <div className="mt-3">
+              <AnnahmeFormular t={t} fotos={z.fotos} kompakt />
+            </div>
+          </details>
+        </Karte>
+        {kvs ? (
+          <Karte>
+            <h2 className="mb-3 font-semibold">Kostenvoranschlag</h2>
+            <KvAmTerminBereich terminId={t.id} ort="app" kvs={kvs} />
+          </Karte>
+        ) : null}
+        <Karte>
           {offene ? (
             <Link href={`/app/rechnungen/${offene.id}`} className="flex items-center justify-between gap-3">
-              <span className="min-w-0 font-semibold">{offene.nummer ? `Rechnung ${offene.nummer}` : "Rechnungsentwurf"}</span>
+              <span className="min-w-0 font-semibold">{offene.nummer ? `Rechnung ${offene.nummer}` : "Rechnungsentwurf bearbeiten"}</span>
               <span className="zahlen shrink-0">{euro(offene.summe_brutto_cent)}</span>
             </Link>
           ) : (

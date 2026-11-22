@@ -40,6 +40,38 @@ describe("Rechnungs-PDF mit E-Rechnung", () => {
   }, 30000);
 });
 
+describe("Werkstattauftrag-PDF", () => {
+  // 1×1 Pixel, dunkel: steht für die Unterschrift aus dem Zeichenfeld
+  const unterschrift = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+  const auftrag = {
+    ...daten,
+    art: "auftrag" as const,
+    nummer: "WA-2026-0001",
+    leistungsdatum: null,
+    faellig_am: null,
+    kundennummer: 10001,
+    fahrzeug: { kennzeichen: "OF-FC 123", marke: "Lancia", modell: "Delta", km: 123456 },
+    einleitung: "Sie beauftragen uns mit:",
+    fusstext: "Es gelten unsere AGB.",
+    bezahlt: false,
+  };
+  const zusatz = { termin: "01.12.2026, 09:30 Uhr", telefon: "0170 1234567", beschreibung: "Quietscht beim Bremsen", kostengrenze_cent: 50000, annahme: [["Tank / Ladung", "1/2"]] as [string, string][] };
+
+  it("unterschrieben: eine Seite mit Bild der Unterschrift", async () => {
+    const pdf = await rechnungPdf({ ...auftrag, auftrag: { ...zusatz, erteilt: "Erteilt am 01.12.2026, 09:35 per Unterschrift (Max Beispielkunde)", ortDatum: "Dietzenbach, 01.12.2026", name: "Max Beispielkunde", unterschrift } });
+    writeFileSync("/tmp/auftrag-test.pdf", pdf);
+    const dok = await PDFDocument.load(pdf);
+    expect(dok.getPageCount()).toBe(1);
+    expect(dok.getTitle()).toBe("Werkstattauftrag WA-2026-0001");
+  }, 30000);
+
+  it("noch nicht erteilt: Linien zum Unterschreiben, kein Zahlungsteil", async () => {
+    const pdf = await rechnungPdf({ ...auftrag, auftrag: { ...zusatz, erteilt: "", ortDatum: "", name: "", unterschrift: null } });
+    const dok = await PDFDocument.load(pdf);
+    expect(dok.getPageCount()).toBe(1);
+  }, 30000);
+});
+
 describe("E-Rechnung und XRechnung", () => {
   const behoerde = { ...daten, empfaenger: { ...daten.empfaenger, name: "Stadt Dietzenbach", leitweg_id: "991-12345-67" } };
 

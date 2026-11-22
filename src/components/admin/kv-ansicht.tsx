@@ -2,15 +2,21 @@ import Link from "next/link";
 import { Formular, Senden } from "./formular";
 import { DateiKnopf } from "@/components/mobil/datei-knopf";
 import { PositionenUebersicht } from "./positionen-uebersicht";
-import { Feld } from "./ui";
+import { Auswahl, Feld } from "./ui";
 import type { Ort } from "@/lib/aktionen/belege";
+import { kvTerminLoesenAktion, terminAmKvVerknuepfen } from "@/lib/aktionen/auftrag";
 import { kvAntwortAktion, kvInRechnungAktion, kvKopierenAktion, kvVersendenAktion } from "@/lib/aktionen/kostenvoranschlaege";
-import { datum, datumZeit } from "@/lib/format";
+import { datum, datumKurzText, datumZeit, zeit } from "@/lib/format";
 import { kvAbgelaufen, type Kostenvoranschlag } from "@/lib/rechnung/kostenvoranschlaege";
 import { fahrzeugText } from "@/lib/rechnung/aehnlich";
 
-/** Abgeschlossener Kostenvoranschlag: ansehen, senden, Antwort vermerken, in eine Rechnung übernehmen. */
-export function KvAnsicht({ k, ort }: { k: Kostenvoranschlag; ort: Ort }) {
+type TerminKurz = { id: string; nummer: number; beginn: string; leistung_name: string; status: string };
+
+/**
+ * Abgeschlossener Kostenvoranschlag: ansehen, senden, Antwort vermerken, mit einem Termin verknüpfen (dann wird
+ * er bei Annahme zum erteilten Werkstattauftrag) und in eine Rechnung übernehmen.
+ */
+export function KvAnsicht({ k, ort, termin, termine }: { k: Kostenvoranschlag; ort: Ort; termin: TerminKurz | null; termine: TerminKurz[] }) {
   const abgelaufen = kvAbgelaufen(k);
   const umwandelbar = k.status === "offen" || k.status === "angenommen";
   return (
@@ -38,6 +44,44 @@ export function KvAnsicht({ k, ort }: { k: Kostenvoranschlag; ort: Ort }) {
           </div>
         </Formular>
       ) : null}
+
+      <section className="grid gap-2">
+        <h2 className="font-semibold">Termin</h2>
+        {termin ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <Link href={`/${ort}/termine/${termin.id}`} className="font-semibold hover:underline">
+              Nr. {termin.nummer} · {datumKurzText(termin.beginn)} {zeit(termin.beginn)} · {termin.leistung_name}
+            </Link>
+            <form action={kvTerminLoesenAktion.bind(null, k.id, termin.id)}>
+              <button className="text-xs text-grau underline hover:text-tinte">lösen</button>
+            </form>
+          </div>
+        ) : (
+          <>
+            <p className="text-sm text-grau">
+              {k.status === "angenommen"
+                ? "Angenommen, aber noch ohne Termin. Der Kunde kann über seinen Link einen wählen, oder du trägst ihn ein."
+                : "Noch ohne Termin. Mit Termin wird der Kostenvoranschlag bei Annahme zum erteilten Werkstattauftrag."}
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+              <Link href={`${ort === "app" ? "/app/neu" : "/admin/termine/neu"}?kv=${k.id}`} className={`knopf ${k.status === "angenommen" ? "knopf-dunkel" : "knopf-rahmen"}`}>
+                Termin eintragen
+              </Link>
+            </div>
+            {termine.length ? (
+              <Formular aktion={terminAmKvVerknuepfen.bind(null, k.id)} className="grid max-w-md gap-2">
+                <Auswahl
+                  label="Oder vorhandenen Termin verknüpfen"
+                  name="termin"
+                  leer="bitte wählen"
+                  optionen={termine.map((t) => [t.id, `Nr. ${t.nummer} · ${datumKurzText(t.beginn)} ${zeit(t.beginn)} · ${t.leistung_name}${t.status === "angefragt" ? " (Anfrage)" : ""}`])}
+                />
+                <Senden art="rahmen" klein vorab="Verknüpft">Verknüpfen</Senden>
+              </Formular>
+            ) : null}
+          </>
+        )}
+      </section>
 
       <PositionenUebersicht positionen={k.positionen} />
 
