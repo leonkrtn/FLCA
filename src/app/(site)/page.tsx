@@ -33,7 +33,7 @@ export default async function Startseite() {
       {/*
         Start wie ein Ladenschild: echtes Foto aus der Halle, wer und wo, darunter eine Leiste mit dem, was man
         für den Besuch braucht. Bewusst ohne Werbe-Unterzeile und Sterne: konkrete Angaben wirken echt, Floskeln nicht.
-        Auf dem Telefon um die feste Leiste unten kürzer, sonst verschwinden Adresse und Zeiten dahinter.
+        Auf dem Telefon um die feste Leiste unten kürzer, sonst verschwindet die Leiste mit der Adresse dahinter.
       */}
       <section className="relative isolate -mt-16 flex min-h-[calc(100svh-4.75rem-env(safe-area-inset-bottom))] flex-col overflow-hidden bg-graphit text-hell md:min-h-[100svh]">
         <Image src={eigenesBild ?? halle} alt="" fill priority sizes="100vw" className="-z-20 object-cover object-[center_62%]" />
@@ -61,31 +61,23 @@ export default async function Startseite() {
           <h1 className="schmal mt-4 max-w-3xl text-[3.4rem] leading-[0.92] sm:text-7xl md:text-8xl">Kfz-Werkstatt in {f.ort}</h1>
         </div>
 
-        {/* Auf dem Telefon übernimmt die feste Leiste unten Termin und Anruf, hier stehen nur Adresse und Zeiten. */}
-        <div className="border-t border-linie bg-papier text-tinte">
-          <div className="rand grid grid-cols-2 md:grid-cols-4">
-            <a href={mapsHref(f.strasse, f.plz, f.ort)} rel="noopener noreferrer" className="grid content-start gap-1 py-4 pr-4 text-sm sm:text-base md:py-7 md:pr-6">
-              <span className="text-sm text-grau">Adresse</span>
-              <span className="font-semibold">
-                {f.strasse}
-                <br />
-                {f.plz} {f.ort}
+        {/*
+          Schmale Leiste im Stil der Kopfzeile, das Foto scheint durch. Nur Adresse und ob gerade offen ist: Telefon,
+          heutige Zeiten und „Termin anfragen“ stehen schon im Kopf bzw. auf dem Telefon in der festen Leiste unten.
+        */}
+        <div className="border-t border-white/10 bg-black/40 backdrop-blur-xl">
+          <div className="rand flex min-h-14 flex-wrap items-center gap-x-8 gap-y-1 py-3 text-sm text-hell/85 md:text-base">
+            <a href={mapsHref(f.strasse, f.plz, f.ort)} rel="noopener noreferrer" className="hover:text-hell">
+              {/* Auf dem Telefon nur die Straße, damit alles in eine Zeile passt; der Ort steht groß darüber */}
+              {f.strasse}
+              <span className="hidden sm:inline">
+                , {f.plz} {f.ort}
               </span>
             </a>
-            <div className="grid content-start gap-1 border-l border-linie py-4 pl-4 text-sm sm:text-base md:px-6 md:py-7">
-              {/* An Ruhetagen nicht zweimal „geschlossen“ */}
-              <span className="text-sm text-grau">{heute.length ? status.text : "Heute"}</span>
-              <span className="zahlen font-semibold">{heute.length ? heute.map(([von, bis]) => `${von}–${bis}`).join(" und ") : "geschlossen"}</span>
-            </div>
-            <a href={telHref(f.telefon)} className="hidden gap-1 border-l border-linie py-7 md:grid md:px-6">
-              <span className="text-sm text-grau">Anrufen oder WhatsApp</span>
-              <span className="zahlen font-semibold">{f.telefon}</span>
-            </a>
-            <div className="hidden items-center border-l border-linie py-7 md:flex md:pl-6">
-              <Link href="/termin" className="knopf knopf-rot min-h-14 w-full text-lg">
-                Termin anfragen
-              </Link>
-            </div>
+            <span className="flex items-center gap-2">
+              <span className={`size-2 rounded-full ${status.offen ? "bg-hell" : "bg-hell/40"}`} aria-hidden />
+              {heute.length ? status.text : "Heute geschlossen"}
+            </span>
           </div>
         </div>
       </section>
