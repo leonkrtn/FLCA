@@ -354,7 +354,7 @@ export async function kvAusTermin(terminId: string, vonBenutzer: string): Promis
       kunde_id: kunde?.id ?? null,
       empfaenger: kunde ? alsEmpfaenger(kunde) : { name: "" },
       fahrzeug: { ...alsBelegFahrzeug(kunde?.fahrzeuge.find((f) => f.id === t.fahrzeug_id)), km: t.km_stand ?? null },
-      positionen: positionenAusLeistungen(ids.map((x) => (gefunden ?? []).find((l) => l.id === x)).filter(Boolean), String(t.leistung_name ?? "")),
+      positionen: positionenAusLeistungen(ids.map((x) => (gefunden ?? []).find((l) => l.id === x)).filter(Boolean), String(t.leistung_name ?? ""), t.angebot_preise ?? {}),
       hinweis: "",
     },
     vonBenutzer,

@@ -2,6 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import { benutzerMitRecht } from "@/lib/auth";
+import { darf } from "@/lib/rollen";
 import { db } from "@/lib/supabase/admin";
 
 const ENDUNGEN: Record<string, string> = {
@@ -23,7 +24,9 @@ export async function uploadAdresse(
   ordner: string,
   typ: string,
 ): Promise<{ ok: true; pfad: string; url: string } | { ok: false; meldung: string }> {
-  await benutzerMitRecht(bucket === "website" ? "website" : "werkstatt");
+  const b = await benutzerMitRecht(bucket === "website" ? undefined : "werkstatt");
+  // In den Website-Speicher lädt, wer die Website pflegt oder Angebote (mit Bild für die Startseite) anlegt.
+  if (bucket === "website" && !darf(b.rolle, "website") && !darf(b.rolle, "angebote")) return { ok: false, meldung: "Dafür fehlt Ihnen die Berechtigung." };
   if (!ENDUNGEN[typ] || (bucket === "auftragsfotos" && typ.startsWith("video/"))) return { ok: false, meldung: "Dieses Dateiformat geht nicht." };
   const sauber = ordner.replace(/[^a-z0-9-]/gi, "").slice(0, 40) || "allgemein";
   const pfad = `${sauber}/${randomUUID()}.${ENDUNGEN[typ]}`;

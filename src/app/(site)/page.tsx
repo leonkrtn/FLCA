@@ -7,18 +7,21 @@ import porsche from "@/assets/porsche-felge.jpg";
 import standbild from "@/assets/start-standbild.jpg";
 import { Nachricht, Pfeil, Route, Telefon } from "@/components/icons";
 import { Sterne } from "@/components/icons-stern";
+import { AngebotsHinweise } from "@/components/site/angebot";
 import { Fragen } from "@/components/site/fragen";
 import { Leistungsbereiche } from "@/components/site/leistungsbereiche";
 import { Oeffnungszeiten } from "@/components/site/oeffnungszeiten";
+import { laufendeAngebote } from "@/lib/angebote/daten";
 import { einstellungen } from "@/lib/einstellungen";
 import { absaetze, mapsHref, telHref, whatsappHref } from "@/lib/format";
 import { bewertungen, oeffentlicheLeistungen, stellen } from "@/lib/inhalte";
 import { websiteDatei } from "@/lib/supabase/admin";
+import { berlinDatum } from "@/lib/zeit";
 
 export const revalidate = 300;
 
 export default async function Startseite() {
-  const [e, leistungen, stimmen, offeneStellen] = await Promise.all([einstellungen(), oeffentlicheLeistungen(), bewertungen(), stellen()]);
+  const [e, leistungen, stimmen, offeneStellen, angebote] = await Promise.all([einstellungen(), oeffentlicheLeistungen(), bewertungen(), stellen(), laufendeAngebote()]);
   const f = e.firma;
   // Eigenes Video aus der Verwaltung hat Vorrang, sonst das mitgelieferte.
   const eigenesVideo = websiteDatei(e.medien.heroVideo);
@@ -73,6 +76,9 @@ export default async function Startseite() {
           </a>
         </div>
       </section>
+
+      {/* Laufende Angebote direkt unter dem Start, damit sie niemand übersieht */}
+      <AngebotsHinweise angebote={angebote} leistungen={leistungen} heute={berlinDatum()} />
 
       {/* Leistungen als Bildkacheln */}
       <section id="preise" className="rand scroll-mt-20 pb-16 pt-16 md:pb-20 md:pt-24">

@@ -10,13 +10,14 @@ export type Bereich =
   | "team"
   | "karriere"
   | "website"
+  | "angebote"
   | "einstellungen"
   | "benutzer"
   | "werkstatt";
 
 export const ROLLEN: { wert: Rolle; name: string; beschreibung: string }[] = [
   { wert: "inhaber", name: "Inhaber", beschreibung: "Alles, inklusive Einstellungen, Benutzer und Rechnungsnummern" },
-  { wert: "buero", name: "Büro", beschreibung: "Termine, Notizen, Kunden, Rechnungen, Einlagerung, Bewerbungen" },
+  { wert: "buero", name: "Büro", beschreibung: "Termine, Notizen, Kunden, Rechnungen, Angebote, Einlagerung, Bewerbungen" },
   { wert: "mitarbeiter", name: "Mitarbeiter", beschreibung: "Eigene Arbeitszeiten, Aufträge, Urlaub und Zeiterfassung" },
 ];
 
@@ -30,6 +31,8 @@ const RECHTE: Record<Bereich, Rolle[]> = {
   team: ["inhaber"],
   karriere: ["inhaber", "buero"],
   website: ["inhaber"],
+  // Angebote wirken auf Website und Belege zugleich; eigenes Recht, damit es getrennt vergeben werden kann
+  angebote: ["inhaber", "buero"],
   einstellungen: ["inhaber"],
   benutzer: ["inhaber"],
   // Team-App: alle mit Konto

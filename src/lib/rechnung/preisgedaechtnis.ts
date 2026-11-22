@@ -88,8 +88,9 @@ export async function bezeichnungen(): Promise<string[]> {
 }
 
 /** Was von einer Position gemerkt wird (ohne Rabatt, ohne alte Brutto-Positionen, ohne Preis 0). */
+/** Ein Angebotspreis gilt nur auf Zeit; gemerkt würde er nach dem Angebot als Preis für das Auto wieder auftauchen. */
 function merkbar(p: Position): boolean {
-  return !istRabatt(p) && !istAlt(p) && Boolean(p.text?.trim()) && (p.einzel_netto_cent ?? 0) > 0 && p.menge > 0;
+  return !istRabatt(p) && !istAlt(p) && !p.angebot && Boolean(p.text?.trim()) && (p.einzel_netto_cent ?? 0) > 0 && p.menge > 0;
 }
 
 /**

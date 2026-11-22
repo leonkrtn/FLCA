@@ -65,7 +65,7 @@ const ereignisDaten = (t: Termin) => ({
 async function positionenAusTermin(t: Termin): Promise<Position[]> {
   const ids = t.leistung_ids?.length ? t.leistung_ids : t.leistung_id ? [t.leistung_id] : [];
   const { data } = ids.length ? await db().from("leistungen").select("*").in("id", ids) : { data: [] };
-  return positionenAusLeistungen(ids.map((id) => (data ?? []).find((l) => l.id === id)).filter(Boolean), t.leistung_name);
+  return positionenAusLeistungen(ids.map((id) => (data ?? []).find((l) => l.id === id)).filter(Boolean), t.leistung_name, t.angebot_preise ?? {});
 }
 
 type KvKurz = { id: string; nummer: string | null; positionen: Position[]; empfaenger: Empfaenger };

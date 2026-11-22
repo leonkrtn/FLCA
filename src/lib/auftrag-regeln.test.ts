@@ -81,6 +81,11 @@ describe("positionenAusLeistungen", () => {
     expect(p.map((x) => x.text)).toEqual(["Radwechsel", "Ölwechsel", "Bremsen prüfen"]);
     expect(p[2].einzel_netto_cent).toBe(0);
   });
+  it("festgehaltener Angebotspreis gilt statt Listenpreis", () => {
+    const p = positionenAusLeistungen([radwechsel], "Radwechsel", { a: { titel: "Herbstaktion", cent: 3000 } });
+    expect(bruttoVon(p)).toBe(3000);
+    expect(p[0].angebot).toBe("Herbstaktion");
+  });
   it("ohne Leistung eine Zeile mit dem Namen des Termins", () => {
     expect(positionenAusLeistungen([], "Klappern vorne links").map((x) => x.text)).toEqual(["Klappern vorne links"]);
     expect(positionenAusLeistungen([], "").map((x) => x.text)).toEqual(["Arbeit"]);

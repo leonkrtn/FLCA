@@ -15,6 +15,8 @@ import { db, pruefe } from "./supabase/admin";
 import { berlin, berlinDatum, berlinUhrzeit, minuten, plusTage, uhrzeit as uhrzeitAus, wochentag } from "./zeit";
 import { markeModellTrennen } from "./rechnung/aehnlich";
 import type { AuftragFelder } from "./auftrag-regeln";
+import { angebotsPreiseFesthalten } from "./angebote/daten";
+import type { AngebotsPreis, GebuchterAngebotsPreis } from "./angebote/preise";
 
 export type Leistung = {
   id: string;
@@ -39,6 +41,8 @@ export type Leistung = {
   aktiv?: boolean;
   /** Weitere Namen, unter denen die Spracheingabe den Eintrag erkennt (seit der Migration „sprachnamen“). */
   sprachnamen?: string[];
+  /** Nur für die Anzeige (Website): laufendes Angebot. preis_cent ist dann schon der Angebotspreis. */
+  angebot?: AngebotsPreis | null;
 };
 
 /** Was als Termin eingetragen werden kann: Leistungen, keine Teile, nichts Ausgeblendetes. */
@@ -65,6 +69,8 @@ export type Termin = {
   auftrag_status: "offen" | "in_arbeit" | "fertig";
   km_stand: number | null;
   absage_grund: string;
+  /** Am Tag der Anfrage geltende Angebotspreise je Leistung (seit der Migration „angebote“). */
+  angebot_preise?: Record<string, GebuchterAngebotsPreis>;
   erstellt_am: string;
   /** Seit der Migration „gegenvorschlag“: War die Wunschzeit frei, ursprüngliche Wunschzeit, offener Vorschlag */
   wunschzeit_frei?: boolean;
@@ -549,6 +555,7 @@ export async function anfrageStellen(e: AnfrageEingabe): Promise<Termin> {
   const { termin, eng } = await anfrageSpeichern(
     {
       bedarf: { dauer_min: gesamtDauer(gewaehlt), ids: gewaehlt.map((l) => l.id) },
+      leistungen: gewaehlt,
       leistungName: gewaehlt.map((l) => l.name).join(", "),
       datum: e.datum,
       uhrzeit: e.uhrzeit,
@@ -591,6 +598,7 @@ export async function anfrageAusKv(
   const { termin, eng } = await anfrageSpeichern(
     {
       bedarf,
+      leistungen: [],
       leistungName: gewaehlt.map((l) => l.name).join(", ") || `Arbeiten laut Kostenvoranschlag ${kv.nummer ?? ""}`.trim(),
       datum,
       uhrzeit,
@@ -615,7 +623,16 @@ export async function anfrageAusKv(
  * schlägt eine andere Zeit vor. Kunde und Fahrzeug (`kontakt`) entstehen erst, wenn die Zeit passt.
  */
 async function anfrageSpeichern(
-  a: { bedarf: Bedarf; leistungName: string; datum: string; uhrzeit: string; notiz: string; kontakt: () => Promise<{ kundeId: string; fahrzeugId: string | null }> },
+  a: {
+    bedarf: Bedarf;
+    /** Leistungen, deren Angebotspreis am Termin festgehalten wird (vom Kostenvoranschlag: keine, dort gilt sein Preis) */
+    leistungen: Leistung[];
+    leistungName: string;
+    datum: string;
+    uhrzeit: string;
+    notiz: string;
+    kontakt: () => Promise<{ kundeId: string; fahrzeugId: string | null }>;
+  },
   einst: Einstellungen,
 ): Promise<{ termin: Termin; eng: boolean }> {
   const { bedarf } = a;
@@ -662,6 +679,7 @@ async function anfrageSpeichern(
   }
   if (!id) throw new TerminFehler("Die Anfrage konnte gerade nicht gespeichert werden. Bitte noch einmal versuchen.");
   if (warEng) await db().from("termine").update({ wunschzeit_frei: false }).eq("id", id);
+  await angebotsPreiseFesthalten(id, a.leistungen);
   return { termin: (await terminLaden(id))!, eng: warEng };
 }
 
@@ -742,6 +760,7 @@ export async function terminEintragen(
     p_ueberbuchen: Boolean(e.ueberbuchen),
   });
   if (error) dbFehler(error);
+  await angebotsPreiseFesthalten(id as string, gewaehlt);
   const termin = (await terminLaden(id as string))!;
   await verlauf("termin", termin.id, `Termin eingetragen${termin.mitarbeiter ? ` für ${termin.mitarbeiter.name}` : ""}`, vonBenutzer);
   after(async () => {

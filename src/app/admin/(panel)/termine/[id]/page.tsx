@@ -23,10 +23,11 @@ import {
 import { auftragLaden } from "@/lib/auftrag";
 import { AUFTRAG_STAND_TEXT, AUFTRAG_STAND_TON, auftragStand } from "@/lib/auftrag-regeln";
 import { benutzerMitRecht } from "@/lib/auth";
-import { datum, datumLangText, datumZeit, euro, telHref, zeit } from "@/lib/format";
+import { datum, datumLangText, datumZeit, euro, preis, telHref, zeit } from "@/lib/format";
 import { kundenSuchen } from "@/lib/kunden";
 import { RECHNUNG_STATUS } from "@/lib/rechnung/rechnungen";
 import { darf } from "@/lib/rollen";
+import { db } from "@/lib/supabase/admin";
 import { TERMIN_TON } from "@/lib/status";
 import { freieRechnungen, kvsZumTermin, terminZusatz } from "@/lib/termin-daten";
 import { anfrageLage, STATUS_TEXT } from "@/lib/termine";
@@ -47,6 +48,10 @@ export default async function TerminDetail({ params }: { params: Promise<{ id: s
   ]);
   const stand = auftragStand(t);
   const entwurf = z.rechnungen.find((r) => r.status === "entwurf" && !r.storno_zu);
+  const angebotPreise = Object.entries(t.angebot_preise ?? {});
+  // Namen stehen nur als Text am Termin; je Leistung den Namen aus der Preisliste holen
+  const { data: namen } = angebotPreise.length ? await db().from("leistungen").select("id, name").in("id", angebotPreise.map(([lid]) => lid)) : { data: [] };
+  const leistungName = (lid: string) => (namen ?? []).find((n) => n.id === lid)?.name ?? "Leistung";
   // Anfragen zu einer belegten Zeit halten von Anfang an nichts; dort ist der Hinweis überflüssig.
   const haltAbgelaufen = t.status === "angefragt" && t.wunschzeit_frei !== false && t.halten_bis && new Date(t.halten_bis) < new Date();
   const vorschlagOffen =
@@ -89,6 +94,27 @@ export default async function TerminDetail({ params }: { params: Promise<{ id: s
               <dd className="break-all">{t.kunde?.email || "–"}</dd>
               <dt className="text-grau">Fahrzeug</dt>
               <dd>{t.fahrzeug ? [t.fahrzeug.kennzeichen, t.fahrzeug.marke_modell].filter(Boolean).join(", ") : "–"}</dd>
+              {angebotPreise.length ? (
+                <>
+                  <dt className="text-grau">Angebot</dt>
+                  <dd>
+                    {/* Am Tag der Anfrage festgehalten; die Rechnung zum Termin nimmt diesen Preis. */}
+                    {angebotPreise.map(([lid, a]) => (
+                      <span key={lid} className="block">
+                        {a.titel} {a.rabatt}
+                        {a.cent !== null && a.listen_cent !== null ? (
+                          <span className="tabular-nums text-grau">
+                            {" "}
+                            · {leistungName(lid)} {preis(a.cent)} statt {preis(a.listen_cent)}
+                          </span>
+                        ) : (
+                          <span className="text-grau"> · {leistungName(lid)}</span>
+                        )}
+                      </span>
+                    ))}
+                  </dd>
+                </>
+              ) : null}
               {t.notiz_kunde ? (
                 <>
                   <dt className="text-grau">Nachricht</dt>

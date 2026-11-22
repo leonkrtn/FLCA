@@ -110,21 +110,28 @@ export function annahmeZeilen(a: Annahme | null | undefined, km: number | null |
 export const bruttoVon = (positionen: Position[]) => berechne(positionen).brutto;
 
 type LeistungFuerBeleg = { id: string; name: string; preis_cent: number | null; einheit?: string | null; mwst_satz?: number | string | null };
+/** Am Termin festgehaltener Angebotspreis je Leistung (siehe angebote/preise.ts) */
+type AngebotAmTermin = { titel: string; cent: number | null };
 
 /**
  * Positionen aus den Leistungen eines Termins: jede Leistung mit ihrem Festpreis aus der Preisliste (dort
  * brutto und rund, im Beleg netto so genau, dass brutto derselbe Betrag herauskommt). Frei eingetragene
- * Arbeit steht hinter den Namen der Leistungen in leistung_name und wird eine Zeile ohne Preis.
+ * Arbeit steht hinter den Namen der Leistungen in leistung_name und wird eine Zeile ohne Preis. Wurde eine
+ * Leistung während eines Angebots angefragt, gilt der am Termin festgehaltene Angebotspreis.
  */
-export function positionenAusLeistungen(leistungen: LeistungFuerBeleg[], leistungName: string): Position[] {
-  const positionen: Position[] = leistungen.map((l) => ({
-    text: l.name,
-    menge: 1,
-    einheit: l.einheit ?? "Pauschal",
-    einzel_netto_cent: nettoAusBruttoPreis(l.preis_cent ?? 0, Number(l.mwst_satz ?? 19)),
-    mwst_satz: Number(l.mwst_satz ?? 19),
-    artikel_id: l.id,
-  }));
+export function positionenAusLeistungen(leistungen: LeistungFuerBeleg[], leistungName: string, angebote: Record<string, AngebotAmTermin> = {}): Position[] {
+  const positionen: Position[] = leistungen.map((l) => {
+    const a = angebote[l.id]?.cent != null ? angebote[l.id] : null;
+    return {
+      text: l.name,
+      menge: 1,
+      einheit: l.einheit ?? "Pauschal",
+      einzel_netto_cent: nettoAusBruttoPreis(a?.cent ?? l.preis_cent ?? 0, Number(l.mwst_satz ?? 19)),
+      mwst_satz: Number(l.mwst_satz ?? 19),
+      artikel_id: l.id,
+      ...(a && { angebot: a.titel }),
+    };
+  });
   const namen = leistungen.map((l) => l.name).join(", ");
   const name = String(leistungName ?? "");
   const frei = !namen ? name : name.startsWith(`${namen}, `) ? name.slice(namen.length + 2) : "";
