@@ -181,7 +181,8 @@ export async function eintragenAktion(basis: "/admin/termine" | "/app/termine", 
     const t = await terminEintragen(
       {
         leistungIds: fd.getAll("leistung").filter((x): x is string => typeof x === "string").map((x) => x.slice(0, 40)),
-        leistungName: text(fd, "leistung_frei", 120) || undefined,
+        // Ein Werkstattauftrag ohne Leistung heißt im Kalender so, nicht „Termin“
+        leistungName: text(fd, "leistung_frei", 120) || (ja(fd, "auftrag") && !fd.getAll("leistung").length ? "Werkstattauftrag" : undefined),
         dauerMin: dauer ? Math.round(dauer) : undefined,
         datum,
         uhrzeit,
@@ -205,7 +206,8 @@ export async function eintragenAktion(basis: "/admin/termine" | "/app/termine", 
     if (ja(fd, "auftrag")) await auftragAnlegen(t.id, b.id);
     neuLaden();
     revalidatePath("/admin/kostenvoranschlaege", "layout");
-    ziel = `${basis}/${t.id}`;
+    // Aus „Neuer Werkstattauftrag“: gleich in die Positionen des Auftrags
+    ziel = ja(fd, "auftrag") && text(fd, "weiter", 10) === "auftrag" ? `${basis}/${t.id}/auftrag` : `${basis}/${t.id}`;
     return { status: "ok" };
   });
   if (ziel) redirect(ziel);

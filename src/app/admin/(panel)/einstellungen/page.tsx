@@ -1,4 +1,5 @@
 import { Formular, Senden } from "@/components/admin/formular";
+import { GemerktePreise } from "@/components/admin/gemerkte-preise";
 import { TaktStatus } from "@/components/admin/takt-status";
 import { Abschnitt, Auswahl, Feld, Kopf, Reiter, Schalter, Tabelle, Textfeld } from "@/components/admin/ui";
 import {
@@ -21,6 +22,7 @@ import { einstellungen, WOCHENTAGE } from "@/lib/einstellungen";
 import { ENV } from "@/lib/env";
 import { EREIGNIS_TYPEN } from "@/lib/ereignisse";
 import { datumZeit } from "@/lib/format";
+import { darf } from "@/lib/rollen";
 import { db } from "@/lib/supabase/admin";
 
 export const metadata = { title: "Einstellungen" };
@@ -30,6 +32,7 @@ const BEREICHE = [
   ["zeiten", "Öffnungszeiten"],
   ["buchung", "Terminvergabe"],
   ["rechnung", "Rechnungen"],
+  ["preise", "Gemerkte Preise"],
   ["automatik", "Automatik"],
   ["benachrichtigung", "Benachrichtigungen"],
   ["module", "Module"],
@@ -37,14 +40,21 @@ const BEREICHE = [
   ["recht", "Rechtstexte"],
 ] as const;
 
-export default async function EinstellungenSeite({ searchParams }: { searchParams: Promise<{ bereich?: string }> }) {
-  await benutzerMitRecht("einstellungen");
-  const { bereich = "firma" } = await searchParams;
+export default async function EinstellungenSeite({ searchParams }: { searchParams: Promise<{ bereich?: string; ansicht?: string; q?: string }> }) {
+  // Die gemerkten Preise pflegt auch das Büro (Recht „rechnungen“), alles andere hier nur, wer Einstellungen darf.
+  const b = await benutzerMitRecht();
+  const sp = await searchParams;
+  const alles = darf(b.rolle, "einstellungen");
+  if (!alles) await benutzerMitRecht("rechnungen");
+  const bereich = alles ? (sp.bereich ?? "firma") : "preise";
+  const sichtbar = BEREICHE.filter(([k]) => alles || k === "preise");
   const e = await einstellungen();
   return (
     <>
       <Kopf titel="Einstellungen" />
-      <Reiter aktiv={`/admin/einstellungen?bereich=${bereich}`} eintraege={BEREICHE.map(([k, t]) => ({ href: `/admin/einstellungen?bereich=${k}`, text: t }))} />
+      <Reiter aktiv={`/admin/einstellungen?bereich=${bereich}`} eintraege={sichtbar.map(([k, t]) => ({ href: `/admin/einstellungen?bereich=${k}`, text: t }))} />
+
+      {bereich === "preise" ? <GemerktePreise sp={sp} /> : null}
 
       {bereich === "firma" ? (
         <Abschnitt titel="Firmendaten" aktion={<span className="text-sm text-grau">Erscheinen auf Website, Impressum, Rechnungen und Mails.</span>}>

@@ -35,6 +35,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: "/admin", text: "Übersicht", recht: "termine" },
     { href: "/admin/kalender", text: "Kalender", recht: "termine", gruppe: "Werkstatt", anzahl: ohnePerson },
     { href: "/admin/termine", text: "Termine", recht: "termine", anzahl: anfragen },
+    { href: "/admin/auftraege", text: "Werkstattaufträge", recht: "termine" },
     { href: "/admin/notizen", text: "Notizen", recht: "notizen", anzahl: erinnerungen },
     { href: "/admin/kunden", text: "Kunden", recht: "kunden" },
     { href: "/admin/einlagerung", text: "Einlagerung", recht: "einlagerung", modul: "einlagerung" },
@@ -42,11 +43,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: "/admin/kostenvoranschlaege", text: "Kostenvoranschläge", recht: "rechnungen" },
     { href: "/admin/preisliste", text: "Preisliste", recht: "rechnungen" },
     { href: "/admin/angebote", text: "Angebote", recht: "angebote" },
-    { href: "/admin/gemerkte-preise", text: "Gemerkte Preise", recht: "rechnungen" },
     { href: "/admin/mitarbeiter", text: "Mitarbeiter", recht: "team", anzahl: abwesenheiten, gruppe: "Betrieb" },
     { href: "/admin/karriere", text: "Karriere", recht: "karriere", anzahl: bewerbungen, modul: "karriere" },
     { href: "/admin/website", text: "Website", recht: "website" },
-    { href: "/admin/einstellungen", text: "Einstellungen", recht: "einstellungen" },
+    // Das Büro sieht dort nur den Reiter „Gemerkte Preise“ (Recht „rechnungen“)
+    { href: "/admin/einstellungen", text: "Einstellungen", recht: darf(b.rolle, "einstellungen") ? "einstellungen" : "rechnungen" },
   ];
   const eintraege = alle.filter((n) => darf(b.rolle, n.recht) && (!n.modul || e.module[n.modul]));
 
@@ -68,8 +69,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <p className="font-semibold text-weiss">{b.name || b.email}</p>
           <p className="text-grau-hell">{rollenName(b.rolle)}</p>
           <div className="mt-3 flex flex-col gap-1.5 text-boden/80">
-            <Link href="/team" className="hover:text-weiss">Team-Ansicht</Link>
-            <Link href="/" target="_blank" className="hover:text-weiss">Website ansehen</Link>
             <form action={abmelden}>
               <button type="submit" className="hover:text-weiss">Abmelden</button>
             </form>
