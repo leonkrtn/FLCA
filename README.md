@@ -61,6 +61,7 @@ Website, Terminvergabe, Werkstatt-Verwaltung, Rechnungen, Team und Karriere für
    - `supabase/migrations/20261123100000_werkstattauftrag.sql` (Werkstattauftrag am Termin mit Nummer `WA-`, Erteilung, Fahrzeugannahme)
    - `supabase/migrations/20261124100000_fehlerprotokoll.sql` (Fehlerprotokoll unter *Einstellungen → Fehler*)
    - `supabase/migrations/20261125100000_alt_rechnungen.sql` (frühere Rechnungen aus der Datenübernahme, nur zum Nachschlagen in der Kundenakte)
+   - `supabase/migrations/20261125110000_nummernkreis_aendern.sql` (Nummernkreis der Rechnungen auch nach der ersten Rechnung änderbar, ohne doppelte Nummern)
    - Zuletzt die Zeitsteuerung: `supabase/zeitsteuerung-einrichten.sql` (Adresse darin prüfen, derzeit `https://flca.vercel.app`). Das Skript richtet den Takt jede Minute ein und zeigt in der Spalte `cron_secret_fuer_vercel` das Geheimnis; diesen Wert in Vercel als `CRON_SECRET` eintragen und neu deployen. Jederzeit wiederholbar. Ist das Geheimnis verloren, vorher `select cron.unschedule('flc-takt');` ausführen, dann gibt es ein neues. (Ersetzt `20261108100100_zeitsteuerung.sql` und `20261121130000_zeitsteuerung_minuetlich.sql`.)
 3. *Authentication → Sign In / Providers*: „Allow new users to sign up“ **aus** (Konten legt nur der Inhaber an), Provider „Email“ an.
 4. *Authentication → Emails → SMTP Settings*: eigenen SMTP eintragen, sonst schickt Supabase nur 2 Mails pro Stunde. Mit Resend: Host `smtp.resend.com`, Port 465, Benutzer `resend`, Passwort = Resend-API-Key, Absender wie `MAIL_FROM`.
@@ -106,7 +107,7 @@ Die Website läuft derzeit unter `https://flca.vercel.app`. Beim Wechsel auf `ht
 
 ### 5. In der Verwaltung
 
-*Einstellungen → Firma*: **Steuernummer oder USt-IdNr. und IBAN** eintragen (ohne Steuernummer lässt sich keine Rechnung stellen). *Rechnungen*: Nummernkreis festlegen (nur bis zur ersten Rechnung änderbar). *Rechtstexte*: Adressen des Rechtstexte-Dienstes. *Automatik*: DATEV-Kontonummern mit dem Steuerberater abstimmen.
+*Einstellungen → Firma*: **Steuernummer oder USt-IdNr. und IBAN** eintragen (ohne Steuernummer lässt sich keine Rechnung stellen). *Rechnungen*: Nummernkreis festlegen, also die Nummer, bei der die nächste Rechnung weiterzählt. Später änderbar, aber nur nach Bestätigung eines Warnhinweises (Lücke, Rückschritt, Formatwechsel); eine schon vergebene Nummer lehnt die Datenbank ab, jede Änderung steht als Ereignis `nummernkreis.geaendert` im Protokoll. *Rechtstexte*: Adressen des Rechtstexte-Dienstes. *Automatik*: DATEV-Kontonummern mit dem Steuerberater abstimmen.
 
 *Einstellungen → Datenübernahme*: Die CSV-Dateien aus den alten Rechnungs-PDFs (`kunden.csv`, `rechnungen.csv`, `positionen.csv`) zusammen auswählen. Erst mit „Nur Probelauf“ einlesen und die Zahlen prüfen, dann ohne. Kunden kommen in die Kartei, Kennzeichen mit dem letzten KM-Stand an die Kunden, die früheren Rechnungen mit allen Positionen in die Kundenakte. Wer schon in der Kartei steht, wird nur ergänzt. Die früheren Rechnungen bekommen keine Nummer aus dem Nummernkreis und gehen nicht in den DATEV-Export. Mehrmals einlesen legt nichts doppelt an.
 

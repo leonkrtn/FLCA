@@ -4,11 +4,13 @@ import { createHash, randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { benutzerMitRecht } from "../auth";
 import { type Einstellungen, einstellungen, einstellungenSpeichern, type Fenster } from "../einstellungen";
-import { EREIGNIS_TYPEN, signatur } from "../ereignisse";
+import { EREIGNIS_TYPEN, melden, signatur } from "../ereignisse";
 import { centAus, type Ergebnis, ja, text, zahl } from "../forms";
 import { sicher } from "../sicher";
 import { db, DbFehler, dbRoh } from "../supabase/admin";
 import { alsErledigt } from "../fehlerprotokoll";
+import { berlinDatum } from "../zeit";
+import { eingabeFehler, gleich, type Nummernkreis, nummerText } from "../rechnung/nummernkreis";
 
 const alles = () => revalidatePath("/", "layout");
 
@@ -94,21 +96,47 @@ export async function rechnungEinstellungen(_v: Ergebnis, fd: FormData): Promise
       einleitung: text(fd, "wa_einleitung", 500),
       fusstext: text(fd, "wa_fusstext", 800),
     });
-    // Nummernkreis nur, solange noch keine Rechnung gestellt ist (die Datenbank prüft das selbst).
-    if (fd.get("nummernkreis") === "1") {
-      const { error } = await dbRoh().rpc("nummernkreis_einstellen", {
-        p_praefix: text(fd, "praefix", 10),
-        p_mit_jahr: ja(fd, "mit_jahr"),
-        p_stellen: zahlIn(fd, "stellen", 1, 8, 4),
-        p_naechste: Math.max(1, Math.round(zahl(fd, "naechste") ?? 1)),
-      });
-      if (error) {
-        if (error.message.includes("GESPERRT")) return { status: "fehler", meldung: "Texte gespeichert. Der Nummernkreis ist gesperrt, weil schon Rechnungen gestellt sind." };
-        throw new DbFehler(error);
-      }
-    }
     revalidatePath("/admin/einstellungen");
     return { status: "ok", meldung: "Gespeichert." };
+  });
+}
+
+/**
+ * Nummernkreis der Rechnungen. Jederzeit änderbar, nach der ersten Rechnung aber nur mit Bestätigung im
+ * Dialog (`bestaetigt`), der die Folgen nennt (siehe `warnungen`). Doppelte Nummern verhindert die
+ * Datenbank. Jede Änderung wird als Ereignis mit Person, vorher und nachher festgehalten.
+ */
+export async function nummernkreisSpeichern(_v: Ergebnis, fd: FormData): Promise<Ergebnis> {
+  return sicher(fd, async () => {
+    const b = await benutzerMitRecht("einstellungen");
+    const neu: Nummernkreis = {
+      praefix: text(fd, "praefix", 20),
+      mit_jahr: ja(fd, "mit_jahr"),
+      stellen: Math.round(zahl(fd, "stellen") ?? 4),
+      naechste: Math.round(zahl(fd, "naechste") ?? 0),
+    };
+    const falsch = eingabeFehler(neu);
+    if (falsch) return { status: "fehler", meldung: falsch, fehler: { naechste: falsch } };
+    const [{ data: k }, { count }] = await Promise.all([
+      db().from("nummernkreise").select("praefix, mit_jahr, stellen, naechste").eq("art", "rechnung").single(),
+      db().from("rechnungen").select("id", { count: "exact", head: true }).not("nummer", "is", null),
+    ]);
+    const alt = { ...(k as Nummernkreis), naechste: Number(k?.naechste ?? 1) };
+    if (gleich(alt, neu)) return { status: "ok", meldung: "Unverändert." };
+    // Der Dialog setzt das Feld; ohne ihn (anderer Weg, altes Fenster) wird nichts geändert.
+    if (fd.get("bestaetigt") !== "1") return { status: "fehler", meldung: "Bitte die Änderung im Dialog bestätigen." };
+
+    const { error } = await dbRoh().rpc("nummernkreis_einstellen", { p_praefix: neu.praefix, p_mit_jahr: neu.mit_jahr, p_stellen: neu.stellen, p_naechste: neu.naechste });
+    if (error) {
+      const frei = error.message.match(/NUMMER_VERGEBEN:(\d+)/)?.[1];
+      if (frei) return { status: "fehler", meldung: `Nicht gespeichert: Ab ${neu.naechste} ist im gleichen Format schon eine Nummer vergeben. Die nächste freie ist ${frei}.`, fehler: { naechste: `ab ${frei}` } };
+      if (error.message.includes("ZU_WENIG_STELLEN")) return { status: "fehler", meldung: "Die Nummer hat mehr Ziffern als Stellen eingestellt sind." };
+      if (error.message.includes("GESPERRT")) return { status: "fehler", meldung: "Die Datenbank sperrt den Nummernkreis noch. Bitte die Migration 20261125110000_nummernkreis_aendern.sql im SQL-Editor von Supabase ausführen." };
+      throw new DbFehler(error, { funktion: "nummernkreis_einstellen" });
+    }
+    await melden("nummernkreis.geaendert", { art: "rechnung", vorher: alt, nachher: neu, gestellte_rechnungen: count ?? 0, von: { id: b.id, name: b.name } });
+    revalidatePath("/admin/einstellungen");
+    return { status: "ok", meldung: `Gespeichert. Die nächste Rechnung bekommt die Nummer ${nummerText(neu, Number(berlinDatum().slice(0, 4)))}.` };
   });
 }
 
