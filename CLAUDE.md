@@ -8,6 +8,13 @@ FLC Automotive (Kfz-Service Ciurli, Dietzenbach): öffentliche Website mit Termi
 
 Alles ist **deutsch**: UI-Texte, Code-Bezeichner, Kommentare, Routen (`termin`, `rechnungen`, `einlagerung`). Kommentare erklären das *Warum*. Neuer Code folgt dieser Konvention.
 
+## Fehlerbuch
+
+Gefundene Fehler stehen in `FEHLERBUCH.md` mit Ursache und **Muster**. Das gilt bei jeder Aufgabe, nicht nur bei Fehlersuche:
+
+- **Vorher:** das Fehlerbuch lesen und die Dateien, die man ohnehin bearbeitet, auf die dort beschriebenen Muster prüfen. Trifft eines zu, mitbeheben und beim Eintrag unter „Weitere Stellen“ nachtragen.
+- **Neuer Fehler** (selbst behoben, nebenbei bemerkt oder vom Nutzer gemeldet): sofort eintragen, auch wenn er offen bleibt. Danach im übrigen Code nach demselben Muster suchen und das Ergebnis vermerken.
+
 ## Befehle
 
 ```bash
