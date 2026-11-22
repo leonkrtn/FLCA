@@ -52,6 +52,7 @@ export const EREIGNIS_TYPEN = {
   "abwesenheit.eingetragen": "Eine Abwesenheit gilt (genehmigt, krank gemeldet oder vom Inhaber eingetragen)",
   "zeit.gestempelt": "Ein Mitarbeiter hat ein- oder ausgestempelt",
   "zeit.pause": "Ein Mitarbeiter hat eine Pause begonnen oder beendet",
+  "zeit.ausserhalb": "Einstempeln außerhalb der Werkstatt wurde gesperrt",
   "auftrag.meldung": "Die Werkstatt meldet am Auftrag einen Befund oder fordert ein Teil an",
 } as const;
 

@@ -417,7 +417,7 @@ async function Personen({ personen, standortRecht, einladenRecht }: { personen: 
         {standortRecht ? (
           <Abschnitt titel="Einstempeln nur vor Ort">
             <Formular aktion={standortSpeichern} className="grid gap-4">
-              <Schalter label="Nur in der Werkstatt einstempeln" name="nurVorOrt" an={standort.nurVorOrt} hilfe="Das Handy schickt beim Einstempeln seinen Standort. Ausstempeln geht überall." />
+              <Schalter label="Nur in der Werkstatt einstempeln" name="nurVorOrt" an={standort.nurVorOrt} hilfe="Das Handy schickt beim Einstempeln seinen Standort. Versuche von außerhalb meldet die App dem Inhaber per Push. Ausstempeln geht überall." />
               <StandortFelder lat={standort.lat} lng={standort.lng} radiusM={standort.radiusM} />
               <div><Senden vorab="Gespeichert">Speichern</Senden></div>
             </Formular>

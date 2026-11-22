@@ -19,7 +19,7 @@ import { weich } from "../fehler";
 import { istPlanbar } from "../mitarbeiter";
 import { zeitStarten, zeitStoppen } from "../werkstatt";
 import { nachFertig } from "../auftrag";
-import { berlin, istDatum, plusTage } from "../zeit";
+import { berlin, berlinUhrzeit, istDatum, plusTage } from "../zeit";
 
 const ROLLEN: Rolle[] = ["inhaber", "buero", "mitarbeiter"];
 const UHR = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -343,6 +343,27 @@ export async function stempeln(_v: Ergebnis, fd: FormData): Promise<Ergebnis> {
       }
       abstand = abstandM({ lat, lng }, { lat: standort.lat, lng: standort.lng });
       if (!vorOrt(abstand, koordinate(fd, "genauigkeit") ?? 0, standort.radiusM)) {
+        // Der Inhaber soll Versuche von außerhalb mitbekommen. Nach der Antwort, damit die Meldung am Handy nicht
+        // auf den Push wartet; gleicher tag je Person, damit mehrfaches Tippen nur eine Mitteilung hinterlässt.
+        const entfernt = abstand;
+        after(() =>
+          weich(
+            Promise.all([
+              pushSenden(
+                { rollen: ["inhaber"] },
+                {
+                  titel: `${b.name || b.email} will außerhalb einstempeln`,
+                  text: `Etwa ${abstandText(entfernt)} von der Werkstatt entfernt, ${berlinUhrzeit(new Date())} Uhr. Einstempeln wurde gesperrt.`,
+                  url: "/admin/mitarbeiter?ansicht=personen",
+                  tag: `stempeln-ausserhalb-${b.id}`,
+                },
+              ),
+              melden("zeit.ausserhalb", { profil_id: b.id, abstand_m: entfernt }),
+            ]),
+            undefined,
+            "Einstempeln außerhalb melden",
+          ),
+        );
         return { status: "fehler", meldung: `Einstempeln geht nur in der Werkstatt. Du bist etwa ${abstandText(abstand)} entfernt.` };
       }
     }
