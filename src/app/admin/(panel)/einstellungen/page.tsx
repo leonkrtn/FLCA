@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Formular, Senden } from "@/components/admin/formular";
+import { Datenuebernahme } from "@/components/admin/datenuebernahme";
 import { GemerktePreise } from "@/components/admin/gemerkte-preise";
 import { TaktStatus } from "@/components/admin/takt-status";
 import { Abschnitt, Auswahl, Feld, Kopf, Leer, Marke, Reiter, Schalter, Tabelle, Textfeld } from "@/components/admin/ui";
@@ -26,7 +27,7 @@ import { EREIGNIS_TYPEN } from "@/lib/ereignisse";
 import { offeneFehlerAnzahl, protokollLaden } from "@/lib/fehlerprotokoll";
 import { datumZeit } from "@/lib/format";
 import { darf } from "@/lib/rollen";
-import { db } from "@/lib/supabase/admin";
+import { db, DbFehler, dbRoh } from "@/lib/supabase/admin";
 
 export const metadata = { title: "Einstellungen" };
 
@@ -41,6 +42,7 @@ const BEREICHE = [
   ["module", "Module"],
   ["schnittstellen", "Schnittstellen"],
   ["recht", "Rechtstexte"],
+  ["uebernahme", "Datenübernahme"],
   ["fehler", "Fehler"],
 ] as const;
 
@@ -182,6 +184,8 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
 
       {bereich === "schnittstellen" ? <Schnittstellen /> : null}
 
+      {bereich === "uebernahme" ? <UebernahmeBereich /> : null}
+
       {bereich === "recht" ? (
         <Abschnitt titel="Rechtstexte">
           <Formular aktion={rechtstexteSpeichern} className="grid gap-4">
@@ -320,6 +324,42 @@ async function FehlerBereich({ erledigte, code }: { erledigte: boolean; code?: s
         </>
       ) : (
         <Leer>{erledigte ? "Keine erledigten Fehler." : "Keine offenen Fehler."}</Leer>
+      )}
+    </Abschnitt>
+  );
+}
+
+/**
+ * Datenübernahme aus den alten Rechnungs-PDFs (als CSV gezogen): Kunden mit Anschrift, Fahrzeuge mit
+ * KM-Stand und die früheren Rechnungen mit Positionen. Die Rechnungen landen nicht im Nummernkreis und
+ * nicht im DATEV-Export, sondern nur in der Kundenakte (siehe Migration alt_rechnungen).
+ */
+async function UebernahmeBereich() {
+  const { count, error } = await dbRoh().from("alt_rechnungen").select("id", { count: "exact", head: true });
+  const unmigriert = Boolean(error && ["42P01", "PGRST205"].includes(error.code));
+  if (error && !unmigriert) throw new DbFehler(error, { tabelle: "alt_rechnungen" });
+  return (
+    <Abschnitt titel="Datenübernahme" aktion={<span className="text-sm text-grau">Kunden, Fahrzeuge und frühere Rechnungen aus CSV-Dateien</span>}>
+      {unmigriert ? (
+        <p className="max-w-2xl text-sm">
+          Die Datenübernahme ist noch nicht eingerichtet. Bitte die Migration <span className="zahlen">20261125100000_alt_rechnungen.sql</span> im SQL-Editor von Supabase ausführen.
+        </p>
+      ) : (
+        <>
+          <div className="mb-6 grid max-w-2xl gap-2 text-sm">
+            <p>
+              Legt die Kunden in der Kartei an, hängt ihre Kennzeichen mit dem letzten KM-Stand an und zeigt die früheren Rechnungen mit allen
+              Positionen in der Kundenakte. Wer schon in der Kartei steht (gleicher Name und Anschrift oder gleiches Kennzeichen), wird nur
+              ergänzt, nichts wird überschrieben.
+            </p>
+            <p className="text-grau">
+              Die früheren Rechnungen bekommen keine neue Nummer, erscheinen nicht unter Rechnungen und gehen nicht in den DATEV-Export: Sie sind
+              längst gestellt, das Original-PDF bleibt der gültige Beleg. Mehrmals einlesen ist unschädlich, jede Datei wird nur einmal übernommen.
+            </p>
+            {count ? <p className="zahlen">Bisher übernommen: {count} frühere Rechnungen.</p> : null}
+          </div>
+          <Datenuebernahme />
+        </>
       )}
     </Abschnitt>
   );
