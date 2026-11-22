@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Impressum" };
 export default async function Impressum() {
   const { firma: f } = await einstellungen();
   return (
-    <article className="rand max-w-3xl pb-24 pt-8 md:pt-14">
+    <article className="rand pb-24 *:max-w-3xl pt-8 md:pt-14">
       <h1 className="schmal mb-8 text-4xl md:text-5xl">Impressum</h1>
       <div className="rechtstext">
         <h2>Angaben gemäß § 5 DDG</h2>

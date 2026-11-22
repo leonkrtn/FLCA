@@ -230,7 +230,7 @@ async function RechnungBereich() {
         <Textfeld label="Einleitungssatz" name="einleitung" wert={e.rechnung.einleitung} zeilen={2} />
         <Textfeld label="Fußtext" name="fusstext" wert={e.rechnung.fusstext} zeilen={2} />
         <fieldset className="grid gap-4 border-t border-linie pt-6">
-          <legend className="mb-2 font-semibold">Stundensätze und Teile</legend>
+          <legend className="font-semibold">Stundensätze und Teile</legend>
           <p className="text-sm text-grau">
             Netto je Stunde. Eine Position mit der Einheit „Std“ ist Lohn: Lohnart wählen, Stunden eintragen, der Satz kommt von hier. Der
             erste Satz ist der Standard. Leere Zeilen werden entfernt.
@@ -253,13 +253,13 @@ async function RechnungBereich() {
           />
         </fieldset>
         <fieldset className="grid gap-4 border-t border-linie pt-6">
-          <legend className="mb-2 font-semibold">Kostenvoranschläge · Nummern mit eigenem Präfix KV-</legend>
+          <legend className="font-semibold">Kostenvoranschläge · Nummern mit eigenem Präfix KV-</legend>
           <Feld label="Gültig (Tage)" name="kv_gueltigTage" wert={e.kostenvoranschlag.gueltigTage} inputMode="numeric" className="max-w-xs" />
           <Textfeld label="Einleitungssatz" name="kv_einleitung" wert={e.kostenvoranschlag.einleitung} zeilen={2} />
           <Textfeld label="Fußtext" name="kv_fusstext" wert={e.kostenvoranschlag.fusstext} zeilen={2} />
         </fieldset>
         <fieldset className="grid gap-4 border-t border-linie pt-6">
-          <legend className="mb-2 font-semibold">Werkstattaufträge · Nummern mit eigenem Präfix WA-</legend>
+          <legend className="font-semibold">Werkstattaufträge · Nummern mit eigenem Präfix WA-</legend>
           <Textfeld label="Einleitungssatz" name="wa_einleitung" wert={e.auftrag.einleitung} zeilen={2} />
           <Textfeld label="Bedingungen (Fußtext)" name="wa_fusstext" wert={e.auftrag.fusstext} zeilen={3} hilfe="Steht über der Unterschrift des Kunden." />
         </fieldset>

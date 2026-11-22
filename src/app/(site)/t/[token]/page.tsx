@@ -45,7 +45,7 @@ export default async function KundenTermin({ params }: { params: Promise<{ token
     t.status === "angefragt" || (t.status === "bestaetigt" && new Date(t.beginn).getTime() - jetztMs() >= buchung.stornoFristStd * 3600000);
 
   return (
-    <div className="rand max-w-3xl pb-24 pt-8 md:pt-14">
+    <div className="rand pb-24 *:max-w-3xl pt-8 md:pt-14">
       <p className="mb-2 text-sm font-medium uppercase tracking-[0.14em] text-grau">Termin Nr. {t.nummer}</p>
       <h1 className="schmal mb-2 text-4xl md:text-5xl">{t.leistung_name}</h1>
       <p className="mb-8 text-lg">

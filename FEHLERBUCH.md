@@ -18,6 +18,35 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-22 · Kundenlink Kostenvoranschlag: Inhalt am PC nur ein schmaler Streifen
+
+- **Stand:** behoben
+- **Wo:** `src/app/(site)/k/[token]/page.tsx` und `loading.tsx`
+- **Was man sah:** Auf großen Bildschirmen stand der Kostenvoranschlag für den Kunden in einer sehr schmalen
+  Spalte, Texte brachen nach wenigen Wörtern um. Gemeldet vom Betreiber („Fehler in der PC-Ansicht“).
+- **Ursache:** `rand max-w-3xl` auf demselben Element. `rand` rechnet ab 1280 px den seitlichen Abstand aus der
+  Fensterbreite (`(100vw - 80rem) / 2`), `max-w-3xl` begrenzt aber die ganze Box samt Abstand auf 48rem. Bei
+  1920 px bleiben dem Inhalt etwa 128 px.
+- **Behebung:** `rand pb-24 *:max-w-3xl`: der Abstand gilt für die volle Breite, die Spaltenbreite für die Kinder.
+- **Muster:** `rand` (oder sonst ein Abstand aus `vw`) zusammen mit `max-w-*` auf einem Element. Die Breite muss
+  innen begrenzt werden, nicht an der Box mit dem Abstand.
+- **Weitere Stellen:** gleich gesucht: Terminseite `t/[token]` (Seite und Laden), Impressum, AGB, Datenschutz
+  hatten dasselbe, alle mitbehoben. Sonst nirgends.
+
+### 2026-11-22 · Trennstrich über „Erinnerung per Push“ lief auf halber Schrifthöhe neben der Überschrift
+
+- **Stand:** behoben
+- **Wo:** `src/components/admin/notizen.tsx`, `src/app/globals.css`
+- **Was man sah:** Die Linie über dem Erinnerungsteil einer Notiz begann erst rechts neben „Erinnerung per Push“,
+  mitten auf Höhe der Schrift, statt sauber darüber. Gemeldet vom Betreiber.
+- **Ursache:** `fieldset` mit `border-t` und `legend`: Der Browser setzt die erste Legende in die Rahmenlinie.
+- **Behebung:** zentral in `globals.css`: `fieldset:where(.border-t) > legend` als `float` über die ganze Breite
+  (dann gewöhnlicher Inhalt unter der Linie, im Raster ganze Zeile); `mb-2` an den Legenden entfällt, den Abstand
+  gibt das Raster.
+- **Muster:** `fieldset` mit Rahmen oder `border-t` und einer `legend` darin.
+- **Weitere Stellen:** Einstellungen (Stundensätze, Kostenvoranschläge, Werkstattaufträge) hatten dasselbe und
+  sind über die zentrale Regel mitbehoben. Übrige `legend` stehen in fieldsets ohne Rahmen: in Ordnung.
+
 ### 2026-11-22 · Mitarbeiter: „Nimmt Aufträge an“ klang nach Entscheidung der Person, neue Mitarbeiter fehlten in der Planung
 
 - **Stand:** behoben

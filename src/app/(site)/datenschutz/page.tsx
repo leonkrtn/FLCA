@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Datenschutz" };
 export default async function Datenschutz() {
   const [{ html, quelle }, { firma }] = await Promise.all([rechtstext("datenschutz"), einstellungen()]);
   return (
-    <article className="rand max-w-3xl pb-24 pt-8 md:pt-14">
+    <article className="rand pb-24 *:max-w-3xl pt-8 md:pt-14">
       <h1 className="schmal mb-8 text-4xl md:text-5xl">Datenschutz</h1>
       {quelle === "fehlt" ? (
         <p>
