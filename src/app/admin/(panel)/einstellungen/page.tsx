@@ -236,6 +236,11 @@ async function RechnungBereich() {
           <Textfeld label="Einleitungssatz" name="kv_einleitung" wert={e.kostenvoranschlag.einleitung} zeilen={2} />
           <Textfeld label="Fußtext" name="kv_fusstext" wert={e.kostenvoranschlag.fusstext} zeilen={2} />
         </fieldset>
+        <fieldset className="grid gap-4 border-t border-linie pt-6">
+          <legend className="mb-2 font-semibold">Werkstattaufträge · Nummern mit eigenem Präfix WA-</legend>
+          <Textfeld label="Einleitungssatz" name="wa_einleitung" wert={e.auftrag.einleitung} zeilen={2} />
+          <Textfeld label="Bedingungen (Fußtext)" name="wa_fusstext" wert={e.auftrag.fusstext} zeilen={3} hilfe="Steht über der Unterschrift des Kunden." />
+        </fieldset>
         <div><Senden vorab="Gespeichert">Speichern</Senden></div>
       </Formular>
     </Abschnitt>

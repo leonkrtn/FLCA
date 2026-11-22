@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Kopf, Leer, Marke, Reiter, Tabelle } from "@/components/admin/ui";
+import { AUFTRAG_STAND_TEXT, AUFTRAG_STAND_TON, auftragStand } from "@/lib/auftrag-regeln";
 import { benutzerMitRecht } from "@/lib/auth";
 import { datumKurzText, zeit } from "@/lib/format";
 import { TERMIN_TON } from "@/lib/status";
@@ -11,6 +12,7 @@ export const metadata = { title: "Termine" };
 const ANSICHTEN = {
   anfragen: "Anfragen",
   kommend: "Kommend",
+  auftraege: "Aufträge",
   vergangen: "Vergangen",
   alle: "Alle",
 } as const;
@@ -24,6 +26,8 @@ export default async function TerminListe({ searchParams }: { searchParams: Prom
   let abfrage = db().from("termine").select(TERMIN_FELDER).limit(200);
   if (ansicht === "anfragen") abfrage = abfrage.eq("status", "angefragt").order("beginn");
   if (ansicht === "kommend") abfrage = abfrage.eq("status", "bestaetigt").gte("ende", jetzt).order("beginn");
+  // Offene Werkstattaufträge: angelegt, Termin noch nicht abgeschlossen
+  if (ansicht === "auftraege") abfrage = abfrage.not("auftrag_nummer", "is", null).in("status", ["angefragt", "bestaetigt"]).order("beginn");
   if (ansicht === "vergangen") abfrage = abfrage.lt("beginn", jetzt).order("beginn", { ascending: false });
   if (ansicht === "alle") abfrage = abfrage.order("beginn", { ascending: false });
   const { data } = await abfrage;
@@ -37,6 +41,7 @@ export default async function TerminListe({ searchParams }: { searchParams: Prom
   return (
     <>
       <Kopf titel="Termine">
+        <Link href="/admin/termine/neu?auftrag=1" className="knopf knopf-rahmen">Neuer Auftrag</Link>
         <Link href="/admin/termine/neu" className="knopf knopf-dunkel">Termin eintragen</Link>
       </Kopf>
       <Reiter
@@ -49,7 +54,7 @@ export default async function TerminListe({ searchParams }: { searchParams: Prom
       </form>
       {termine.length ? (
         <div className="bg-weiss p-4 md:p-6">
-          <Tabelle kopf={["Wann", "Leistung", "Kunde", "Kennzeichen", "Status", "Mitarbeiter", { text: "Nr.", zahl: true }]}>
+          <Tabelle kopf={["Wann", "Leistung", "Kunde", "Kennzeichen", "Status", "Auftrag", "Mitarbeiter", { text: "Nr.", zahl: true }]}>
             {termine.map((t) => (
               <tr key={t.id} className="hover:bg-papier">
                 <td className="zahlen whitespace-nowrap">
@@ -64,6 +69,16 @@ export default async function TerminListe({ searchParams }: { searchParams: Prom
                   <Marke ton={TERMIN_TON[t.status]}>{STATUS_TEXT[t.status]}</Marke>
                   {t.status === "angefragt" && t.vorschlag_am ? <span className="block text-xs text-grau">Vorschlag beim Kunden</span> : t.status === "angefragt" && t.wunschzeit_frei === false ? <span className="block text-xs text-grau">Wunschzeit belegt</span> : null}
                 </td>
+                <td>
+                  {auftragStand(t) === "kein" ? (
+                    <span className="text-grau">–</span>
+                  ) : (
+                    <>
+                      <Marke ton={AUFTRAG_STAND_TON[auftragStand(t)]}>{AUFTRAG_STAND_TEXT[auftragStand(t)]}</Marke>
+                      <span className="zahlen block text-xs text-grau">{t.auftrag_nummer}</span>
+                    </>
+                  )}
+                </td>
                 <td>{t.mitarbeiter?.name ?? <span className="text-grau">–</span>}</td>
                 <td className="zahl">{t.nummer}</td>
               </tr>
@@ -71,7 +86,7 @@ export default async function TerminListe({ searchParams }: { searchParams: Prom
           </Tabelle>
         </div>
       ) : (
-        <Leer>{ansicht === "anfragen" ? "Keine offenen Anfragen." : "Keine Termine."}</Leer>
+        <Leer>{ansicht === "anfragen" ? "Keine offenen Anfragen." : ansicht === "auftraege" ? "Keine offenen Werkstattaufträge." : "Keine Termine."}</Leer>
       )}
     </>
   );

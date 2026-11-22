@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { benutzerMitRecht } from "../auth";
 import { melden, verlauf } from "../ereignisse";
 import { type Ergebnis, ja, sicher, text, werteAus, zahl } from "../forms";
+import { auftragAnlegen, nachFertig } from "../auftrag";
+import { kvMitTerminVerknuepfen } from "../rechnung/kostenvoranschlaege";
 import { entwurfAusTermin } from "../rechnung/rechnungen";
 import { db } from "../supabase/admin";
 import { ablehnen, bestaetigen, erledigen, gegenvorschlag, loeschen, PlanungsWarnung, stornieren, terminEintragen, TerminFehler, umplanen, verschieben } from "../termine";
@@ -111,9 +113,13 @@ export async function gegenvorschlagAktion(id: string, _v: Ergebnis, fd: FormDat
 export async function erledigtAktion(id: string, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
   return mitFehlertext(fd, async () => {
     const b = await benutzerMitRecht("termine");
-    await erledigen(id, b.id, fd.get("art") === "nicht_erschienen" ? "nicht_erschienen" : "erledigt");
+    const art = fd.get("art") === "nicht_erschienen" ? "nicht_erschienen" : "erledigt";
+    await erledigen(id, b.id, art);
+    // Erledigt heißt fertig: Der Rechnungsentwurf liegt danach bereit (wie bei „fertig“ aus der Werkstatt).
+    const rechnung = art === "erledigt" ? await nachFertig(id, b.id, b.name || "Büro", false) : null;
     neuLaden(id);
-    return { status: "ok", meldung: "Gespeichert." };
+    revalidatePath("/admin/rechnungen", "layout");
+    return { status: "ok", meldung: rechnung ? "Erledigt. Der Rechnungsentwurf liegt bereit." : "Gespeichert." };
   });
 }
 
@@ -121,7 +127,8 @@ export async function detailsSpeichern(id: string, _v: Ergebnis, fd: FormData): 
   return mitFehlertext(fd, async () => {
     const b = await benutzerMitRecht("termine");
     const mitarbeiter = uuidOderNull(fd.get("zugewiesen_an"));
-    const km = zahl(fd, "km_stand");
+    // Der Kilometerstand steht bei der Fahrzeugannahme; fehlt das Feld, bleibt er, wie er ist.
+    const km = fd.has("km_stand") ? zahl(fd, "km_stand") : undefined;
     // Die Person geht über termine.ts (Prüfung, Push, Ereignis); bei erledigten Terminen nur noch nachtragen.
     const { data: t } = await db().from("termine").select("status, zugewiesen_an").eq("id", id).single();
     if (t && t.zugewiesen_an !== mitarbeiter) {
@@ -130,9 +137,9 @@ export async function detailsSpeichern(id: string, _v: Ergebnis, fd: FormData): 
     }
     await db()
       .from("termine")
-      .update({ notiz_intern: text(fd, "notiz_intern", 3000), km_stand: km === null ? null : Math.round(km) })
+      .update({ notiz_intern: text(fd, "notiz_intern", 3000), ...(km !== undefined && { km_stand: km === null ? null : Math.round(km) }) })
       .eq("id", id);
-    if (km !== null) {
+    if (km != null) {
       const { data } = await db().from("termine").select("fahrzeug_id").eq("id", id).single();
       if (data?.fahrzeug_id) await db().from("fahrzeuge").update({ km_stand: Math.round(km) }).eq("id", data.fahrzeug_id);
     }
@@ -192,7 +199,12 @@ export async function eintragenAktion(basis: "/admin/termine" | "/app/termine", 
       },
       b.id,
     );
+    // Aus „Neuer Werkstattauftrag“ (auftrag=1) oder vom Kostenvoranschlag (kv=…): gleich weiter verknüpfen.
+    const kv = uuidOderNull(fd.get("kv"));
+    if (kv) await kvMitTerminVerknuepfen(kv, t.id, b.id);
+    if (ja(fd, "auftrag")) await auftragAnlegen(t.id, b.id);
     neuLaden();
+    revalidatePath("/admin/kostenvoranschlaege", "layout");
     ziel = `${basis}/${t.id}`;
     return { status: "ok" };
   });

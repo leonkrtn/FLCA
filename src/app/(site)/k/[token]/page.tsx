@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { KvAntwort } from "@/components/site/kv-antwort";
+import { KvTerminWahl } from "@/components/site/kv-terminwahl";
 import { einstellungen } from "@/lib/einstellungen";
 import { datum, datumZeit, euro, euroGenau, telHref } from "@/lib/format";
 import { fahrzeugText } from "@/lib/rechnung/aehnlich";
 import { berechne, einzelpreisAnzeige, rabattText, zeilenbetrag } from "@/lib/rechnung/berechnung";
 import { kvAbgelaufen, kvPerToken } from "@/lib/rechnung/kostenvoranschlaege";
+import { db } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Ihr Kostenvoranschlag", robots: { index: false, follow: false } };
@@ -15,12 +17,20 @@ export default async function KundenKostenvoranschlag({ params }: { params: Prom
   const { token } = await params;
   const k = await kvPerToken(token);
   if (!k) notFound();
-  const { firma } = await einstellungen();
+  const [{ firma, buchung }, { data: termin }] = await Promise.all([
+    einstellungen(),
+    k.termin_id ? db().from("termine").select("token, status").eq("id", k.termin_id).maybeSingle() : Promise.resolve({ data: null }),
+  ]);
+  // Nach der Annahme ohne Termin: gleich einen wählen (wenn Online-Termine laufen)
+  const terminWaehlen = k.status === "angenommen" && !k.termin_id && buchung.aktiv;
   const s = berechne(k.positionen);
   const abgelaufen = kvAbgelaufen(k);
   const [status, erklaerung] =
     k.status === "angenommen"
-      ? ["Angenommen", `Danke! Sie haben am ${datumZeit(k.beantwortet_am)} zugesagt. Wir melden uns für den Termin.`]
+      ? [
+          "Angenommen",
+          `Danke! Sie haben am ${datumZeit(k.beantwortet_am)} zugesagt. ${termin ? "Damit ist der Auftrag für Ihren Termin erteilt." : terminWaehlen ? "Wählen Sie unten einen Termin, oder wir melden uns bei Ihnen." : "Wir melden uns für den Termin."}`,
+        ]
       : k.status === "abgelehnt"
         ? ["Abgelehnt", "Sie haben diesen Kostenvoranschlag abgelehnt. Möchten Sie es sich anders überlegen, rufen Sie uns einfach an."]
         : abgelaufen
@@ -82,7 +92,14 @@ export default async function KundenKostenvoranschlag({ params }: { params: Prom
       <div className="mt-12 flex flex-wrap items-start gap-3">
         {k.status === "offen" && !abgelaufen ? <KvAntwort token={token} /> : null}
       </div>
+      {terminWaehlen ? (
+        <section className="mt-4">
+          <h2 className="schmal mb-4 text-2xl">Termin wählen</h2>
+          <KvTerminWahl token={token} />
+        </section>
+      ) : null}
       <div className="mt-6 flex flex-wrap gap-3">
+        {termin ? <a href={`/t/${termin.token}`} className="knopf knopf-dunkel">Termin ansehen</a> : null}
         <a href={`/k/${token}/pdf`} className="knopf knopf-rahmen">Als PDF</a>
         <a href={telHref(firma.telefon)} className="knopf knopf-rahmen">Anrufen</a>
       </div>

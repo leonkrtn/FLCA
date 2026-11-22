@@ -7,7 +7,8 @@ import { mail } from "../email/vorlagen";
 import { mailer } from "../services/email";
 import { db, pruefe } from "../supabase/admin";
 import { berlinDatum, plusTage } from "../zeit";
-import { berechne, nettoAusBruttoPreis, type Position, vorzeichenWechseln } from "./berechnung";
+import { berechne, type Position, vorzeichenWechseln } from "./berechnung";
+import { positionenAusLeistungen } from "../auftrag-regeln";
 import { kundeAusBeleg, markeUndModell } from "../kunden";
 import { merken, type PaketWunsch } from "./preisgedaechtnis";
 import { rechnungPdf } from "./pdf";
@@ -89,19 +90,62 @@ export async function rechnungPerToken(token: string): Promise<Rechnung | null> 
   return data as Rechnung | null;
 }
 
-/** Entwurf aus einem Termin: Kunde, Fahrzeug und jede Leistung mit ihrem Festpreis sind schon eingetragen. */
-export async function entwurfAusTermin(terminId: string, vonBenutzer: string): Promise<string> {
-  // Stornorechnungen zählen nicht: Sie tragen dieselbe termin_id und stehen auf „gestellt“, sonst führte
-  // „Rechnung erstellen“ nach einem Storno immer wieder zur Stornorechnung statt zu einem neuen Entwurf.
-  const { data: vorhanden } = await db()
+/**
+ * Die Rechnung eines Termins (Entwurf, offen oder bezahlt). Stornorechnungen zählen nicht: Sie tragen dieselbe
+ * termin_id und stehen auf „gestellt“, sonst führte „Rechnung erstellen“ nach einem Storno immer wieder zur
+ * Stornorechnung statt zu einem neuen Entwurf.
+ */
+export async function rechnungZumTermin(terminId: string): Promise<string | null> {
+  const { data } = await db()
     .from("rechnungen")
     .select("id")
     .eq("termin_id", terminId)
     .in("status", ["entwurf", "gestellt", "bezahlt"])
     .is("storno_zu", null)
+    .order("erstellt_am")
+    .order("id")
     .limit(1)
     .maybeSingle();
-  if (vorhanden) return vorhanden.id;
+  return data?.id ?? null;
+}
+
+/**
+ * Zwei gleichzeitige Wege zur Rechnung (Doppelklick, „fertig“ in der Werkstatt und „Rechnung erstellen“ im Büro)
+ * ergeben nur einen Entwurf: Gibt es am Termin schon einen älteren, fällt der gerade angelegte wieder weg.
+ */
+export async function einzigerEntwurf(terminId: string, eigene: string): Promise<string> {
+  const erste = await rechnungZumTermin(terminId);
+  if (!erste || erste === eigene) return eigene;
+  await db().from("rechnungen").delete().eq("id", eigene).eq("status", "entwurf");
+  await db().from("verlauf").delete().eq("bezug_typ", "rechnung").eq("bezug_id", eigene);
+  return erste;
+}
+
+/**
+ * Rechnungsentwurf zu einem Termin. Es gibt immer nur eine Rechnung je Termin, egal auf welchem Weg man kommt:
+ * 1. Hat der Termin schon eine, ist es diese.
+ * 2. Ist aus einem Kostenvoranschlag des Termins schon eine Rechnung entstanden, wird sie die des Termins.
+ * 3. Sonst ein neuer Entwurf mit Kunde und Fahrzeug, die Positionen aus dem Werkstattauftrag, sonst aus dem
+ *    angenommenen Kostenvoranschlag, sonst jede Leistung des Termins mit ihrem Festpreis.
+ */
+export async function entwurfAusTermin(terminId: string, vonBenutzer: string): Promise<string> {
+  const vorhanden = await rechnungZumTermin(terminId);
+  if (vorhanden) return vorhanden;
+
+  const { data: kvs } = await db()
+    .from("kostenvoranschlaege")
+    .select("id, nummer, status, positionen, hinweis, rechnung_id")
+    .eq("termin_id", terminId)
+    .in("status", ["offen", "angenommen"])
+    .order("erstellt_am", { ascending: false });
+  const angebote = (kvs ?? []) as { id: string; nummer: string; status: string; positionen: Position[]; hinweis: string; rechnung_id: string | null }[];
+  for (const k of angebote.filter((x) => x.rechnung_id)) {
+    const { data: r } = await db().from("rechnungen").select("id, termin_id, status, storno_zu").eq("id", k.rechnung_id!).maybeSingle();
+    if (!r || r.termin_id || r.storno_zu || r.status === "storniert") continue;
+    await db().from("rechnungen").update({ termin_id: terminId }).or(`id.eq.${r.id},storno_zu.eq.${r.id}`).is("termin_id", null);
+    await verlauf("rechnung", r.id, `Mit dem Termin verknüpft (über Kostenvoranschlag ${k.nummer})`, vonBenutzer);
+    return einzigerEntwurf(terminId, r.id);
+  }
 
   // „*“ statt einzelner Spalten: leistung_ids gibt es erst nach der Migration „mehrere_leistungen“.
   const { data: t } = await db()
@@ -112,28 +156,27 @@ export async function entwurfAusTermin(terminId: string, vonBenutzer: string): P
   if (!t) throw new Error("Termin nicht gefunden.");
   const kunde = t.kunde as unknown as Record<string, string> | null;
   const fahrzeug = t.fahrzeug as unknown as { kennzeichen: string; marke_modell: string; marke: string; modell: string; km_stand: number | null } | null;
-  const ids: string[] = (t.leistung_ids as string[] | undefined)?.length ? t.leistung_ids : t.leistung_id ? [t.leistung_id] : [];
+  const angenommen = angebote.find((k) => k.status === "angenommen" && !k.rechnung_id);
+  const auftrag = (t.auftrag_positionen as Position[] | undefined) ?? [];
 
-  // Derselbe Preis wie auf der Website: Es gibt ihn nur einmal, in der Preisliste (brutto, rund). Im Beleg steht
-  // er netto, so genau, dass brutto wieder derselbe runde Betrag herauskommt. Bei „ab“-Preisen steht der
-  // Startwert drin und wird in der Rechnung angepasst. Reihenfolge wie im Termin.
-  const { data: gefunden } = ids.length ? await db().from("leistungen").select("*").in("id", ids) : { data: [] };
-  const leistungen = ids.map((id) => (gefunden ?? []).find((l) => l.id === id)).filter(Boolean);
-  const positionen: Position[] = leistungen.map((l) => ({
-    text: l.name,
-    menge: 1,
-    einheit: l.einheit ?? "Pauschal",
-    einzel_netto_cent: nettoAusBruttoPreis(l.preis_cent ?? 0, Number(l.mwst_satz ?? 19)),
-    mwst_satz: Number(l.mwst_satz ?? 19),
-    artikel_id: l.id,
-  }));
-  // Frei eingetragene Arbeit steht hinter den Namen der Leistungen in leistung_name (terminEintragen).
-  const namen = leistungen.map((l) => l.name).join(", ");
-  const name = String(t.leistung_name ?? "");
-  const frei = !namen ? name : name.startsWith(`${namen}, `) ? name.slice(namen.length + 2) : "";
-  if (frei || !positionen.length) positionen.push({ text: frei || name || "Arbeit", menge: 1, einheit: "Pauschal", einzel_netto_cent: 0, mwst_satz: 19 });
+  let positionen: Position[];
+  let hinweis = "";
+  let herkunft = "";
+  if (t.auftrag_nummer && auftrag.length) {
+    positionen = auftrag;
+    herkunft = `Aus Werkstattauftrag ${t.auftrag_nummer} übernommen`;
+  } else if (angenommen?.positionen.length) {
+    positionen = angenommen.positionen;
+    hinweis = angenommen.hinweis ?? "";
+    herkunft = `Aus Kostenvoranschlag ${angenommen.nummer} übernommen`;
+  } else {
+    const ids: string[] = (t.leistung_ids as string[] | undefined)?.length ? t.leistung_ids : t.leistung_id ? [t.leistung_id] : [];
+    // Reihenfolge wie im Termin. Bei „ab“-Preisen steht der Startwert drin und wird in der Rechnung angepasst.
+    const { data: gefunden } = ids.length ? await db().from("leistungen").select("*").in("id", ids) : { data: [] };
+    positionen = positionenAusLeistungen(ids.map((id) => (gefunden ?? []).find((l) => l.id === id)).filter(Boolean), String(t.leistung_name ?? ""));
+  }
 
-  return entwurfAnlegen(
+  const id = await entwurfAnlegen(
     {
       termin_id: t.id,
       kunde_id: kunde?.id ?? null,
@@ -142,10 +185,16 @@ export async function entwurfAusTermin(terminId: string, vonBenutzer: string): P
         : { name: "" },
       fahrzeug: { kennzeichen: fahrzeug?.kennzeichen, ...(fahrzeug ? markeUndModell(fahrzeug) : {}), km: t.km_stand ?? fahrzeug?.km_stand ?? null },
       positionen,
+      hinweis,
       leistungsdatum: berlinDatum(new Date(t.beginn)),
     },
     vonBenutzer,
   );
+  if (herkunft) await verlauf("rechnung", id, herkunft, vonBenutzer);
+  if (angenommen && positionen === angenommen.positionen) {
+    await db().from("kostenvoranschlaege").update({ rechnung_id: id }).eq("id", angenommen.id).is("rechnung_id", null);
+  }
+  return einzigerEntwurf(terminId, id);
 }
 
 export async function entwurfAnlegen(

@@ -4,6 +4,7 @@ import { useActionState, useId, useMemo, useState, useTransition } from "react";
 import { Kreuz } from "@/components/icons";
 import { DateiKnopf } from "@/components/mobil/datei-knopf";
 import { type BelegArt, gemerktLadenAktion } from "@/lib/aktionen/belege";
+import { auftragEntwurfSpeichernAktion } from "@/lib/aktionen/auftrag";
 import { kvEntwurfSpeichernAktion } from "@/lib/aktionen/kostenvoranschlaege";
 import { entwurfSpeichernAktion } from "@/lib/aktionen/rechnungen";
 import { LEER } from "@/lib/forms";
@@ -24,6 +25,8 @@ export type BelegDaten = {
   /** Rechnung: Leistungsdatum; Kostenvoranschlag: gültig bis */
   leistungsdatum?: string | null;
   gueltig_bis?: string | null;
+  /** Werkstattauftrag: bis zu diesem Betrag (brutto) ohne Rückfrage */
+  kostengrenze_cent?: number | null;
   hinweis: string;
 };
 
@@ -65,7 +68,15 @@ const TEXTE = {
     frage: "Kostenvoranschlag jetzt abschließen? Er bekommt eine feste Nummer, der Kunde kann ihn danach über seinen Link annehmen.",
     pdf: (id: string) => `/admin/kostenvoranschlaege/${id}/pdf`,
   },
+  // Der Auftrag wird nicht „gestellt“: Er bleibt änderbar, erteilt wird er am Termin.
+  auftrag: {
+    stellen: "Speichern und zurück",
+    frage: "",
+    pdf: (id: string) => `/admin/termine/${id}/auftrag/pdf`,
+  },
 } as const;
+
+const SPEICHERN = { rechnung: entwurfSpeichernAktion, kostenvoranschlag: kvEntwurfSpeichernAktion, auftrag: auftragEntwurfSpeichernAktion } as const;
 
 function zeileFuer(p: Position, extra: Partial<Zeile> = {}): Zeile {
   return {
@@ -80,7 +91,8 @@ function zeileFuer(p: Position, extra: Partial<Zeile> = {}): Zeile {
 }
 
 /**
- * Entwurf einer Rechnung oder eines Kostenvoranschlags bearbeiten. Preise netto, Beträge werden live mit
+ * Entwurf einer Rechnung oder eines Kostenvoranschlags bearbeiten, oder die Positionen eines Werkstattauftrags
+ * (dann ohne Empfänger und Fahrzeug, die kommen vom Termin, und mit Kostengrenze statt Datum). Preise netto, Beträge werden live mit
  * derselben Funktion gerechnet wie auf dem PDF und in der E-Rechnung (lib/rechnung/berechnung.ts).
  *
  * Preise je Auto: Für Marke + Modell des Fahrzeugs setzt der Editor den zuletzt berechneten Preis einer
@@ -98,7 +110,8 @@ export function BelegEditor({
   zuletzt,
   kompakt = false,
 }: {
-  art: BelegArt;
+  art: BelegArt | "auftrag";
+  /** Beleg, beim Auftrag der Termin */
   id: string;
   start: BelegDaten;
   daten: EditorDaten;
@@ -121,7 +134,9 @@ export function BelegEditor({
   const [suche, setSuche] = useState(!start.empfaenger?.name);
   const [stellenOffen, setStellenOffen] = useState(false);
   const [paketWuensche, setPaketWuensche] = useState<{ name: string; indizes: number[] }[]>([]);
-  const [zustand, aktion, laeuft] = useActionState((art === "rechnung" ? entwurfSpeichernAktion : kvEntwurfSpeichernAktion).bind(null, id), LEER);
+  const [zustand, aktion, laeuft] = useActionState(SPEICHERN[art].bind(null, id), LEER);
+  const auftrag = art === "auftrag";
+  const [grenze, setGrenze] = useState(() => centZuText(start.kostengrenze_cent));
   const summen = useMemo(() => berechne(d.positionen), [d.positionen]);
   const ertrag = useMemo(() => rohertrag(d.positionen, summen), [d.positionen, summen]);
   const t = TEXTE[art];
@@ -313,16 +328,22 @@ export function BelegEditor({
       {/* Eigenes Formular für die Vorschau (Formulare dürfen nicht ineinander stecken): schickt den
           aktuellen Stand per POST in einen neuen Tab, ohne zu speichern. */}
       <form id={vorschauId} method="post" action={t.pdf(id)} target="_blank" hidden>
-        <input type="hidden" name="daten" value={JSON.stringify(d)} />
+        <input type="hidden" name="daten" value={JSON.stringify({ ...d, ...(auftrag && { kostengrenze_cent: grenze.trim() ? textZuCent(grenze) : null }) })} />
       </form>
     <form action={aktion} className="grid min-w-0 gap-8">
-      <input type="hidden" name="daten" value={JSON.stringify({ ...d, pakete: art === "rechnung" && stellenOffen ? paketWuensche : [] })} />
+      <input
+        type="hidden"
+        name="daten"
+        value={JSON.stringify({ ...d, pakete: art === "rechnung" && stellenOffen ? paketWuensche : [], ...(auftrag && { kostengrenze_cent: grenze.trim() ? Math.round(textZuCent(grenze)) : null }) })}
+      />
+      {auftrag ? <input type="hidden" name="ort" value={kompakt ? "app" : "admin"} /> : null}
       <datalist id={listeId}>
         {[...new Set([...bezeichnungen, ...preisliste.map((a) => a.name)])].map((b) => (
           <option key={b} value={b} />
         ))}
       </datalist>
 
+      {auftrag ? null : (
       <section className="grid gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-semibold">Empfänger</h2>
@@ -386,8 +407,24 @@ export function BelegEditor({
           ))}
         </div>
       </section>
+      )}
 
-      {/* Fahrzeug vor den Positionen: Marke und Modell bestimmen, welche Preise gemerkt sind. */}
+      {/* Fahrzeug vor den Positionen: Marke und Modell bestimmen, welche Preise gemerkt sind. Beim Auftrag
+          kommt das Fahrzeug vom Termin; dort steht stattdessen die Kostengrenze. */}
+      {auftrag ? (
+        <section className="grid gap-2">
+          <h2 className="font-semibold">Kostengrenze</h2>
+          <label className="block max-w-xs">
+            <span className="label">Bis zu diesem Betrag (brutto) ohne Rückfrage</span>
+            <input value={grenze} onChange={(ev) => setGrenze(ev.target.value)} inputMode="decimal" placeholder="keine" className="feld" />
+          </label>
+          <p className="text-sm text-grau">
+            Voraussichtlich {euro(summen.brutto)} brutto
+            {grenze.trim() && summen.brutto > textZuCent(grenze) ? <span className="font-semibold text-rot"> · über der Kostengrenze, bitte mit dem Kunden absprechen</span> : null}
+            {autoName ? ` · Preise für ${autoName}` : ""}
+          </p>
+        </section>
+      ) : (
       <section className={`grid gap-4 ${kompakt ? "" : "sm:grid-cols-2 lg:grid-cols-4"}`}>
         <h2 className={`font-semibold ${kompakt ? "" : "sm:col-span-2 lg:col-span-4"}`}>{art === "rechnung" ? "Fahrzeug und Leistung" : "Fahrzeug und Gültigkeit"}</h2>
         <MarkeModell
@@ -436,6 +473,7 @@ export function BelegEditor({
           </div>
         )}
       </section>
+      )}
 
       <section className="min-w-0">
         <h2 className="mb-3 font-semibold">Positionen</h2>
@@ -681,10 +719,13 @@ export function BelegEditor({
         <p className="mt-1 text-right text-xs text-grau">Preise netto eingeben. Preise aus der Preisliste werden netto übernommen und ergeben brutto den runden Listenpreis.</p>
       </section>
 
+      {/* Beim Auftrag steht, was der Kunde beanstandet, in der Fahrzeugannahme am Termin. */}
+      {auftrag ? null : (
       <section>
         <label className="label" htmlFor="hw">Hinweis {art === "rechnung" ? "auf der Rechnung" : "für den Kunden"} (optional)</label>
         <textarea id="hw" rows={2} value={d.hinweis} onChange={(ev) => setD((x) => ({ ...x, hinweis: ev.target.value }))} className="feld" />
       </section>
+      )}
 
       {stellenOffen ? (
         <section className="grid gap-4 border-2 border-tinte p-4">
@@ -741,22 +782,24 @@ export function BelegEditor({
         <button
           type={art === "rechnung" ? "button" : "submit"}
           name={art === "rechnung" ? undefined : "weiter"}
-          value={art === "rechnung" ? undefined : "stellen"}
-          disabled={laeuft || !regulaer.length}
+          value={art === "rechnung" ? undefined : auftrag ? "zurueck" : "stellen"}
+          disabled={laeuft || (!auftrag && !regulaer.length)}
           // Wird es eng, bricht „Rechnung stellen“ um; unter 360 px (iPhone SE) steht der Knopf in einer eigenen Zeile,
           // weil „Abschließen“ sonst nicht neben die anderen beiden Knöpfe passt.
           className="knopf knopf-dunkel min-w-0 whitespace-normal px-3 text-center leading-tight max-[359px]:col-span-full md:whitespace-nowrap md:px-5"
           onClick={(ev) => {
             // Rechnung: erst der Abschnitt zum Bestätigen und Pakete benennen; Kostenvoranschlag wie bisher.
             if (art === "rechnung") return setStellenOffen(true);
-            if (!window.confirm(t.frage)) ev.preventDefault();
+            if (t.frage && !window.confirm(t.frage)) ev.preventDefault();
           }}
         >
           {t.stellen}
         </button>
-        <label className="col-span-full flex items-center gap-2 text-sm">
-          <input type="checkbox" name="senden" defaultChecked className="size-4 accent-tinte" /> und per E-Mail senden
-        </label>
+        {auftrag ? null : (
+          <label className="col-span-full flex items-center gap-2 text-sm">
+            <input type="checkbox" name="senden" defaultChecked className="size-4 accent-tinte" /> und per E-Mail senden
+          </label>
+        )}
         {zustand.meldung ? <p className={`col-span-full w-full text-sm font-semibold ${zustand.status === "fehler" ? "text-rot" : "text-ok"}`}>{zustand.meldung}</p> : null}
       </div>
     </form>

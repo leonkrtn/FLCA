@@ -8,6 +8,20 @@ import { auftragStatus, fotoHinzufuegen } from "@/lib/aktionen/team";
 
 /** Auftrag in der Team-App: Status in einem Tipp, Fotos direkt aus der Kamera. */
 export function AuftragKnoepfe({ id, status }: { id: string; status: string }) {
+  return (
+    <div className="mt-3 grid gap-2">
+      <Formular aktion={auftragStatus.bind(null, id)} className="grid grid-cols-2 gap-2">
+        {status === "offen" ? <Senden name="status" value="in_arbeit" className="col-span-2" vorab="In Arbeit">Anfangen</Senden> : null}
+        {status === "in_arbeit" ? <Senden name="status" value="fertig" className="col-span-2" vorab="Fertig gemeldet">Fertig</Senden> : null}
+        {status === "fertig" ? <Senden art="rahmen" name="status" value="in_arbeit" className="col-span-2" vorab="Wieder in Arbeit">Doch noch nicht fertig</Senden> : null}
+      </Formular>
+      <FotoKnopf id={id} />
+    </div>
+  );
+}
+
+/** Foto vom Fahrzeug aus der Kamera, direkt in den privaten Speicher. `art`: Arbeit oder Vorschaden bei der Annahme. */
+export function FotoKnopf({ id, art = "arbeit", text = "Foto aufnehmen" }: { id: string; art?: "arbeit" | "vorschaden"; text?: string }) {
   const [foto, setFoto] = useState("");
   async function hochladen(f: File | undefined) {
     if (!f) return;
@@ -19,18 +33,13 @@ export function AuftragKnoepfe({ id, status }: { id: string; status: string }) {
     body.append("", f);
     const res = await fetch(a.url, { method: "PUT", body }).catch(() => null);
     if (!res?.ok) return setFoto("Upload fehlgeschlagen.");
-    const e = await fotoHinzufuegen(id, a.pfad);
+    const e = await fotoHinzufuegen(id, a.pfad, art);
     setFoto(e.meldung ?? "");
   }
   return (
-    <div className="mt-3 grid gap-2">
-      <Formular aktion={auftragStatus.bind(null, id)} className="grid grid-cols-2 gap-2">
-        {status === "offen" ? <Senden name="status" value="in_arbeit" className="col-span-2" vorab="In Arbeit">Anfangen</Senden> : null}
-        {status === "in_arbeit" ? <Senden name="status" value="fertig" className="col-span-2" vorab="Fertig gemeldet">Fertig</Senden> : null}
-        {status === "fertig" ? <Senden art="rahmen" name="status" value="in_arbeit" className="col-span-2" vorab="Wieder in Arbeit">Doch noch nicht fertig</Senden> : null}
-      </Formular>
+    <div className="grid gap-1">
       <label className="knopf knopf-rahmen cursor-pointer">
-        <Kamera /> Foto aufnehmen
+        <Kamera /> {text}
         <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => hochladen(e.target.files?.[0])} />
       </label>
       {foto ? <p className="text-sm text-grau">{foto}</p> : null}

@@ -23,6 +23,9 @@ export function TerminFormular({
   kunde,
   zuletzt = [],
   mitarbeiter,
+  leistungIds,
+  versteckt = {},
+  knopf = "Termin eintragen",
 }: {
   aktion: (v: Ergebnis, fd: FormData) => Promise<Ergebnis>;
   leistungen: { id: string; name: string; dauer_min: number }[];
@@ -36,11 +39,19 @@ export function TerminFormular({
   zuletzt?: KundenTreffer[];
   /** Vorauswahl Mitarbeiter (Klick in eine Spalte der Tagesansicht) */
   mitarbeiter?: string;
+  /** Leistungen vorwählen (z. B. aus einem Kostenvoranschlag) */
+  leistungIds?: string[];
+  /** Mitgeschickt, aber nicht sichtbar: kv (verknüpfen), auftrag=1 (Werkstattauftrag gleich anlegen) */
+  versteckt?: Record<string, string>;
+  knopf?: string;
 }) {
   const v = vorgabe;
   return (
     <Formular aktion={aktion} className={`grid gap-4 ${kompakt ? "" : "sm:grid-cols-2"}`}>
-      <LeistungenWahl leistungen={leistungen} kompakt={kompakt} start={v?.leistungIds} frei={v?.leistungFrei} dauer={v?.dauer} />
+      {Object.entries(versteckt).map(([name, wert]) => (
+        <input key={name} type="hidden" name={name} value={wert} />
+      ))}
+      <LeistungenWahl leistungen={leistungen} kompakt={kompakt} start={v?.leistungIds ?? leistungIds} frei={v?.leistungFrei} dauer={v?.dauer} />
       <Feld label="Datum" name="datum" typ="date" wert={v?.datum || datum} required />
       <Feld label="Uhrzeit" name="uhrzeit" typ="time" wert={v?.uhrzeit || uhrzeit} required />
       <TerminKunde
@@ -57,7 +68,7 @@ export function TerminFormular({
         <input type="checkbox" name="ueberbuchen" className="size-4 accent-tinte" /> trotzdem eintragen, auch wenn die Werkstatt voll ist oder der Mitarbeiter nicht kann
       </label>
       <div className={kompakt ? "" : "sm:col-span-2"}>
-        <Senden art="dunkel" className={kompakt ? "w-full" : ""}>Termin eintragen</Senden>
+        <Senden art="dunkel" className={kompakt ? "w-full" : ""}>{knopf}</Senden>
       </div>
     </Formular>
   );

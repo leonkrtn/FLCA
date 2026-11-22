@@ -72,13 +72,37 @@ const s = StyleSheet.create({
     lineHeight: 1.45,
   },
   seitenzahl: { position: "absolute", bottom: 20, right: 56, fontSize: 7, color: grau },
+  zwischentitel: { fontWeight: 600, marginBottom: 4 },
+  annahmeZeile: { flexDirection: "row", borderBottom: `0.5pt solid ${linie}`, paddingVertical: 3 },
+  annahmeLabel: { width: 110, color: grau },
+  unterschriften: { flexDirection: "row", gap: 40, marginTop: 16 },
+  unterschriftFeld: { flex: 1 },
+  unterschriftFlaeche: { height: 36, justifyContent: "flex-end", borderBottom: `0.8pt solid ${tinte}`, paddingBottom: 2 },
+  unterschriftBild: { height: 32, objectFit: "contain", objectPosition: "left bottom" },
+  unterschriftText: { fontSize: 7.5, color: grau, marginTop: 3 },
 });
 
 const menge = (n: number) => new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 }).format(n);
 
 export type PdfDaten = RechnungsDaten & {
-  /** Dasselbe Layout dient auch dem Kostenvoranschlag: anderer Titel, Gültigkeit statt Zahlungsteil. */
-  art?: "rechnung" | "kostenvoranschlag";
+  /**
+   * Dasselbe Layout dient auch dem Kostenvoranschlag (anderer Titel, Gültigkeit statt Zahlungsteil) und dem
+   * Werkstattauftrag (Termin, Beanstandung, Fahrzeugannahme, Kostengrenze und Unterschrift statt Zahlungsteil).
+   */
+  art?: "rechnung" | "kostenvoranschlag" | "auftrag";
+  auftrag?: {
+    termin: string;
+    telefon: string;
+    beschreibung: string;
+    kostengrenze_cent: number | null;
+    annahme: [string, string][];
+    /** „Erteilt am … per …“, leer = noch nicht erteilt (dann Linien zum Unterschreiben auf Papier) */
+    erteilt: string;
+    ortDatum: string;
+    name: string;
+    /** PNG als data:-URL */
+    unterschrift: string | null;
+  };
   gueltig_bis?: string | null;
   kundennummer: number | null;
   fahrzeug: { kennzeichen?: string; marke?: string; modell?: string; km?: number | null };
@@ -102,9 +126,10 @@ export async function rechnungPdf(r: PdfDaten): Promise<Buffer> {
   }, 0);
   const f = r.firma;
   const kv = r.art === "kostenvoranschlag";
-  const titel = kv ? `Kostenvoranschlag ${r.nummer}` : r.storno ? `Stornorechnung ${r.nummer}` : `Rechnung ${r.nummer}`;
+  const wa = r.art === "auftrag" ? r.auftrag : undefined;
+  const titel = wa ? `Werkstattauftrag ${r.nummer}` : kv ? `Kostenvoranschlag ${r.nummer}` : r.storno ? `Stornorechnung ${r.nummer}` : `Rechnung ${r.nummer}`;
   const qr =
-    !kv && !r.storno && !r.bezahlt
+    !kv && !wa && !r.storno && !r.bezahlt
       ? await girocode({ name: f.name, iban: f.iban, bic: f.bic, cent: summen.brutto, zweck: `Rechnung ${r.nummer}` })
       : null;
 
@@ -140,7 +165,14 @@ export async function rechnungPdf(r: PdfDaten): Promise<Buffer> {
           </View>
           <View style={s.info}>
             {[
-              ...(kv
+              ...(wa
+                ? [
+                    ["Auftragsnummer", r.nummer],
+                    ["Datum", datum(r.rechnungsdatum)],
+                    ["Termin", wa.termin],
+                    ...(wa.telefon ? [["Telefon", wa.telefon]] : []),
+                  ]
+                : kv
                 ? [
                     ["Nummer", r.nummer],
                     ["Datum", datum(r.rechnungsdatum)],
@@ -168,6 +200,7 @@ export async function rechnungPdf(r: PdfDaten): Promise<Buffer> {
         {r.storno && r.storno_zu_nummer ? <Text style={s.storno}>Storniert Rechnung {r.storno_zu_nummer} vollständig.</Text> : null}
         {fahrzeugText(r.fahrzeug) ? <Text style={s.absatz}>Fahrzeug: {fahrzeugText(r.fahrzeug)}</Text> : null}
         {!r.storno ? <Text style={s.absatz}>{r.einleitung}</Text> : null}
+        {wa?.beschreibung ? <Text style={s.absatz}>{`Auftrag / Beanstandung des Kunden: ${wa.beschreibung}`}</Text> : null}
 
         <View style={s.tabelle}>
           <View style={s.kopfzeile} fixed>
@@ -228,11 +261,51 @@ export async function rechnungPdf(r: PdfDaten): Promise<Buffer> {
             </View>
           ))}
           <View style={s.endsumme}>
-            <Text>Gesamtbetrag</Text>
+            <Text>{wa ? "Voraussichtlich gesamt" : "Gesamtbetrag"}</Text>
             <Text style={s.zahl}>{euro(summen.brutto)}</Text>
           </View>
         </View>
 
+        {wa ? (
+          <View style={{ marginTop: 16 }}>
+            <Text>
+              {wa.kostengrenze_cent != null
+                ? `Kostengrenze: Arbeiten bis ${euro(wa.kostengrenze_cent)} brutto sind freigegeben. Was darüber hinausgeht, besprechen wir vorher mit Ihnen.`
+                : "Die Beträge sind voraussichtlich. Berechnet wird, was tatsächlich gemacht wurde."}
+            </Text>
+            {wa.annahme.length ? (
+              <View style={{ marginTop: 10 }} wrap={false}>
+                <Text style={s.zwischentitel}>Fahrzeugannahme</Text>
+                {wa.annahme.map(([label, wert]) => (
+                  <View key={label} style={s.annahmeZeile}>
+                    <Text style={s.annahmeLabel}>{label}</Text>
+                    <Text style={{ flex: 1 }}>{wert}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+            {r.fusstext ? <Text style={{ marginTop: 8, color: grau }}>{r.fusstext}</Text> : null}
+            {/* Unterschrift und Vermerk bleiben zusammen, damit die Unterschrift nie allein auf einer Seite steht */}
+            <View wrap={false}>
+            <View style={s.unterschriften}>
+              <View style={s.unterschriftFeld}>
+                <View style={s.unterschriftFlaeche}>
+                  <Text>{wa.ortDatum}</Text>
+                </View>
+                <Text style={s.unterschriftText}>Ort, Datum</Text>
+              </View>
+              <View style={s.unterschriftFeld}>
+                <View style={s.unterschriftFlaeche}>
+                  {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf kennt kein alt */}
+                  {wa.unterschrift ? <Image src={wa.unterschrift} style={s.unterschriftBild} /> : null}
+                </View>
+                <Text style={s.unterschriftText}>Unterschrift Auftraggeber{wa.name ? ` (${wa.name})` : ""}</Text>
+              </View>
+            </View>
+            {wa.erteilt ? <Text style={{ marginTop: 4, color: grau }}>{wa.erteilt}.</Text> : null}
+            </View>
+          </View>
+        ) : (
         <View style={s.zahlung} wrap={false}>
           {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf kennt kein alt */}
           {qr ? <Image src={qr} style={s.qr} /> : null}
@@ -259,6 +332,7 @@ export async function rechnungPdf(r: PdfDaten): Promise<Buffer> {
             {r.fusstext ? <Text style={{ marginTop: 8, color: grau }}>{r.fusstext}</Text> : null}
           </View>
         </View>
+        )}
 
         <View style={s.fuss} fixed>
           <Text>

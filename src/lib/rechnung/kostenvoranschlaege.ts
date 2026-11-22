@@ -10,8 +10,10 @@ import { db, pruefe } from "../supabase/admin";
 import { berlinDatum, plusTage } from "../zeit";
 import { berechne, type Position } from "./berechnung";
 import { rechnungPdf } from "./pdf";
-import { kundeAusBeleg } from "../kunden";
-import { entwurfAnlegen, type Empfaenger, type Rechnung } from "./rechnungen";
+import { entwurfAnlegen, einzigerEntwurf, type Empfaenger, type Rechnung, rechnungZumTermin } from "./rechnungen";
+import { auftragAusKv } from "../auftrag";
+import { positionenAusLeistungen } from "../auftrag-regeln";
+import { alsBelegFahrzeug, alsEmpfaenger, kundeAusBeleg, kundeLaden } from "../kunden";
 
 export type Kostenvoranschlag = {
   id: string;
@@ -190,7 +192,12 @@ export async function kvVersenden(id: string, an: string, vonBenutzer: string): 
           ...(k.fahrzeug?.kennzeichen ? ([["Fahrzeug", k.fahrzeug.kennzeichen]] as [string, string][]) : []),
         ],
       },
-      { art: "absatz", text: "Passt alles? Dann nehmen Sie den Kostenvoranschlag mit einem Klick an, wir melden uns für den Termin." },
+      {
+        art: "absatz",
+        text: k.termin_id
+          ? "Passt alles? Dann nehmen Sie den Kostenvoranschlag mit einem Klick an. Damit ist der Auftrag für Ihren Termin erteilt."
+          : "Passt alles? Dann nehmen Sie den Kostenvoranschlag mit einem Klick an und wählen gleich einen Termin.",
+      },
       { art: "knopf", text: "Ansehen und annehmen", url: kvLink(k) },
     ],
   });
@@ -228,6 +235,14 @@ export async function kvBeantworten(id: string, antwort: "angenommen" | "abgeleh
 
   const wer = von.kunde ? "vom Kunden online" : "in der Verwaltung vermerkt";
   await verlauf("kostenvoranschlag", id, `${antwort === "angenommen" ? "Angenommen" : "Abgelehnt"} (${wer})`, von.benutzer ?? null);
+  // Am Termin wird der angenommene Kostenvoranschlag zum erteilten Werkstattauftrag.
+  if (antwort === "angenommen" && k.termin_id) {
+    try {
+      await auftragAusKv(k.termin_id, k, von.benutzer ?? null);
+    } catch (error) {
+      console.error("Auftrag aus Kostenvoranschlag nicht angelegt", id, error);
+    }
+  }
   await melden(`kostenvoranschlag.${antwort}`, { ...ereignisDaten(k), status: antwort, online: Boolean(von.kunde) });
   if (von.kunde) {
     const name = k.empfaenger.firma || k.empfaenger.name;
@@ -245,7 +260,8 @@ export async function kvBeantworten(id: string, antwort: "angenommen" | "abgeleh
 
 /**
  * Rechnungsentwurf aus dem Kostenvoranschlag: Empfänger, Fahrzeug und Positionen werden übernommen und
- * lassen sich in der Rechnung noch anpassen (Mehraufwand). Ein zweiter Klick öffnet denselben Entwurf.
+ * lassen sich in der Rechnung noch anpassen (Mehraufwand). Ein zweiter Klick öffnet denselben Entwurf. Gehört
+ * der Kostenvoranschlag zu einem Termin, der schon eine Rechnung hat, ist es diese (keine zweite Rechnung).
  */
 export async function kvInRechnung(id: string, vonBenutzer: string): Promise<string> {
   const k = await kvLaden(id);
@@ -254,6 +270,12 @@ export async function kvInRechnung(id: string, vonBenutzer: string): Promise<str
   if (k.rechnung_id) {
     const { data } = await db().from("rechnungen").select("id").eq("id", k.rechnung_id).maybeSingle();
     if (data) return data.id;
+  }
+  const amTermin = k.termin_id ? await rechnungZumTermin(k.termin_id) : null;
+  if (amTermin) {
+    await db().from("kostenvoranschlaege").update({ rechnung_id: amTermin }).eq("id", id);
+    await verlauf("kostenvoranschlag", id, "Rechnung des Termins übernommen", vonBenutzer);
+    return amTermin;
   }
   const rechnungId = await entwurfAnlegen(
     {
@@ -267,11 +289,78 @@ export async function kvInRechnung(id: string, vonBenutzer: string): Promise<str
     },
     vonBenutzer,
   );
-  await db().from("kostenvoranschlaege").update({ rechnung_id: rechnungId }).eq("id", id);
+  // Zwei gleichzeitige Klicks: Nur der erste Entwurf bleibt, der zweite fällt wieder weg.
+  const { data: gesetzt } = await db().from("kostenvoranschlaege").update({ rechnung_id: rechnungId }).eq("id", id).is("rechnung_id", null).select("id");
+  if (!gesetzt?.length) {
+    await db().from("rechnungen").delete().eq("id", rechnungId).eq("status", "entwurf");
+    await db().from("verlauf").delete().eq("bezug_typ", "rechnung").eq("bezug_id", rechnungId);
+    return (await kvLaden(id))?.rechnung_id ?? rechnungId;
+  }
+  const ergebnis = k.termin_id ? await einzigerEntwurf(k.termin_id, rechnungId) : rechnungId;
+  if (ergebnis !== rechnungId) {
+    await db().from("kostenvoranschlaege").update({ rechnung_id: ergebnis }).eq("id", id);
+    return ergebnis;
+  }
   await verlauf("rechnung", rechnungId, `Aus Kostenvoranschlag ${k.nummer} übernommen`, vonBenutzer);
   await verlauf("kostenvoranschlag", id, "Rechnungsentwurf erstellt", vonBenutzer);
   await melden("kostenvoranschlag.umgewandelt", { ...ereignisDaten(k), rechnung_id: rechnungId });
   return rechnungId;
+}
+
+/**
+ * Kostenvoranschlag an einen Termin hängen (gleicher Kunde, z. B. die Anfrage, für die er geschrieben wurde,
+ * oder ein Termin, den das Büro nach der Annahme eingetragen hat). Ist er angenommen, wird er am Termin zum
+ * erteilten Werkstattauftrag. Eine schon aus ihm entstandene Rechnung geht mit, wenn der Termin noch keine hat.
+ */
+export async function kvMitTerminVerknuepfen(id: string, terminId: string, vonBenutzer: string | null): Promise<void> {
+  const k = await kvLaden(id);
+  if (!k) throw new Error("Kostenvoranschlag nicht gefunden.");
+  const { data: t } = await db().from("termine").select("id, nummer, kunde_id, status").eq("id", terminId).maybeSingle();
+  if (!t) throw new Error("Termin nicht gefunden.");
+  if (k.termin_id === terminId) return;
+  if (k.termin_id) throw new Error("Der Kostenvoranschlag gehört schon zu einem anderen Termin. Bitte dort zuerst lösen.");
+  const { error } = await db().from("kostenvoranschlaege").update({ termin_id: terminId }).eq("id", id).is("termin_id", null);
+  if (error) throw new Error(error.message);
+  if (k.rechnung_id && !(await rechnungZumTermin(terminId))) {
+    await db().from("rechnungen").update({ termin_id: terminId }).or(`id.eq.${k.rechnung_id},storno_zu.eq.${k.rechnung_id}`).is("termin_id", null);
+  }
+  const name = k.nummer ?? "Kostenvoranschlag (Entwurf)";
+  await verlauf("kostenvoranschlag", id, `Mit Termin Nr. ${t.nummer} verknüpft`, vonBenutzer);
+  await verlauf("termin", terminId, `${name} verknüpft`, vonBenutzer);
+  await melden("kostenvoranschlag.termin_verknuepft", { ...ereignisDaten(k), termin_id: terminId, verknuepft: true });
+  if (k.status === "angenommen") await auftragAusKv(terminId, k, vonBenutzer);
+}
+
+/** Verknüpfung lösen (falscher Termin). Ein daraus erteilter Auftrag bleibt, wie er ist. */
+export async function kvTerminLoesen(id: string, vonBenutzer: string): Promise<void> {
+  const k = await kvLaden(id);
+  if (!k?.termin_id) return;
+  await db().from("kostenvoranschlaege").update({ termin_id: null }).eq("id", id);
+  await verlauf("kostenvoranschlag", id, "Vom Termin gelöst", vonBenutzer);
+  await verlauf("termin", k.termin_id, `${k.nummer ?? "Kostenvoranschlag (Entwurf)"} gelöst`, vonBenutzer);
+  await melden("kostenvoranschlag.termin_verknuepft", { ...ereignisDaten(k), verknuepft: false });
+}
+
+/** Neuer Kostenvoranschlag zu einem Termin: Kunde, Fahrzeug und Leistungen des Termins sind schon drin. */
+export async function kvAusTermin(terminId: string, vonBenutzer: string): Promise<string> {
+  const { data: t } = await db().from("termine").select("*").eq("id", terminId).maybeSingle();
+  if (!t) throw new Error("Termin nicht gefunden.");
+  const kunde = t.kunde_id ? await kundeLaden(t.kunde_id) : null;
+  const ids: string[] = (t.leistung_ids as string[] | undefined)?.length ? t.leistung_ids : t.leistung_id ? [t.leistung_id] : [];
+  const { data: gefunden } = ids.length ? await db().from("leistungen").select("*").in("id", ids) : { data: [] };
+  const id = await kvAnlegen(
+    {
+      termin_id: terminId,
+      kunde_id: kunde?.id ?? null,
+      empfaenger: kunde ? alsEmpfaenger(kunde) : { name: "" },
+      fahrzeug: { ...alsBelegFahrzeug(kunde?.fahrzeuge.find((f) => f.id === t.fahrzeug_id)), km: t.km_stand ?? null },
+      positionen: positionenAusLeistungen(ids.map((x) => (gefunden ?? []).find((l) => l.id === x)).filter(Boolean), String(t.leistung_name ?? "")),
+      hinweis: "",
+    },
+    vonBenutzer,
+  );
+  await verlauf("termin", terminId, "Kostenvoranschlag angelegt", vonBenutzer);
+  return id;
 }
 
 /** Für eine Änderung nach dem Abschließen: ein neuer Entwurf mit demselben Inhalt. */
