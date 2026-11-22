@@ -106,7 +106,6 @@ export type Einstellungen = {
     bewertungen: boolean;
   };
   texte: {
-    heroUnterzeile: string;
     ueberTitel: string;
     ueberText: string;
     karriereText: string;
@@ -208,7 +207,6 @@ export const STANDARD: Einstellungen = {
   },
   module: { karriere: true, galerie: true, einlagerung: true, zeiterfassung: true, bewertungen: true },
   texte: {
-    heroUnterzeile: "Inhabergeführt von Kfz-Meister Flavio Ciurli. Festpreise ab 40 €, Termin online wählen, Bestätigung meist am selben Tag.",
     ueberTitel: "Über die Werkstatt",
     ueberText:
       "FLC Automotive ist ein inhabergeführter Reifen- und Kfz-Servicebetrieb in Dietzenbach. Inhaber und Betriebsleiter ist Flavio Ciurli, Kfz-Meister. Er ist persönlich für alle technischen Abläufe, die Qualität und jedes Fahrzeug verantwortlich, das bei uns auf der Bühne steht.\n\nUnsere Schwerpunkte sind Reifenservice, Ölservice und Reparatur. Die Preise stehen vorher fest, und wir sagen Ihnen ehrlich, was Ihr Auto braucht und was nicht.",

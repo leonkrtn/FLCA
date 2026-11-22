@@ -4,19 +4,18 @@ import halle from "@/assets/halle-lancia.jpg";
 import handschuhe from "@/assets/handschuhe.jpg";
 import lanciaHeck from "@/assets/lancia-heck.jpg";
 import porsche from "@/assets/porsche-felge.jpg";
-import standbild from "@/assets/start-standbild.jpg";
 import { Nachricht, Pfeil, Route, Telefon } from "@/components/icons";
 import { Sterne } from "@/components/icons-stern";
 import { AngebotsHinweise } from "@/components/site/angebot";
 import { Fragen } from "@/components/site/fragen";
 import { Leistungsbereiche } from "@/components/site/leistungsbereiche";
-import { Oeffnungszeiten } from "@/components/site/oeffnungszeiten";
+import { jetztStatus, Oeffnungszeiten } from "@/components/site/oeffnungszeiten";
 import { laufendeAngebote } from "@/lib/angebote/daten";
 import { einstellungen } from "@/lib/einstellungen";
 import { absaetze, mapsHref, telHref, whatsappHref } from "@/lib/format";
 import { bewertungen, oeffentlicheLeistungen, stellen } from "@/lib/inhalte";
 import { websiteDatei } from "@/lib/supabase/admin";
-import { berlinDatum } from "@/lib/zeit";
+import { berlinDatum, wochentag } from "@/lib/zeit";
 
 export const revalidate = 300;
 
@@ -26,17 +25,22 @@ export default async function Startseite() {
   // Eigenes Video aus der Verwaltung hat Vorrang, sonst das mitgelieferte.
   const eigenesVideo = websiteDatei(e.medien.heroVideo);
   const eigenesBild = websiteDatei(e.medien.heroBild);
+  const heute = e.oeffnungszeiten[String(wochentag(berlinDatum())) as keyof typeof e.oeffnungszeiten];
+  const status = jetztStatus(e.oeffnungszeiten);
 
   return (
     <>
-      {/* Start: Video in voller Höhe, darauf, was der Betrieb macht und wie man einen Termin bekommt */}
-      <section className="relative isolate -mt-16 flex min-h-[100svh] items-end overflow-hidden bg-black text-hell">
-        {/* Standbild immer darunter: Es steht da, bis das Video läuft, und bleibt bei „Bewegung reduzieren“ allein stehen. */}
-        <Image src={eigenesBild ?? standbild} alt="" fill priority sizes="100vw" className="-z-20 object-cover object-[65%_50%] md:object-center" />
-        {eigenesVideo || !eigenesBild ? (
+      {/*
+        Start wie ein Ladenschild: echtes Foto aus der Halle, wer und wo, darunter eine Leiste mit dem, was man
+        für den Besuch braucht. Bewusst ohne Werbe-Unterzeile und Sterne: konkrete Angaben wirken echt, Floskeln nicht.
+        Auf dem Telefon um die feste Leiste unten kürzer, sonst verschwinden Adresse und Zeiten dahinter.
+      */}
+      <section className="relative isolate -mt-16 flex min-h-[calc(100svh-4.75rem-env(safe-area-inset-bottom))] flex-col overflow-hidden bg-graphit text-hell md:min-h-[100svh]">
+        <Image src={eigenesBild ?? halle} alt="" fill priority sizes="100vw" className="-z-20 object-cover object-[center_62%]" />
+        {eigenesVideo ? (
           <video
-            className="absolute inset-0 -z-10 size-full object-cover object-[65%_50%] motion-reduce:hidden md:object-center"
-            poster={eigenesBild ?? standbild.src}
+            className="absolute inset-0 -z-10 size-full object-cover motion-reduce:hidden"
+            poster={eigenesBild ?? halle.src}
             autoPlay
             muted
             loop
@@ -44,36 +48,45 @@ export default async function Startseite() {
             preload="metadata"
             aria-hidden
           >
-            {eigenesVideo ? <source src={eigenesVideo} /> : null}
-            {!eigenesVideo ? <source src="/medien/start.webm" type="video/webm" /> : null}
-            {!eigenesVideo ? <source src="/medien/start.mp4" type="video/mp4" /> : null}
+            <source src={eigenesVideo} />
           </video>
         ) : null}
-        <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black via-black/40 to-black/30 md:bg-gradient-to-r md:from-black/85 md:via-black/30 md:to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-t from-boden to-transparent" />
+        {/* Gleichmäßig abgedunkelt statt Verlauf, damit das Foto als Foto stehen bleibt */}
+        <div className="absolute inset-0 -z-10 bg-black/55" />
 
-        <div className="rand einblenden w-full pb-14 pt-32 md:pb-24">
-          <h1 className="schmal max-w-4xl text-[3.4rem] leading-[0.9] sm:text-7xl md:text-8xl">
-            Reifen, Service
-            <br />
-            und Reparatur
-          </h1>
-          <p className="mt-6 max-w-xl text-lg text-hell/80">{e.texte.heroUnterzeile}</p>
-          {/* Auf dem Telefon übernimmt die feste Leiste unten Termin und Anruf. */}
-          <div className="mt-9 hidden flex-wrap items-center gap-3 md:flex">
-            <Link href="/termin" className="knopf knopf-rot min-h-14 px-8 text-lg ">
-              Termin anfragen
-            </Link>
-            <a href={telHref(f.telefon)} className="knopf min-h-14 bg-white/10 px-7 text-hell ring-1 ring-white/20 backdrop-blur-md hover:bg-white/20">
-              <Telefon /> {f.telefon}
+        <div className="rand einblenden flex w-full flex-1 flex-col justify-center pb-12 pt-28 md:pb-16">
+          <p className="text-lg font-medium text-hell/80">
+            {f.inhaber}, {f.titel}
+          </p>
+          <h1 className="schmal mt-4 max-w-3xl text-[3.4rem] leading-[0.92] sm:text-7xl md:text-8xl">Kfz-Werkstatt in {f.ort}</h1>
+        </div>
+
+        {/* Auf dem Telefon übernimmt die feste Leiste unten Termin und Anruf, hier stehen nur Adresse und Zeiten. */}
+        <div className="border-t border-linie bg-papier text-tinte">
+          <div className="rand grid grid-cols-2 md:grid-cols-4">
+            <a href={mapsHref(f.strasse, f.plz, f.ort)} rel="noopener noreferrer" className="grid content-start gap-1 py-4 pr-4 text-sm sm:text-base md:py-7 md:pr-6">
+              <span className="text-sm text-grau">Adresse</span>
+              <span className="font-semibold">
+                {f.strasse}
+                <br />
+                {f.plz} {f.ort}
+              </span>
             </a>
+            <div className="grid content-start gap-1 border-l border-linie py-4 pl-4 text-sm sm:text-base md:px-6 md:py-7">
+              {/* An Ruhetagen nicht zweimal „geschlossen“ */}
+              <span className="text-sm text-grau">{heute.length ? status.text : "Heute"}</span>
+              <span className="zahlen font-semibold">{heute.length ? heute.map(([von, bis]) => `${von}–${bis}`).join(" und ") : "geschlossen"}</span>
+            </div>
+            <a href={telHref(f.telefon)} className="hidden gap-1 border-l border-linie py-7 md:grid md:px-6">
+              <span className="text-sm text-grau">Anrufen oder WhatsApp</span>
+              <span className="zahlen font-semibold">{f.telefon}</span>
+            </a>
+            <div className="hidden items-center border-l border-linie py-7 md:flex md:pl-6">
+              <Link href="/termin" className="knopf knopf-rot min-h-14 w-full text-lg">
+                Termin anfragen
+              </Link>
+            </div>
           </div>
-          <a href={f.googleBewertungLink} rel="noopener noreferrer" className="mt-8 inline-flex items-center gap-3 text-sm text-hell/80 hover:text-hell">
-            <Sterne />
-            <span>
-              <span className="zahlen font-semibold text-hell">{f.googleNote}</span> bei {f.googleAnzahl} Google-Bewertungen
-            </span>
-          </a>
         </div>
       </section>
 
