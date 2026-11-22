@@ -109,6 +109,7 @@ export function BelegEditor({
   daten,
   zuletzt,
   kompakt = false,
+  korrektur,
 }: {
   art: BelegArt | "auftrag";
   /** Beleg, beim Auftrag der Termin */
@@ -117,6 +118,11 @@ export function BelegEditor({
   daten: EditorDaten;
   zuletzt: KundenTreffer[];
   kompakt?: boolean;
+  /**
+   * Korrekturentwurf einer gestellten Rechnung: Beim Stellen wird das Original storniert. Gesendet wird nur
+   * vorbelegt, wenn der Kunde das Original per Mail bekommen hat.
+   */
+  korrektur?: { original: string; fassung: string; gesendet: boolean };
 }) {
   const { preisliste, preise, pakete, bezeichnungen, typen } = daten;
   const listeId = useId();
@@ -738,8 +744,12 @@ export function BelegEditor({
 
       {stellenOffen ? (
         <section className="grid gap-4 border-2 border-tinte p-4">
-          <h2 className="font-semibold">{t.stellen}</h2>
-          <p className="text-sm">{t.frage}</p>
+          <h2 className="font-semibold">{korrektur ? "Berichtigte Rechnung stellen" : t.stellen}</h2>
+          <p className="text-sm">
+            {korrektur
+              ? `Jetzt stellen? Rechnung ${korrektur.original} wird storniert (Stornorechnung mit eigener Nummer), diese Fassung bekommt die Nummer ${korrektur.fassung} und ist danach unveränderlich.`
+              : t.frage}
+          </p>
           <div className="grid gap-3">
             <p className="text-sm text-grau">
               Die Preise merken sich automatisch{autoName ? ` für ${autoName}` : " (nur mit Marke und Modell)"}. Gehören mehrere Positionen zu einer Arbeit, kannst du sie hier als Paket benennen, z. B. „Bremsen vorne“.
@@ -806,7 +816,8 @@ export function BelegEditor({
         </button>
         {auftrag ? null : (
           <label className="col-span-full flex items-center gap-2 text-sm">
-            <input type="checkbox" name="senden" defaultChecked className="size-4 accent-tinte" /> und per E-Mail senden
+            <input type="checkbox" name="senden" defaultChecked={korrektur ? korrektur.gesendet : true} className="size-4 accent-tinte" />{" "}
+            {korrektur ? "und mit der Stornorechnung per E-Mail an den Kunden senden" : "und per E-Mail senden"}
           </label>
         )}
         {zustand.meldung ? <p className={`col-span-full w-full text-sm font-semibold ${zustand.status === "fehler" ? "text-rot" : "text-ok"}`}>{zustand.meldung}</p> : null}

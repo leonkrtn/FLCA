@@ -18,6 +18,26 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-22 · Stornierte Rechnung forderte im PDF und in der Mail weiter zur Zahlung auf
+
+- **Stand:** behoben
+- **Wo:** `src/lib/rechnung/pdf.tsx` (GiroCode, Zahlungstext), `src/lib/rechnung/rechnungen.ts` (`versenden`)
+- **Was man sah:** Das PDF einer stornierten, unbezahlten Rechnung (Verwaltung, Kunden-Link `/r/…`, DATEV-ZIP)
+  zeigte weiter „Bitte überweisen Sie …“ mit QR-Code, ohne Hinweis auf das Storno. „Erneut senden“ schickte
+  dazu „Zahlbar bis“ und die Bankverbindung.
+- **Ursache:** PDF und Mail fragten nur `storno` (ist selbst eine Stornorechnung) und `bezahlt` ab. Der Status
+  `storniert` des Originals kam in der Entscheidung „Zahlung anfordern?“ nicht vor.
+- **Behebung:** PDF bekommt `storniert` (durch welche Stornorechnung, ersetzt durch welche Fassung) und zeigt
+  dann einen Vermerk statt Zahlungsteil und QR-Code; die Mail fordert nur noch bei `status === "gestellt"` und
+  offenem Betrag zur Zahlung auf. Gefunden beim Bau der Rechnungskorrektur.
+- **Muster:** Eine Entscheidung „muss der Kunde noch zahlen?“ aus einzelnen Merkmalen (`!storno && !bezahlt`)
+  statt positiv aus dem Status (`gestellt`) und dem offenen Betrag (`offenerBetrag`). Neue Status (storniert,
+  verrechnet) fallen dann durch.
+- **Weitere Stellen:** Werkstatt-App am Termin (`offene` schließt `storniert` aus), Kundenseite `t/[token]`
+  (zeigt nur den Link aufs PDF, jetzt mit Vermerk), offene Summen in Startseite und Werkstatt-App (zählen nur
+  `gestellt`, ziehen jetzt Verrechnetes über `offenerBetrag` ab): in Ordnung. Bewusst gelassen: Die Summe
+  „offen“ enthält Stornorechnungen (Status `gestellt`, negativ), das war schon vorher so gewollt.
+
 ### 2026-11-22 · Verwaltung: dunkle linke Leiste stand manchmal versetzt
 
 - **Stand:** behoben

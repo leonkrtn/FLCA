@@ -1,3 +1,4 @@
+import { offenerBetrag } from "@/lib/rechnung/korrektur";
 import Link from "next/link";
 import { Abschnitt, Kopf, Leer, Marke } from "@/components/admin/ui";
 import { benutzerMitRecht } from "@/lib/auth";
@@ -17,7 +18,8 @@ export default async function Uebersicht() {
   const [heuteRes, anfragenRes, offenRes, abwRes, fehler] = await Promise.all([
     db().from("termine").select(TERMIN_FELDER).in("status", ["bestaetigt", "erledigt", "angefragt"]).gte("beginn", berlin(heute).toISOString()).lt("beginn", berlin(plusTage(heute, 1)).toISOString()).order("beginn"),
     db().from("termine").select(TERMIN_FELDER).eq("status", "angefragt").order("beginn").limit(8),
-    db().from("rechnungen").select("summe_brutto_cent, faellig_am").eq("status", "gestellt"),
+    // „*“: bereits_bezahlt_cent (Korrektur) gibt es erst nach der Migration „rechnung_korrigieren“.
+    db().from("rechnungen").select("*").eq("status", "gestellt"),
     db().from("abwesenheiten").select("id, art, von, bis, status, profil:profile!abwesenheiten_profil_id_fkey(name)").lte("von", heute).gte("bis", heute).neq("status", "abgelehnt"),
     darf(b.rolle, "einstellungen") ? offeneFehlerAnzahl() : 0,
   ]);
@@ -85,7 +87,7 @@ export default async function Uebersicht() {
             </Abschnitt>
           ) : null}
           <Abschnitt titel="Offene Rechnungen">
-            <p className="zahlen text-3xl">{euro(offen.reduce((s, r) => s + Number(r.summe_brutto_cent), 0))}</p>
+            <p className="zahlen text-3xl">{euro(offen.reduce((s, r) => s + offenerBetrag(r), 0))}</p>
             <p className="text-sm text-grau">
               {offen.length} offen{ueberfaellig.length ? `, davon ${ueberfaellig.length} überfällig` : ""}
             </p>

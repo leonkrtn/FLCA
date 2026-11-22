@@ -15,6 +15,10 @@ export type RechnungsDaten = {
   empfaenger: { name: string; firma?: string; strasse?: string; plz?: string; ort?: string; email?: string; ust_id?: string; leitweg_id?: string };
   firma: Einstellungen["firma"];
   storno_zu_nummer?: string | null;
+  /** Korrektur: die ersetzte Rechnung (BT-25/BT-26), Art 384 „berichtigte Rechnung“ */
+  korrektur_zu?: { nummer: string; datum: string | null } | null;
+  /** Auf das Original schon gezahlt (BT-113), mindert den Zahlbetrag */
+  bereits_bezahlt_cent?: number;
 };
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -74,6 +78,8 @@ export function zugferdXml(r: RechnungsDaten): string {
   const xrechnung = istXRechnung(r);
   const positionen = r.storno ? vorzeichenWechseln(r.positionen) : r.positionen;
   const s = berechne(positionen);
+  // Korrektur: Was auf das Original schon gezahlt ist, steht als Vorauszahlung da und mindert den Zahlbetrag.
+  const vorab = r.storno ? 0 : Math.max(0, r.bereits_bezahlt_cent ?? 0);
   const steuerId = r.firma.ustId
     ? `<ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">${esc(r.firma.ustId)}</ram:ID></ram:SpecifiedTaxRegistration>`
     : r.firma.steuernummer
@@ -121,7 +127,7 @@ export function zugferdXml(r: RechnungsDaten): string {
 <rsm:ExchangedDocumentContext>${xrechnung ? `<ram:BusinessProcessSpecifiedDocumentContextParameter><ram:ID>${PROZESS}</ram:ID></ram:BusinessProcessSpecifiedDocumentContextParameter>` : ""}<ram:GuidelineSpecifiedDocumentContextParameter><ram:ID>${xrechnung ? XRECHNUNG : EN16931}</ram:ID></ram:GuidelineSpecifiedDocumentContextParameter></rsm:ExchangedDocumentContext>
 <rsm:ExchangedDocument>
 <ram:ID>${esc(r.nummer)}</ram:ID>
-<ram:TypeCode>${r.storno ? "381" : "380"}</ram:TypeCode>
+<ram:TypeCode>${r.storno ? "381" : r.korrektur_zu ? "384" : "380"}</ram:TypeCode>
 <ram:IssueDateTime><udt:DateTimeString format="102">${tag(r.rechnungsdatum)}</udt:DateTimeString></ram:IssueDateTime>
 ${r.hinweis ? `<ram:IncludedNote><ram:Content>${esc(r.hinweis)}</ram:Content></ram:IncludedNote>` : ""}
 </rsm:ExchangedDocument>
@@ -155,16 +161,18 @@ ${s.gruppen
   )
   .join("\n")}
 ${nachlaesse}
-<ram:SpecifiedTradePaymentTerms><ram:Description>${r.storno ? "Wird erstattet" : r.faellig_am ? `Zahlbar bis ${r.faellig_am.slice(8, 10)}.${r.faellig_am.slice(5, 7)}.${r.faellig_am.slice(0, 4)} ohne Abzug` : "Zahlbar sofort ohne Abzug"}</ram:Description>${r.faellig_am ? `<ram:DueDateDateTime><udt:DateTimeString format="102">${tag(r.faellig_am)}</udt:DateTimeString></ram:DueDateDateTime>` : ""}</ram:SpecifiedTradePaymentTerms>
+<ram:SpecifiedTradePaymentTerms><ram:Description>${r.storno || (vorab && vorab > s.brutto) ? "Wird erstattet" : vorab && vorab === s.brutto ? "Bereits bezahlt" : r.faellig_am ? `Zahlbar bis ${r.faellig_am.slice(8, 10)}.${r.faellig_am.slice(5, 7)}.${r.faellig_am.slice(0, 4)} ohne Abzug` : "Zahlbar sofort ohne Abzug"}</ram:Description>${r.faellig_am ? `<ram:DueDateDateTime><udt:DateTimeString format="102">${tag(r.faellig_am)}</udt:DateTimeString></ram:DueDateDateTime>` : ""}</ram:SpecifiedTradePaymentTerms>
 <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
 <ram:LineTotalAmount>${betrag(s.basis)}</ram:LineTotalAmount>
 ${s.rabatt ? `<ram:AllowanceTotalAmount>${betrag(s.rabatt)}</ram:AllowanceTotalAmount>` : ""}
 <ram:TaxBasisTotalAmount>${betrag(s.netto)}</ram:TaxBasisTotalAmount>
 <ram:TaxTotalAmount currencyID="EUR">${betrag(s.steuer)}</ram:TaxTotalAmount>
 <ram:GrandTotalAmount>${betrag(s.brutto)}</ram:GrandTotalAmount>
-<ram:DuePayableAmount>${betrag(s.brutto)}</ram:DuePayableAmount>
+${vorab ? `<ram:TotalPrepaidAmount>${betrag(vorab)}</ram:TotalPrepaidAmount>` : ""}
+<ram:DuePayableAmount>${betrag(s.brutto - vorab)}</ram:DuePayableAmount>
 </ram:SpecifiedTradeSettlementHeaderMonetarySummation>
 ${r.storno && r.storno_zu_nummer ? `<ram:InvoiceReferencedDocument><ram:IssuerAssignedID>${esc(r.storno_zu_nummer)}</ram:IssuerAssignedID></ram:InvoiceReferencedDocument>` : ""}
+${!r.storno && r.korrektur_zu ? `<ram:InvoiceReferencedDocument><ram:IssuerAssignedID>${esc(r.korrektur_zu.nummer)}</ram:IssuerAssignedID>${r.korrektur_zu.datum ? `<ram:FormattedIssueDateTime><qdt:DateTimeString format="102">${tag(r.korrektur_zu.datum)}</qdt:DateTimeString></ram:FormattedIssueDateTime>` : ""}</ram:InvoiceReferencedDocument>` : ""}
 </ram:ApplicableHeaderTradeSettlement>
 </rsm:SupplyChainTradeTransaction>
 </rsm:CrossIndustryInvoice>`.replace(/\n{2,}/g, "\n");

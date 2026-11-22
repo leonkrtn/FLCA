@@ -6,7 +6,7 @@ import { benutzerMitRecht } from "../auth";
 import { type Ergebnis, istEmail, ja, text } from "../forms";
 import { sicher } from "../sicher";
 import { belegAus, paketeAus } from "../rechnung/eingabe";
-import { alsBezahlt, alsUnbezahlt, type Empfaenger, entwurfSpeichern, rechnungLaden, stellen, stornieren, versenden } from "../rechnung/rechnungen";
+import { alsBezahlt, alsUnbezahlt, type Empfaenger, entwurfSpeichern, korrekturAnlegen, rechnungLaden, stellen, stornieren, versenden } from "../rechnung/rechnungen";
 import { db, dbRoh } from "../supabase/admin";
 import { berlinDatum, istDatum } from "../zeit";
 
@@ -29,13 +29,17 @@ export async function entwurfSpeichernAktion(id: string, _v: Ergebnis, fd: FormD
     if (fd.get("weiter") === "stellen") {
       const b = await benutzerMitRecht("rechnungen");
       const nummer = await stellen(id, b.id, paketeAus(roh.pakete));
+      // Korrektur: Das Original ist jetzt storniert, die Seite des Originals zeigt das ebenfalls.
+      const korrektur = (await rechnungLaden(id))?.korrektur_zu;
+      if (korrektur) neuLaden(korrektur);
+      const was = korrektur ? `Berichtigte Rechnung ${nummer} gestellt, das Original ist storniert` : `Rechnung ${nummer} gestellt`;
       if (ja(fd, "senden") && empfaenger.email && istEmail(empfaenger.email)) {
         await versenden(id, empfaenger.email, b.id);
         neuLaden(id);
-        return { status: "ok", meldung: `Rechnung ${nummer} gestellt und an ${empfaenger.email} gesendet.` };
+        return { status: "ok", meldung: `${was} und an ${empfaenger.email} gesendet${korrektur ? " (mit Stornorechnung)" : ""}.` };
       }
       neuLaden(id);
-      return { status: "ok", meldung: `Rechnung ${nummer} gestellt.` };
+      return { status: "ok", meldung: `${was}.` };
     }
     return { status: "ok", meldung: "Entwurf gespeichert." };
   });
@@ -140,6 +144,16 @@ export async function stornoAktion(id: string, basis: Basis): Promise<void> {
   const storno = await stornieren(id, b.id);
   neuLaden(id);
   redirect(`${basis}/${storno}`);
+}
+
+/** Beginnt die Korrektur einer gestellten Rechnung und öffnet den Entwurf (Grund ist Pflicht). */
+export async function korrekturAktion(id: string, basis: Basis, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
+  return sicher(fd, async () => {
+    const b = await benutzerMitRecht("rechnungen");
+    const entwurf = await korrekturAnlegen(id, text(fd, "grund", 300), b.id);
+    neuLaden(id);
+    redirect(`${basis}/${entwurf}`);
+  });
 }
 
 export async function entwurfLoeschen(id: string, basis: Basis): Promise<void> {

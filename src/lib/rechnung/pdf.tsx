@@ -58,6 +58,7 @@ const s = StyleSheet.create({
   qr: { width: 74, height: 74 },
   zahlungText: { flex: 1 },
   storno: { color: rot, fontWeight: 600, marginBottom: 6 },
+  vermerk: { fontWeight: 600, marginBottom: 8 },
   fuss: {
     position: "absolute",
     bottom: 32,
@@ -109,6 +110,11 @@ export type PdfDaten = RechnungsDaten & {
   einleitung: string;
   fusstext: string;
   bezahlt: boolean;
+  /** Korrektur: Grund und die Stornorechnung des ersetzten Originals */
+  korrektur_grund?: string;
+  storno_des_originals?: string | null;
+  /** Storniertes Original: durch welche Stornorechnung, ersetzt durch welche Fassung */
+  storniert?: { durch: string | null; ersetzt: string | null } | null;
 };
 
 /**
@@ -128,9 +134,13 @@ export async function rechnungPdf(r: PdfDaten): Promise<Buffer> {
   const kv = r.art === "kostenvoranschlag";
   const wa = r.art === "auftrag" ? r.auftrag : undefined;
   const titel = wa ? `Werkstattauftrag ${r.nummer}` : kv ? `Kostenvoranschlag ${r.nummer}` : r.storno ? `Stornorechnung ${r.nummer}` : `Rechnung ${r.nummer}`;
+  // Korrektur: Schon Gezahltes wird abgezogen; offen < 0 heißt, es wird erstattet.
+  const bereits = r.storno ? 0 : (r.bereits_bezahlt_cent ?? 0);
+  const offen = summen.brutto - bereits;
+  // Kein Zahlungsaufruf auf einer stornierten Rechnung, sonst überweist der Kunde ein ungültiges Original.
   const qr =
-    !kv && !wa && !r.storno && !r.bezahlt
-      ? await girocode({ name: f.name, iban: f.iban, bic: f.bic, cent: summen.brutto, zweck: `Rechnung ${r.nummer}` })
+    !kv && !wa && !r.storno && !r.bezahlt && !r.storniert && offen > 0
+      ? await girocode({ name: f.name, iban: f.iban, bic: f.bic, cent: offen, zweck: `Rechnung ${r.nummer}` })
       : null;
 
   const dokument = (
@@ -198,6 +208,18 @@ export async function rechnungPdf(r: PdfDaten): Promise<Buffer> {
 
         <Text style={s.titel}>{titel}</Text>
         {r.storno && r.storno_zu_nummer ? <Text style={s.storno}>Storniert Rechnung {r.storno_zu_nummer} vollständig.</Text> : null}
+        {r.storniert ? (
+          <Text style={s.storno}>
+            {`Storniert${r.storniert.durch ? ` durch Stornorechnung ${r.storniert.durch}` : ""}.${r.storniert.ersetzt ? ` Ersetzt durch die berichtigte Rechnung ${r.storniert.ersetzt}.` : ""}`}
+          </Text>
+        ) : null}
+        {!r.storno && r.korrektur_zu ? (
+          <Text style={s.vermerk}>
+            {`Berichtigte Rechnung. Sie ersetzt Rechnung ${r.korrektur_zu.nummer}${r.korrektur_zu.datum ? ` vom ${datum(r.korrektur_zu.datum)}` : ""}${
+              r.storno_des_originals ? `, storniert durch ${r.storno_des_originals}` : ""
+            }.${r.korrektur_grund ? ` Grund: ${r.korrektur_grund}.` : ""}`}
+          </Text>
+        ) : null}
         {fahrzeugText(r.fahrzeug) ? <Text style={s.absatz}>Fahrzeug: {fahrzeugText(r.fahrzeug)}</Text> : null}
         {!r.storno ? <Text style={s.absatz}>{r.einleitung}</Text> : null}
         {wa?.beschreibung ? <Text style={s.absatz}>{`Auftrag / Beanstandung des Kunden: ${wa.beschreibung}`}</Text> : null}
@@ -264,6 +286,18 @@ export async function rechnungPdf(r: PdfDaten): Promise<Buffer> {
             <Text>{wa ? "Voraussichtlich gesamt" : "Gesamtbetrag"}</Text>
             <Text style={s.zahl}>{euro(summen.brutto)}</Text>
           </View>
+          {bereits ? (
+            <>
+              <View style={s.summenZeile}>
+                <Text style={s.infoLabel}>Bereits bezahlt{r.korrektur_zu ? ` (Rechnung ${r.korrektur_zu.nummer})` : ""}</Text>
+                <Text style={s.zahl}>{euro(-bereits)}</Text>
+              </View>
+              <View style={s.endsumme}>
+                <Text>{offen < 0 ? "Wird erstattet" : "Noch zu zahlen"}</Text>
+                <Text style={s.zahl}>{euro(Math.abs(offen))}</Text>
+              </View>
+            </>
+          ) : null}
         </View>
 
         {wa ? (
@@ -316,12 +350,16 @@ export async function rechnungPdf(r: PdfDaten): Promise<Buffer> {
               </Text>
             ) : r.storno ? (
               <Text>Der Betrag wird Ihnen erstattet bzw. mit offenen Forderungen verrechnet.</Text>
-            ) : r.bezahlt ? (
+            ) : r.storniert ? (
+              <Text>Diese Rechnung ist storniert und muss nicht mehr bezahlt werden.{r.storniert.ersetzt ? ` Es gilt die Rechnung ${r.storniert.ersetzt}.` : ""}</Text>
+            ) : bereits && offen < 0 ? (
+              <Text>{`Sie haben ${euro(bereits)} bezahlt. Den Unterschied von ${euro(-offen)} erstatten wir Ihnen bzw. verrechnen ihn mit offenen Forderungen.`}</Text>
+            ) : r.bezahlt || (bereits && offen === 0) ? (
               <Text>Der Betrag wurde bereits bezahlt. Vielen Dank.</Text>
             ) : (
               <>
                 <Text>
-                  {`Bitte überweisen Sie den Betrag ${r.faellig_am ? `bis zum ${datum(r.faellig_am)} ` : ""}unter Angabe der Rechnungsnummer${
+                  {`Bitte überweisen Sie ${bereits ? `den offenen Betrag von ${euro(offen)}` : "den Betrag"} ${r.faellig_am ? `bis zum ${datum(r.faellig_am)} ` : ""}unter Angabe der Rechnungsnummer${
                     f.iban ? ` auf das Konto ${f.iban}${f.bic ? ` (BIC ${f.bic})` : ""}${f.bank ? ` bei der ${f.bank}` : ""}` : ""
                   }. Barzahlung in der Werkstatt ist ebenfalls möglich.`}
                 </Text>

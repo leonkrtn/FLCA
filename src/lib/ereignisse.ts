@@ -31,6 +31,7 @@ export const EREIGNIS_TYPEN = {
   "rechnung.bezahlt": "Eine Rechnung wurde als bezahlt markiert",
   "rechnung.unbezahlt": "Eine Zahlung wurde zurückgenommen, die Rechnung ist wieder offen",
   "rechnung.storniert": "Eine Rechnung wurde storniert",
+  "rechnung.korrigiert": "Eine Rechnung wurde berichtigt: Original storniert, neue Fassung gestellt (original_nummer, grund, bereits_bezahlt_cent)",
   "rechnung.termin_verknuepft": "Eine Rechnung wurde mit einem Termin verknüpft oder davon gelöst",
   "kostenvoranschlag.abgeschlossen": "Ein Kostenvoranschlag wurde abgeschlossen (Nummer vergeben)",
   "kostenvoranschlag.versendet": "Ein Kostenvoranschlag wurde per E-Mail versendet",

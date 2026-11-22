@@ -27,7 +27,8 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
   const [fz, tm, re, ei, kv, typen, alt, laufend, notizen] = await Promise.all([
     db().from("fahrzeuge").select("*").eq("kunde_id", id).order("erstellt_am"),
     db().from("termine").select("id, beginn, leistung_name, status, km_stand, fahrzeug:fahrzeuge(kennzeichen)").eq("kunde_id", id).order("beginn", { ascending: false }).limit(50),
-    db().from("rechnungen").select("id, nummer, status, summe_brutto_cent, rechnungsdatum").eq("kunde_id", id).order("erstellt_am", { ascending: false }),
+    // „*“: korrektur_zu und korrektur_grund gibt es erst nach der Migration „rechnung_korrigieren“.
+    db().from("rechnungen").select("*").eq("kunde_id", id).order("erstellt_am", { ascending: false }),
     db().from("einlagerungen").select("id, lagerplatz, saison, reifengroesse, eingelagert_am, ausgelagert_am, fahrzeug:fahrzeuge(kennzeichen)").eq("kunde_id", id).order("eingelagert_am", { ascending: false }),
     db().from("kostenvoranschlaege").select("id, nummer, status, gueltig_bis, summe_brutto_cent, datum").eq("kunde_id", id).order("erstellt_am", { ascending: false }),
     fahrzeugTypen(),
@@ -135,15 +136,30 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
         </Abschnitt>
         <Abschnitt titel="Rechnungen">
           <ul className="divide-y divide-linie text-sm">
-            {(re.data ?? []).map((r) => (
+            {(re.data ?? []).map((r) => {
+              // Fassungen einer Korrektur und Stornos zeigen, worauf sie sich beziehen, damit die Kette lesbar bleibt.
+              const nummerVon = (bezug: string | null | undefined) => (re.data ?? []).find((x) => x.id === bezug)?.nummer ?? "Rechnung";
+              const ersetzt = (re.data ?? []).find((x) => x.korrektur_zu === r.id && x.nummer);
+              const bezug = r.korrektur_zu
+                ? `${r.nummer ? "berichtigt" : "Korrektur zu"} ${nummerVon(r.korrektur_zu)}${r.korrektur_grund ? `: ${r.korrektur_grund}` : ""}`
+                : r.storno_zu
+                  ? `Storno zu ${nummerVon(r.storno_zu)}`
+                  : ersetzt
+                    ? `ersetzt durch ${ersetzt.nummer}`
+                    : "";
+              return (
               <li key={r.id}>
                 <Link href={`/admin/rechnungen/${r.id}`} className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-3 py-2 hover:bg-papier">
-                  <span>{r.nummer ?? "Entwurf"} <span className="text-grau">{datum(r.rechnungsdatum)}</span></span>
+                  <span>
+                    {r.nummer ?? "Entwurf"} <span className="text-grau">{datum(r.rechnungsdatum)}</span>
+                    {bezug ? <span className="block text-xs text-grau">{bezug}</span> : null}
+                  </span>
                   <span className="text-grau">{RECHNUNG_STATUS[r.status as keyof typeof RECHNUNG_STATUS]}</span>
                   <span className="zahlen text-right">{euro(r.summe_brutto_cent)}</span>
                 </Link>
               </li>
-            ))}
+              );
+            })}
             {!re.data?.length && !alt.length ? <li className="py-2 text-grau">Keine Rechnungen.</li> : null}
           </ul>
           {kv.data?.length ? (
