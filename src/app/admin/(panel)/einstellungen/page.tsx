@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Formular, Senden } from "@/components/admin/formular";
 import { Datenuebernahme } from "@/components/admin/datenuebernahme";
-import { letzteFruehereNummer } from "@/lib/altbestand/daten";
+import { alleFrueherenRechnungen } from "@/lib/altbestand/daten";
+import { FruehereRechnungen, fruehereSumme } from "@/components/admin/fruehere-rechnungen";
 import { GemerktePreise } from "@/components/admin/gemerkte-preise";
 import { NummernkreisFormular } from "@/components/admin/nummernkreis";
 import { TaktStatus } from "@/components/admin/takt-status";
@@ -27,7 +28,7 @@ import { einstellungen, WOCHENTAGE } from "@/lib/einstellungen";
 import { ENV } from "@/lib/env";
 import { EREIGNIS_TYPEN } from "@/lib/ereignisse";
 import { offeneFehlerAnzahl, protokollLaden } from "@/lib/fehlerprotokoll";
-import { datum, datumZeit } from "@/lib/format";
+import { datum, datumZeit, euro } from "@/lib/format";
 import { darf } from "@/lib/rollen";
 import { db, DbFehler, dbRoh } from "@/lib/supabase/admin";
 import { berlinDatum } from "@/lib/zeit";
@@ -212,7 +213,11 @@ async function RechnungBereich() {
     db().from("rechnungen").select("id", { count: "exact", head: true }).not("nummer", "is", null),
     db().from("rechnungen").select("nummer").not("nummer", "is", null).order("gestellt_am", { ascending: false }).limit(1).maybeSingle(),
   ]);
-  const frueher = await letzteFruehereNummer();
+  // Frühere Rechnungen (Datenübernahme): als Liste unten und die höchste Nummer als Anhalt für den Nummernkreis.
+  const fruehere = await alleFrueherenRechnungen();
+  const zahl = (n: string) => Number(n.split(".")[0].replace(/\D/g, "")) || 0;
+  const hoechste = fruehere.reduce<(typeof fruehere)[number] | null>((m, r) => (!m || zahl(r.nummer) > zahl(m.nummer) ? r : m), null);
+  const frueher = hoechste ? { nummer: hoechste.nummer.split(".")[0], rechnungsdatum: hoechste.rechnungsdatum } : null;
   const aktuell = { praefix: k?.praefix ?? "", mit_jahr: k?.mit_jahr ?? true, stellen: Number(k?.stellen ?? 4), naechste: Number(k?.naechste ?? 1) };
   return (
     <>
@@ -261,6 +266,15 @@ async function RechnungBereich() {
         <div><Senden vorab="Gespeichert">Speichern</Senden></div>
       </Formular>
     </Abschnitt>
+    {fruehere.length ? (
+      <Abschnitt titel="Frühere Rechnungen" aktion={<span className="zahlen text-sm text-grau">{fruehere.length} Rechnungen · {euro(fruehereSumme(fruehere))}</span>}>
+        <p className="mb-3 max-w-2xl text-sm text-grau">
+          Aus den alten PDFs übernommen (Datenübernahme), je Rechnung die letzte Fassung mit Nummer und Datum. Nur zum Nachschlagen: keine
+          Nummer aus dem Nummernkreis, nicht im DATEV-Export.
+        </p>
+        <FruehereRechnungen liste={fruehere} mitKunde />
+      </Abschnitt>
+    ) : null}
     </>
   );
 }

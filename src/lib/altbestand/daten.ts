@@ -46,7 +46,7 @@ export async function fruehereRechnungen(kundeId: string): Promise<MitFassungen<
 
 export type FruehereMitKunde = FruehereRechnung & { kunde: { id: string; name: string } | null };
 
-/** Alle früheren Rechnungen für die Rechnungsliste (Reiter „Frühere“), mit Kunde, letzte Fassungen. */
+/** Alle früheren Rechnungen für die Rechnungsliste (Einstellungen → Rechnungen), mit Kunde, letzte Fassungen. */
 export async function alleFrueherenRechnungen(): Promise<MitFassungen<FruehereMitKunde>[]> {
   return weich(
     async () => {
@@ -58,11 +58,4 @@ export async function alleFrueherenRechnungen(): Promise<MitFassungen<FruehereMi
     [],
     "Frühere Rechnungen in der Rechnungsliste",
   );
-}
-
-/** Höchste frühere Rechnungsnummer (Grundnummer) mit Datum, als Anhalt für den Nummernkreis. */
-export async function letzteFruehereNummer(): Promise<{ nummer: string; rechnungsdatum: string | null } | null> {
-  const liste = await alleFrueherenRechnungen();
-  const zahl = (n: string) => Number(n.split(".")[0].replace(/\D/g, "")) || 0;
-  return liste.reduce<{ nummer: string; rechnungsdatum: string | null } | null>((max, r) => (!max || zahl(r.nummer) > zahl(max.nummer) ? { nummer: r.nummer.split(".")[0], rechnungsdatum: r.rechnungsdatum } : max), null);
 }

@@ -1,10 +1,8 @@
 import Link from "next/link";
-import { FruehereRechnungen, fruehereSumme } from "@/components/admin/fruehere-rechnungen";
 import { RechnungsAuswahl } from "@/components/admin/rechnungs-auswahl";
 import { Kopf, Leer, Reiter } from "@/components/admin/ui";
-import { alleFrueherenRechnungen } from "@/lib/altbestand/daten";
 import { benutzerMitRecht } from "@/lib/auth";
-import { datum, euro } from "@/lib/format";
+import { datum } from "@/lib/format";
 import { RECHNUNG_STATUS, type Rechnung } from "@/lib/rechnung/rechnungen";
 import { db } from "@/lib/supabase/admin";
 import { berlinDatum } from "@/lib/zeit";
@@ -14,10 +12,6 @@ export const metadata = { title: "Rechnungen" };
 export default async function RechnungsListe({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
   await benutzerMitRecht("rechnungen");
   const { status = "alle" } = await searchParams;
-  // Frühere Rechnungen (vor dem System) stehen im eigenen Reiter: Sie haben keine Aktionen (senden, bezahlt,
-  // Storno) und gehören nicht in Summe und DATEV-Export.
-  const frueher = await alleFrueherenRechnungen();
-  if (status === "frueher") return <FruehereListe liste={frueher} />;
   let q = db().from("rechnungen").select("*").order("erstellt_am", { ascending: false }).limit(300);
   if (status !== "alle") q = q.eq("status", status);
   const { data } = await q;
@@ -32,7 +26,10 @@ export default async function RechnungsListe({ searchParams }: { searchParams: P
         <a href={`/admin/rechnungen/export?monat=${vormonat}`} className="knopf knopf-rahmen">DATEV-Export {vormonat.slice(5)}/{vormonat.slice(0, 4)}</a>
         <Link href="/admin/rechnungen/neu" className="knopf knopf-dunkel">Neue Rechnung</Link>
       </Kopf>
-      <ListenReiter status={status} frueher={frueher.length} />
+      <Reiter
+        aktiv={`/admin/rechnungen?status=${status}`}
+        eintraege={[["alle", "Alle"], ["entwurf", "Entwürfe"], ["gestellt", "Offen"], ["bezahlt", "Bezahlt"], ["storniert", "Storniert"]].map(([k, t]) => ({ href: `/admin/rechnungen?status=${k}`, text: t }))}
+      />
       {liste.length ? (
         <RechnungsAuswahl
           summe={summe}
@@ -57,30 +54,6 @@ export default async function RechnungsListe({ searchParams }: { searchParams: P
           <Leer>Keine Rechnungen.</Leer>
         </div>
       )}
-    </>
-  );
-}
-
-function ListenReiter({ status, frueher }: { status: string; frueher: number }) {
-  const reiter = [["alle", "Alle"], ["entwurf", "Entwürfe"], ["gestellt", "Offen"], ["bezahlt", "Bezahlt"], ["storniert", "Storniert"], ...(frueher ? [["frueher", "Frühere"]] : [])];
-  return <Reiter aktiv={`/admin/rechnungen?status=${status}`} eintraege={reiter.map(([k, t]) => ({ href: `/admin/rechnungen?status=${k}`, text: t }))} />;
-}
-
-/** Reiter „Frühere“: Rechnungen aus der Datenübernahme, je Rechnung die letzte Fassung mit Nummer und Datum. */
-function FruehereListe({ liste }: { liste: Awaited<ReturnType<typeof alleFrueherenRechnungen>> }) {
-  return (
-    <>
-      <Kopf titel="Rechnungen" unter="Rechnungen aus der Zeit vor dem System, aus den alten PDFs übernommen. Nur zum Nachschlagen: keine neue Nummer, nicht im DATEV-Export.">
-        <Link href="/admin/rechnungen/neu" className="knopf knopf-dunkel">Neue Rechnung</Link>
-      </Kopf>
-      <ListenReiter status="frueher" frueher={liste.length} />
-      <div className="bg-weiss p-4 md:p-6">
-        <p className="mb-3 flex flex-wrap justify-between gap-2 text-sm text-grau">
-          <span className="zahlen">{liste.length} Rechnungen{liste[0] ? `, zuletzt ${liste[0].nummer} vom ${datum(liste[0].rechnungsdatum)}` : ""}</span>
-          <span className="zahlen">{euro(fruehereSumme(liste))} gesamt</span>
-        </p>
-        {liste.length ? <FruehereRechnungen liste={liste} mitKunde /> : <Leer>Keine früheren Rechnungen. Übernehmen unter Einstellungen → Datenübernahme.</Leer>}
-      </div>
     </>
   );
 }
