@@ -4,18 +4,20 @@ import { Abschnitt, Kopf, Marke } from "@/components/admin/ui";
 import { auftragLaden } from "@/lib/auftrag";
 import { AUFTRAG_STAND_TEXT, AUFTRAG_STAND_TON, auftragStand } from "@/lib/auftrag-regeln";
 import { benutzerMitRecht } from "@/lib/auth";
+import { kalLesen, mitKal } from "@/lib/kalender-ansicht";
 import { markeUndModell } from "@/lib/kunden";
 import { editorDaten } from "@/lib/rechnung/editor-daten";
 
 export const metadata = { title: "Werkstattauftrag" };
 
 /** Positionen und Kostengrenze des Werkstattauftrags, mit Preisliste und gemerkten Preisen wie im Beleg. */
-export default async function AuftragBearbeiten({ params }: { params: Promise<{ id: string }> }) {
+export default async function AuftragBearbeiten({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ kal?: string }> }) {
   await benutzerMitRecht("termine");
   const { id } = await params;
+  const kal = kalLesen((await searchParams).kal);
   const t = await auftragLaden(id);
   if (!t) notFound();
-  if (!t.auftrag_nummer) redirect(`/admin/termine/${id}`);
+  if (!t.auftrag_nummer) redirect(mitKal(`/admin/termine/${id}`, kal));
   const fahrzeug = { kennzeichen: t.fahrzeug?.kennzeichen, ...(t.fahrzeugVoll ? markeUndModell(t.fahrzeugVoll) : {}), km: t.km_stand };
   const stand = auftragStand(t);
   return (
@@ -28,7 +30,7 @@ export default async function AuftragBearbeiten({ params }: { params: Promise<{ 
             <span>{[t.kunde?.name, t.fahrzeug?.kennzeichen, t.leistung_name].filter(Boolean).join(" · ")}</span>
           </span>
         }
-        zurueck={{ href: `/admin/termine/${id}`, text: "Termin" }}
+        zurueck={{ href: mitKal(`/admin/termine/${id}`, kal), text: "Termin" }}
       />
       <Abschnitt className="min-w-0">
         {stand === "erteilt" ? <p className="mb-6 text-sm text-grau">Der Auftrag ist erteilt. Ergänzungen sind möglich; liegt die Summe über der Kostengrenze, bitte vorher mit dem Kunden sprechen.</p> : null}

@@ -225,6 +225,7 @@ export function KalenderTag({
       {gewaehlt ? (
         <Auswahl
           termin={gewaehlt}
+          datum={datum}
           spalten={spalten}
           laeuft={laeuft}
           schliessen={() => setAuswahl(null)}
@@ -258,7 +259,7 @@ function Spalte({ spalte, index, datum, oeffnung, startStunde, endStunde, stunde
         return (
           <Link
             key={uhr}
-            href={`/admin/termine/neu?datum=${datum}&uhrzeit=${uhr}&tag=${datum}${spalte.id ? `&an=${spalte.id}` : ""}`}
+            href={`/admin/termine/neu?datum=${datum}&uhrzeit=${uhr}&kal=tag:${datum}${spalte.id ? `&an=${spalte.id}` : ""}`}
             prefetch={false}
             tabIndex={-1}
             aria-label={`Neuer Termin ${uhr} Uhr${spalte.id ? ` für ${spalte.name}` : ""}`}
@@ -274,7 +275,7 @@ function Spalte({ spalte, index, datum, oeffnung, startStunde, endStunde, stunde
 }
 
 /** Kleine Auswahl zu einem Termin: Mitarbeiter und Uhrzeit ändern oder den Termin öffnen. */
-function Auswahl({ termin, spalten, laeuft, schliessen, speichern }: { termin: TagTermin; spalten: TagSpalte[]; laeuft: boolean; schliessen: () => void; speichern: (spalte: number, uhr: string) => void }) {
+function Auswahl({ termin, datum, spalten, laeuft, schliessen, speichern }: { termin: TagTermin; datum: string; spalten: TagSpalte[]; laeuft: boolean; schliessen: () => void; speichern: (spalte: number, uhr: string) => void }) {
   const [spalte, setSpalte] = useState(Math.max(0, spalten.findIndex((s) => s.id === termin.profil)));
   const [uhr, setUhr] = useState(uhrzeit(termin.beginnMin));
   return (
@@ -308,7 +309,7 @@ function Auswahl({ termin, spalten, laeuft, schliessen, speichern }: { termin: T
               Speichern
             </button>
           ) : null}
-          <Link href={`/admin/termine/${termin.id}`} className="knopf knopf-rahmen knopf-klein">Termin öffnen</Link>
+          <Link href={`/admin/termine/${termin.id}?kal=tag:${datum}`} className="knopf knopf-rahmen knopf-klein">Termin öffnen</Link>
           <button type="button" className="knopf knopf-rahmen knopf-klein" onClick={schliessen}>Abbrechen</button>
         </div>
       </div>

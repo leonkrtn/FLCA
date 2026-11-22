@@ -10,6 +10,7 @@ import { auftragAnlegen, nachFertig } from "../auftrag";
 import { kvMitTerminVerknuepfen } from "../rechnung/kostenvoranschlaege";
 import { entwurfAusTermin } from "../rechnung/rechnungen";
 import { db, DbFehler } from "../supabase/admin";
+import { kalenderHref, kalLesen, mitKal } from "../kalender-ansicht";
 import { ablehnen, bestaetigen, erledigen, gegenvorschlag, loeschen, PlanungsWarnung, stornieren, terminEintragen, TerminFehler, umplanen, verschieben } from "../termine";
 import { istDatum } from "../zeit";
 
@@ -72,13 +73,17 @@ export async function absagenAktion(id: string, _v: Ergebnis, fd: FormData): Pro
   });
 }
 
-/** Endgültig löschen, danach zurück zur Liste (die Detailseite gibt es dann nicht mehr). */
+/**
+ * Endgültig löschen, danach zurück zur Liste (die Detailseite gibt es dann nicht mehr). Kam man aus dem Kalender
+ * (verstecktes Feld `kal`), geht es in genau diese Ansicht zurück.
+ */
 export async function loeschenAktion(ziel: "/admin/termine" | "/app", id: string, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
   return mitFehlertext(fd, async () => {
     const b = await benutzerMitRecht("termine");
     await loeschen(id, b.id);
     neuLaden();
-    redirect(ziel);
+    const kal = ziel === "/admin/termine" ? kalLesen(fd.get("kal")) : null;
+    redirect(kal ? kalenderHref(kal) : ziel);
   });
 }
 
@@ -208,7 +213,9 @@ export async function eintragenAktion(basis: "/admin/termine" | "/app/termine", 
     neuLaden();
     revalidatePath("/admin/kostenvoranschlaege", "layout");
     // Aus „Neuer Werkstattauftrag“: gleich in die Positionen des Auftrags
-    ziel = ja(fd, "auftrag") && text(fd, "weiter", 10) === "auftrag" ? `${basis}/${t.id}/auftrag` : `${basis}/${t.id}`;
+    // Aus dem Kalender eingetragen: `kal` mitnehmen, damit „Zurück“ und das Menü beim Kalender bleiben
+    const kal = basis === "/admin/termine" ? kalLesen(fd.get("kal")) : null;
+    ziel = mitKal(ja(fd, "auftrag") && text(fd, "weiter", 10) === "auftrag" ? `${basis}/${t.id}/auftrag` : `${basis}/${t.id}`, kal);
     return { status: "ok" };
   });
   if (ziel) redirect(ziel);

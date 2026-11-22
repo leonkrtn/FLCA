@@ -10,12 +10,15 @@ export function TerminLoeschen({
   nummer,
   status,
   ziel,
+  kal,
   gross = false,
 }: {
   id: string;
   nummer: number;
   status: string;
   ziel: "/admin/termine" | "/app";
+  /** Aus dem Kalender geöffnet (`?kal=…`): nach dem Löschen dorthin zurück */
+  kal?: string;
   /** Handy-App: volle Breite in normaler Knopfgröße */
   gross?: boolean;
 }) {
@@ -29,6 +32,7 @@ export function TerminLoeschen({
     .join("\n\n");
   return (
     <Formular aktion={loeschenAktion.bind(null, ziel, id)} bestaetigen={frage}>
+      {kal ? <input type="hidden" name="kal" value={kal} /> : null}
       <Senden art="rahmen" klein={!gross} className={`text-fehler ${gross ? "w-full" : ""}`}>
         Termin löschen
       </Senden>

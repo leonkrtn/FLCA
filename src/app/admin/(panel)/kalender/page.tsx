@@ -3,12 +3,14 @@ import { KalenderTag, type TagSpalte, type TagTermin } from "@/components/admin/
 import { Kopf } from "@/components/admin/ui";
 import { benutzerMitRecht } from "@/lib/auth";
 import { einstellungen, type Fenster } from "@/lib/einstellungen";
-import { datumKurzText, datumLangText, zeit } from "@/lib/format";
+import { datumKurzText, datumLangText, monatText, zeit } from "@/lib/format";
+import { KalenderMerken } from "@/lib/hooks/kalender-merken";
+import { ansichtAusSuche, kalenderHref, type KalenderAnsicht, mitKal, monatsRaster } from "@/lib/kalender-ansicht";
 import { planPersonen, planungAktiv } from "@/lib/mitarbeiter";
 import { abwesenheitAm, abwesenheitText, arbeitsfenster, farbeVon, konflikte, type PersonBelegung, type PlanPerson } from "@/lib/planung";
 import { db } from "@/lib/supabase/admin";
 import { TERMIN_FELDER, type Termin } from "@/lib/termine";
-import { berlin, berlinDatum, berlinUhrzeit, istDatum, minuten, plusTage, uhrzeit, wochenbeginn, wochentag } from "@/lib/zeit";
+import { berlin, berlinDatum, berlinUhrzeit, minuten, plusMonate, plusTage, uhrzeit, wochenbeginn, wochentag } from "@/lib/zeit";
 
 export const metadata = { title: "Kalender" };
 
@@ -20,17 +22,22 @@ type Art = "angefragt" | "bestaetigt" | "erledigt";
 /**
  * Kalender der Werkstatt. Woche (Mo–Sa): Termine je Tag, farbig nach Mitarbeiter, filterbar. Tag: eine Spalte je
  * Mitarbeiter mit Arbeitszeit und Abwesenheit; Termine lassen sich per Ziehen oder Auswahl umverteilen.
+ * Monat (Mo–So): je Tag die ersten Termine als Zeile, der Rest als „+ n weitere“ (öffnet den Tag).
  * Ein Klick auf eine freie Stelle öffnet „Termin eintragen“ mit Datum, Uhrzeit (und Person) vorausgefüllt.
+ * Termine und „Termin eintragen“ tragen die Ansicht als `?kal=…` mit, damit es von dort hierher zurückgeht.
  */
-export default async function KalenderSeite({ searchParams }: { searchParams: Promise<{ woche?: string; tag?: string; person?: string }> }) {
+export default async function KalenderSeite({ searchParams }: { searchParams: Promise<{ woche?: string; tag?: string; monat?: string; person?: string }> }) {
   await benutzerMitRecht("termine");
   const sp = await searchParams;
   const { oeffnungszeiten, buchung } = await einstellungen();
-  const tagAnsicht = istDatum(sp.tag);
-  const bezug = tagAnsicht ? sp.tag! : istDatum(sp.woche) ? sp.woche : berlinDatum();
+  const heute = berlinDatum();
+  const ansicht = ansichtAusSuche(sp, heute);
+  const tagAnsicht = ansicht.art === "tag";
+  const bezug = ansicht.datum;
   const montag = wochenbeginn(bezug);
-  const von = tagAnsicht ? bezug : montag;
-  const bis = tagAnsicht ? bezug : plusTage(montag, 6);
+  const raster = ansicht.art === "monat" ? monatsRaster(bezug) : [];
+  const von = tagAnsicht ? bezug : ansicht.art === "monat" ? raster[0] : montag;
+  const bis = tagAnsicht ? bezug : ansicht.art === "monat" ? raster[raster.length - 1] : plusTage(montag, 6);
 
   const alleFenster = Object.values(oeffnungszeiten).flat();
   const [personen, aktiv, { data: termine }, { data: ohnePerson }] = await Promise.all([
@@ -54,7 +61,7 @@ export default async function KalenderSeite({ searchParams }: { searchParams: Pr
   ]);
   const liste = (termine ?? []) as Termin[];
   // Personen-Arbeitszeiten können vor oder nach den Öffnungszeiten liegen; das Raster deckt beides ab.
-  const personenFenster = personen.flatMap((p) => Array.from({ length: tagAnsicht ? 1 : 6 }, (_, i) => arbeitsfenster(p, plusTage(von, i))).flat());
+  const personenFenster = ansicht.art === "monat" ? [] : personen.flatMap((p) => Array.from({ length: tagAnsicht ? 1 : 6 }, (_, i) => arbeitsfenster(p, plusTage(von, i))).flat());
   const startStunde = Math.floor(Math.min(...[...alleFenster, ...personenFenster].map(([a]) => minuten(a)), 8 * 60) / 60);
   const endStunde = Math.ceil(Math.max(...[...alleFenster, ...personenFenster].map(([, b]) => minuten(b)), 18 * 60) / 60);
   // Klickfelder im Raster der Buchung, aber höchstens halbstündlich: Bei 60 Minuten träfe man 9:30 nie
@@ -63,28 +70,44 @@ export default async function KalenderSeite({ searchParams }: { searchParams: Pr
     const p = personen.find((x) => x.id === id);
     return p ? farbeVon(p.nimmtAuftraege ? p.farbe : -1) : "var(--color-boden)";
   };
-  const heute = berlinDatum();
+
+  // Der Tag, der beim Wechsel der Ansicht im Blick bleibt: heute, wenn er in der gezeigten Woche bzw. im Monat liegt
+  const fokus =
+    ansicht.art === "tag" ? bezug
+    : ansicht.art === "woche" ? (montag <= heute && heute <= plusTage(montag, 6) ? heute : montag)
+    : heute.slice(0, 7) === bezug.slice(0, 7) ? heute : bezug;
+  const person = ansicht.person;
+  const umschalten: [KalenderAnsicht, string][] = [
+    [{ art: "tag", datum: fokus }, "Tag"],
+    [{ art: "woche", datum: wochenbeginn(fokus), person }, "Woche"],
+    [{ art: "monat", datum: `${fokus.slice(0, 7)}-01`, person }, "Monat"],
+  ];
+  const blaettern = (n: number): KalenderAnsicht =>
+    ansicht.art === "tag" ? { art: "tag", datum: plusTage(bezug, n) }
+    : ansicht.art === "woche" ? { ...ansicht, datum: plusTage(montag, 7 * n) }
+    : { ...ansicht, datum: plusMonate(bezug, n) };
+  const heuteAnsicht: KalenderAnsicht = ansicht.art === "tag" ? { art: "tag", datum: heute } : ansicht.art === "woche" ? { ...ansicht, datum: wochenbeginn(heute) } : { ...ansicht, datum: `${heute.slice(0, 7)}-01` };
+  const zurueckText = { tag: ["← Vortag", "Nächster →"], woche: ["← Vorher", "Nächste →"], monat: ["← Vormonat", "Nächster →"] }[ansicht.art];
+  const termin = (id: string) => mitKal(`/admin/termine/${id}`, ansicht);
+  const neuerTermin = (datum: string, uhr?: string) => mitKal(`/admin/termine/neu?datum=${datum}${uhr ? `&uhrzeit=${uhr}` : ""}`, ansicht);
 
   const ansichtLinks = (
     <>
-      {tagAnsicht ? (
-        <>
-          <Link href={`/admin/kalender?tag=${plusTage(bezug, -1)}`} className="knopf knopf-rahmen knopf-klein">← Vortag</Link>
-          <Link href={`/admin/kalender?tag=${heute}`} className="knopf knopf-rahmen knopf-klein">Heute</Link>
-          <Link href={`/admin/kalender?tag=${plusTage(bezug, 1)}`} className="knopf knopf-rahmen knopf-klein">Nächster →</Link>
-          <Link href={`/admin/kalender?woche=${montag}`} className="knopf knopf-rahmen knopf-klein">Woche</Link>
-        </>
-      ) : (
-        <>
-          <Link href={`/admin/kalender?woche=${plusTage(montag, -7)}`} className="knopf knopf-rahmen knopf-klein">← Vorher</Link>
-          <Link href="/admin/kalender" className="knopf knopf-rahmen knopf-klein">Heute</Link>
-          <Link href={`/admin/kalender?woche=${plusTage(montag, 7)}`} className="knopf knopf-rahmen knopf-klein">Nächste →</Link>
-          <Link href={`/admin/kalender?tag=${montag <= heute && heute <= plusTage(montag, 6) ? heute : montag}`} className="knopf knopf-rahmen knopf-klein">Tag</Link>
-        </>
-      )}
-      <Link href={`/admin/termine/neu?${tagAnsicht ? `datum=${bezug}&tag=${bezug}` : `kalender=${montag}`}`} className="knopf knopf-dunkel knopf-klein">Termin eintragen</Link>
+      <nav aria-label="Ansicht" className="flex overflow-hidden rounded-md border border-linie bg-weiss text-sm font-semibold">
+        {umschalten.map(([a, text]) => (
+          <Link key={a.art} href={kalenderHref(a)} aria-current={a.art === ansicht.art ? "page" : undefined} className={`px-3 py-1.5 ${a.art === ansicht.art ? "bg-tinte text-weiss" : "hover:bg-boden"}`}>
+            {text}
+          </Link>
+        ))}
+      </nav>
+      <Link href={kalenderHref(blaettern(-1))} className="knopf knopf-rahmen knopf-klein">{zurueckText[0]}</Link>
+      <Link href={kalenderHref(heuteAnsicht)} className="knopf knopf-rahmen knopf-klein">Heute</Link>
+      <Link href={kalenderHref(blaettern(1))} className="knopf knopf-rahmen knopf-klein">{zurueckText[1]}</Link>
+      <Link href={neuerTermin(tagAnsicht ? bezug : fokus)} className="knopf knopf-dunkel knopf-klein">Termin eintragen</Link>
     </>
   );
+  // Merkt sich die Ansicht für „Kalender“ im Menü (je Tab, nur heute)
+  const merken = <KalenderMerken href={kalenderHref(ansicht)} />;
 
   const hinweisOhne =
     aktiv && ohnePerson?.length ? (
@@ -135,6 +158,7 @@ export default async function KalenderSeite({ searchParams }: { searchParams: Pr
     }));
     return (
       <>
+        {merken}
         <Kopf titel="Kalender" unter={datumLangText(bezug)}>{ansichtLinks}</Kopf>
         {hinweisOhne}
         <KalenderTag
@@ -152,11 +176,119 @@ export default async function KalenderSeite({ searchParams }: { searchParams: Pr
     );
   }
 
+  const filter = person === OHNE || personen.some((p) => p.id === person) ? person : undefined;
+  const gefiltert = liste.filter((t) => !filter || (filter === OHNE ? !t.zugewiesen_an : t.zugewiesen_an === filter));
+  const filterLink = (p?: string) => kalenderHref({ ...ansicht, person: p });
+  const imFilter = personen.filter((p) => p.nimmtAuftraege || liste.some((t) => t.zugewiesen_an === p.id));
+  const filterLeiste = imFilter.length ? (
+    <nav aria-label="Nach Mitarbeiter filtern" className="mb-3 flex flex-wrap gap-2 text-sm">
+      <Link href={filterLink()} aria-current={!filter ? "page" : undefined} className={`${!filter ? "bg-tinte text-weiss" : "bg-weiss"} rounded px-3 py-1.5 font-semibold`}>
+        Alle
+      </Link>
+      {imFilter.map((p) => (
+        <Link key={p.id} href={filterLink(p.id)} aria-current={filter === p.id ? "page" : undefined} className={`flex items-center gap-2 rounded px-3 py-1.5 font-semibold ${filter === p.id ? "bg-tinte text-weiss" : "bg-weiss"}`}>
+          <span className="inline-block size-3 rounded-sm" style={{ background: farbeVonPerson(p.id) }} />
+          {p.name}
+        </Link>
+      ))}
+      {aktiv ? (
+        <Link href={filterLink(OHNE)} aria-current={filter === OHNE ? "page" : undefined} className={`rounded px-3 py-1.5 font-semibold ${filter === OHNE ? "bg-tinte text-weiss" : "bg-weiss"}`}>
+          Ohne Mitarbeiter
+        </Link>
+      ) : null}
+    </nav>
+  ) : null;
+  const farbe: Record<Art, string> = {
+    bestaetigt: "text-tinte",
+    angefragt: "bg-kreide/60 text-tinte",
+    erledigt: "bg-boden text-grau",
+  };
+
+  if (ansicht.art === "monat") {
+    const monat = bezug.slice(0, 7);
+    const proTag = new Map<string, Termin[]>();
+    for (const t of gefiltert) {
+      const d = berlinDatum(new Date(t.beginn));
+      proTag.set(d, [...(proTag.get(d) ?? []), t]);
+    }
+    // Wie im Monatskalender am Handy: Passt nicht alles, stehen drei Zeilen und „+ n weitere“ in der vierten
+    const PLATZ = 4;
+    return (
+      <>
+        {merken}
+        <Kopf titel="Kalender" unter={monatText(bezug)}>{ansichtLinks}</Kopf>
+        {hinweisOhne}
+        {filterLeiste}
+        <div className="-mx-4 quer-scrollen md:mx-0">
+          <div className="grid min-w-[760px] grid-cols-7 gap-px border border-linie bg-linie">
+            {["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].map((w) => (
+              <div key={w} className="bg-weiss px-2 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-grau">{w}</div>
+            ))}
+            {raster.map((d) => {
+              const imMonat = d.slice(0, 7) === monat;
+              const zu = !oeffnungszeiten[String(wochentag(d)) as keyof typeof oeffnungszeiten]?.length;
+              const tagListe = proTag.get(d) ?? [];
+              const zeigen = tagListe.length > PLATZ ? tagListe.slice(0, PLATZ - 1) : tagListe;
+              const rest = tagListe.length - zeigen.length;
+              return (
+                <div
+                  key={d}
+                  className={`relative flex min-h-[7.5rem] flex-col gap-0.5 px-1.5 pb-1.5 pt-1 ${imMonat ? "bg-weiss" : "bg-boden/60"} ${
+                    zu ? "bg-[repeating-linear-gradient(135deg,transparent_0_6px,rgb(0_0_0/0.04)_6px_12px)]" : ""
+                  }`}
+                >
+                  {/* Freie Fläche: neuer Termin an diesem Tag. Liegt unter den Terminen, ohne Tab-Stopp (per Tastatur „Termin eintragen“). */}
+                  <Link href={neuerTermin(d)} prefetch={false} tabIndex={-1} aria-label={`Neuer Termin am ${datumKurzText(d)}`} className="absolute inset-0 hover:bg-boden/50" />
+                  <Link
+                    href={kalenderHref({ art: "tag", datum: d })}
+                    title="Tag mit Spalte je Mitarbeiter öffnen"
+                    className={`zahlen relative grid size-7 place-items-center self-start rounded-full text-sm font-semibold hover:ring-2 hover:ring-tinte ${
+                      d === heute ? "bg-rot text-weiss" : imMonat ? "text-tinte" : "text-grau-hell"
+                    }`}
+                  >
+                    {Number(d.slice(8))}
+                  </Link>
+                  {zeigen.map((t) => {
+                    const art = t.status as Art;
+                    return (
+                      <Link
+                        key={t.id}
+                        href={termin(t.id)}
+                        title={[`${zeit(t.beginn)} ${t.leistung_name}`, t.fahrzeug?.kennzeichen, t.kunde?.name, t.mitarbeiter?.name].filter(Boolean).join(" · ")}
+                        className={`relative block truncate rounded-sm border-l-4 px-1.5 py-0.5 text-xs leading-tight hover:ring-2 hover:ring-tinte ${farbe[art]} ${imMonat ? "" : "opacity-70"}`}
+                        style={{
+                          borderLeftColor: t.zugewiesen_an ? farbeVonPerson(t.zugewiesen_an) : aktiv ? "var(--color-rot)" : "var(--color-tinte)",
+                          ...(art === "bestaetigt" && { background: t.zugewiesen_an ? farbeVonPerson(t.zugewiesen_an) : "var(--color-boden)" }),
+                        }}
+                      >
+                        <span className="zahlen font-semibold">{zeit(t.beginn)}</span> {t.leistung_name}
+                        {t.fahrzeug?.kennzeichen ? <span className="opacity-80"> · {t.fahrzeug.kennzeichen}</span> : null}
+                      </Link>
+                    );
+                  })}
+                  {rest ? (
+                    <Link href={kalenderHref({ art: "tag", datum: d })} className="relative px-1.5 text-xs font-semibold text-grau hover:text-tinte hover:underline">
+                      + {rest} weitere
+                    </Link>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <p className="mt-3 flex flex-wrap gap-4 text-sm text-grau">
+          <span><span className="mr-1 inline-block size-3 border border-linie bg-weiss align-middle" />bestätigt (Fläche in der Farbe der Person)</span>
+          <span><span className="mr-1 inline-block size-3 bg-kreide/60 align-middle" />angefragt</span>
+          <span><span className="mr-1 inline-block size-3 bg-boden align-middle" />erledigt</span>
+          <span>Klick auf die Zahl öffnet den Tag, auf eine freie Stelle einen neuen Termin.</span>
+        </p>
+      </>
+    );
+  }
+
   const tage = Array.from({ length: 6 }, (_, i) => plusTage(montag, i));
-  const filter = sp.person === OHNE || personen.some((p) => p.id === sp.person) ? sp.person : undefined;
   type Block = { id: string; beginn: Date; ende: Date; titel: string; unter: string; person: string; art: Art; profil: string | null; href: string; spalte?: number; spalten?: number };
-  const bloecke: Block[] = liste
-    .filter((t) => !filter || (filter === OHNE ? !t.zugewiesen_an : t.zugewiesen_an === filter))
+  const bloecke: Block[] = gefiltert
     .map((t) => ({
       id: t.id,
       beginn: new Date(t.beginn),
@@ -166,7 +298,7 @@ export default async function KalenderSeite({ searchParams }: { searchParams: Pr
       person: t.mitarbeiter?.name ?? (aktiv ? "ohne Mitarbeiter" : ""),
       art: t.status as Art,
       profil: t.zugewiesen_an,
-      href: `/admin/termine/${t.id}`,
+      href: termin(t.id),
     }));
 
   const proTag = tage.map((d) => {
@@ -182,43 +314,19 @@ export default async function KalenderSeite({ searchParams }: { searchParams: Pr
     return { datum: d, liste: tagListe };
   });
 
-  const farbe: Record<Art, string> = {
-    bestaetigt: "text-tinte",
-    angefragt: "bg-kreide/60 text-tinte",
-    erledigt: "bg-boden text-grau",
-  };
-  const neuerTermin = (datum: string, uhr?: string) => `/admin/termine/neu?datum=${datum}${uhr ? `&uhrzeit=${uhr}` : ""}&kalender=${montag}`;
-  const filterLink = (person?: string) => `/admin/kalender?woche=${montag}${person ? `&person=${person}` : ""}`;
-  const imFilter = personen.filter((p) => p.nimmtAuftraege || liste.some((t) => t.zugewiesen_an === p.id));
 
   return (
     <>
+      {merken}
       <Kopf titel="Kalender" unter={`Woche ab ${datumKurzText(montag)}`}>{ansichtLinks}</Kopf>
       {hinweisOhne}
-      {imFilter.length ? (
-        <nav aria-label="Nach Mitarbeiter filtern" className="mb-3 flex flex-wrap gap-2 text-sm">
-          <Link href={filterLink()} aria-current={!filter ? "page" : undefined} className={`${!filter ? "bg-tinte text-weiss" : "bg-weiss"} rounded px-3 py-1.5 font-semibold`}>
-            Alle
-          </Link>
-          {imFilter.map((p) => (
-            <Link key={p.id} href={filterLink(p.id)} aria-current={filter === p.id ? "page" : undefined} className={`flex items-center gap-2 rounded px-3 py-1.5 font-semibold ${filter === p.id ? "bg-tinte text-weiss" : "bg-weiss"}`}>
-              <span className="inline-block size-3 rounded-sm" style={{ background: farbeVonPerson(p.id) }} />
-              {p.name}
-            </Link>
-          ))}
-          {aktiv ? (
-            <Link href={filterLink(OHNE)} aria-current={filter === OHNE ? "page" : undefined} className={`rounded px-3 py-1.5 font-semibold ${filter === OHNE ? "bg-tinte text-weiss" : "bg-weiss"}`}>
-              Ohne Mitarbeiter
-            </Link>
-          ) : null}
-        </nav>
-      ) : null}
+      {filterLeiste}
       <div className="-mx-4 quer-scrollen bg-weiss md:mx-0">
         <div className="grid min-w-[880px] grid-cols-[3.5rem_repeat(6,minmax(0,1fr))]">
           <div />
           {proTag.map((t) => (
             <div key={t.datum} className={`group flex items-center justify-between border-b-2 px-2 py-2 text-sm font-semibold ${t.datum === heute ? "border-rot" : "border-tinte"}`}>
-              <Link href={`/admin/kalender?tag=${t.datum}`} title="Tag mit Spalte je Mitarbeiter öffnen" className="hover:underline">
+              <Link href={kalenderHref({ art: "tag", datum: t.datum })} title="Tag mit Spalte je Mitarbeiter öffnen" className="hover:underline">
                 {datumKurzText(t.datum)}
               </Link>
               <Link href={neuerTermin(t.datum)} prefetch={false} title={`Neuer Termin am ${datumKurzText(t.datum)}`} className="text-xs font-normal text-grau hover:text-tinte">

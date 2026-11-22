@@ -18,6 +18,29 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-22 · Kalender: Zurück, Eintragen und Löschen landeten bei „Termine“, der Kalender vergaß die Woche
+
+- **Stand:** behoben
+- **Wo:** `src/app/admin/(panel)/termine/[id]/page.tsx`, `termine/neu`, `loeschenAktion`/`eintragenAktion`
+  (`src/lib/aktionen/termine.ts`), `src/components/admin/nav.tsx`
+- **Was man sah:** Aus dem Kalender einen Termin geöffnet oder eingetragen, dann „Zurück“: man war unter
+  „Termine“. Nach dem Löschen ebenso. Das Menü markierte schon beim Öffnen „Termine“, und ein Klick auf
+  „Kalender“ zeigte wieder die aktuelle Woche statt der vorher angesehenen. Gemeldet vom Betreiber.
+- **Ursache:** Rücksprung und Weiterleitung waren fest auf die Liste verdrahtet (`zurueck={{ href: "/admin/termine" }}`,
+  `redirect("/admin/termine")`). „Termin eintragen“ kannte den Kalender nur bis zum Speichern (`?kalender=`),
+  danach ging die Herkunft verloren. Das Menü leitete „aktiv“ nur aus dem Pfad ab.
+- **Behebung:** Die Kalenderansicht reist als `?kal=…` mit (`src/lib/kalender-ansicht.ts`): an Terminlinks im
+  Kalender, durch „Termin eintragen“ (verstecktes Feld) und den Werkstattauftrag bis zurück. Löschen springt mit
+  `kal` in den Kalender, das Menü markiert dann „Kalender“. „Kalender“ im Menü führt zur zuletzt angesehenen
+  Ansicht (je Tab, nur am selben Tag, `src/lib/hooks/kalender-merken.ts`).
+- **Muster:** Eine Seite, die man von mehreren Stellen erreicht, mit festem „Zurück“ oder festem `redirect` nach
+  Speichern/Löschen. Woher man kam, muss mitreisen (Suchparameter, bei Formularen als verstecktes Feld) und auch
+  die Weiterleitung nach der Aktion überleben.
+- **Weitere Stellen:** gesucht: Die übrigen Detailseiten der Verwaltung (Rechnungen, Kostenvoranschläge, Kunden …)
+  haben ein festes „Zurück“ zur eigenen Liste, man erreicht sie aber fast nur von dort. Offen: ein Termin, den man
+  von der Kundenakte oder der Übersicht öffnet, führt weiter zu „Termine“ zurück, eine Rechnung aus dem Termin zu
+  „Rechnungen“.
+
 ### 2026-11-22 · Kundenlink Kostenvoranschlag: Inhalt am PC nur ein schmaler Streifen
 
 - **Stand:** behoben

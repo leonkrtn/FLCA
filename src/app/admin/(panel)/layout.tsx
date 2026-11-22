@@ -4,7 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { abmelden } from "@/app/login/actions";
 import { Logo } from "@/components/logo";
-import { AdminNav, EinstellungenSymbol, type NavEintrag } from "@/components/admin/nav";
+import { AdminNav, EinstellungenSymbol, KontoMenue, type NavEintrag } from "@/components/admin/nav";
 import { benutzerMitRecht } from "@/lib/auth";
 import { erinnerungenNachholen } from "@/lib/automatik";
 import { einstellungen } from "@/lib/einstellungen";
@@ -78,16 +78,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <AdminNav eintraege={eintraege} />
         <div className="mx-3 mt-auto hidden border-t border-white/10 px-3 pt-4 text-sm lg:block">
           <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="truncate font-semibold text-weiss">{b.name || b.email}</p>
-              <p className="text-grau-hell">{rollenName(b.rolle)}</p>
-            </div>
+            <KontoMenue name={b.name || b.email} rolle={rollenName(b.rolle)} abmelden={abmelden} />
             {einstellungenEintrag ? <EinstellungenSymbol href={einstellungenEintrag.href} anzahl={einstellungenEintrag.anzahl} /> : null}
-          </div>
-          <div className="mt-3 flex flex-col gap-1.5 text-boden/80">
-            <form action={abmelden}>
-              <button type="submit" className="hover:text-weiss">Abmelden</button>
-            </form>
           </div>
         </div>
       </aside>
