@@ -82,8 +82,10 @@ export type Termin = {
   mitarbeiter: { id: string; name: string } | null;
 } & AuftragFelder;
 
+// Der Fremdschlüssel ist ausgeschrieben, weil termine mehrfach auf profile zeigt (zugewiesen_an, auftrag_erteilt_von).
+// Ohne ihn kann PostgREST die Verbindung nicht zuordnen und jede Abfrage schlägt fehl.
 export const TERMIN_FELDER =
-  "*, kunde:kunden(id, name, email, telefon, firma), fahrzeug:fahrzeuge(id, kennzeichen, marke_modell), mitarbeiter:profile(id, name)";
+  "*, kunde:kunden(id, name, email, telefon, firma), fahrzeug:fahrzeuge(id, kennzeichen, marke_modell), mitarbeiter:profile!termine_zugewiesen_an_fkey(id, name)";
 
 export const STATUS_TEXT: Record<Termin["status"], string> = {
   angefragt: "Angefragt",
@@ -140,8 +142,8 @@ export async function terminLeistungen(ids: string[], nurOnline = false): Promis
 export const gesamtDauer = (l: Pick<Leistung, "dauer_min">[]) => l.reduce((s, x) => s + x.dauer_min, 0);
 
 export async function terminLaden(id: string): Promise<Termin | null> {
-  const { data } = await db().from("termine").select(TERMIN_FELDER).eq("id", id).maybeSingle();
-  return data as Termin | null;
+  // Fehler weiterreichen statt null: Sonst sieht eine kaputte Abfrage aus wie „Termin nicht gefunden“.
+  return pruefe<Termin | null>(await db().from("termine").select(TERMIN_FELDER).eq("id", id).maybeSingle());
 }
 
 export async function terminPerToken(token: string): Promise<Termin | null> {
