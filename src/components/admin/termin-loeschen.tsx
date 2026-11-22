@@ -33,7 +33,7 @@ export function TerminLoeschen({
   return (
     <Formular aktion={loeschenAktion.bind(null, ziel, id)} bestaetigen={frage}>
       {kal ? <input type="hidden" name="kal" value={kal} /> : null}
-      <Senden art="rahmen" klein={!gross} className={`text-fehler ${gross ? "w-full" : ""}`}>
+      <Senden art="rahmen" klein={!gross} className={`text-fehler ${gross ? "w-full" : ""}`} vorab="Gelöscht">
         Termin löschen
       </Senden>
     </Formular>

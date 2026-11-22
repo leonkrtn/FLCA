@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Formular, Senden } from "./formular";
+import { Absenden, Formular, Senden } from "./formular";
 import { DateiKnopf } from "@/components/mobil/datei-knopf";
 import { PositionenUebersicht } from "./positionen-uebersicht";
 import { Auswahl, Feld } from "./ui";
@@ -27,7 +27,7 @@ export function KvAnsicht({ k, ort, termin, termine }: { k: Kostenvoranschlag; o
           <Link href={`/${ort}/rechnungen/${k.rechnung_id}`} className="knopf knopf-rahmen">Zur Rechnung</Link>
         ) : umwandelbar ? (
           <form action={kvInRechnungAktion.bind(null, k.id, ort)} className="contents">
-            <button className={`knopf ${k.status === "angenommen" ? "knopf-dunkel" : "knopf-rahmen"}`}>In Rechnung übernehmen</button>
+            <Senden art={k.status === "angenommen" ? "dunkel" : "rahmen"}>In Rechnung übernehmen</Senden>
           </form>
         ) : null}
         <DateiKnopf art="link" href={`/k/${k.token}`} className="knopf knopf-rahmen">{ort === "app" ? "Kundenlink teilen" : "Kundenansicht"}</DateiKnopf>
@@ -53,7 +53,7 @@ export function KvAnsicht({ k, ort, termin, termine }: { k: Kostenvoranschlag; o
               Nr. {termin.nummer} · {datumKurzText(termin.beginn)} {zeit(termin.beginn)} · {termin.leistung_name}
             </Link>
             <form action={kvTerminLoesenAktion.bind(null, k.id, termin.id)}>
-              <button className="text-xs text-grau underline hover:text-tinte">lösen</button>
+              <Absenden className="text-xs text-grau underline hover:text-tinte">lösen</Absenden>
             </form>
           </div>
         ) : (
@@ -119,7 +119,7 @@ export function KvAnsicht({ k, ort, termin, termine }: { k: Kostenvoranschlag; o
         <summary className="cursor-pointer text-grau">Ändern …</summary>
         <form action={kvKopierenAktion.bind(null, k.id, ort)} className="mt-3">
           <p className="mb-3 max-w-md">Ein abgeschlossener Kostenvoranschlag bleibt so, wie der Kunde ihn bekommen hat. Für eine Änderung entsteht ein neuer Entwurf mit demselben Inhalt.</p>
-          <button className="knopf knopf-rahmen knopf-klein">Als neuen Entwurf kopieren</button>
+          <Senden art="rahmen" klein>Als neuen Entwurf kopieren</Senden>
         </form>
       </details>
     </div>

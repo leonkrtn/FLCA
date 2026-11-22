@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useOptimistic, useState } from "react";
 import { uploadAdresse } from "@/app/admin/upload-actions";
 import { Formular, Senden } from "@/components/admin/formular";
 import { Kamera } from "@/components/icons";
+import type { Ergebnis } from "@/lib/forms";
 import { auftragStatus, auftragUebernehmen, auftragZeit, fotoHinzufuegen, meldungAnlegen } from "@/lib/aktionen/team";
 
 const dauer = (min: number) => `${Math.floor(min / 60)}:${String(min % 60).padStart(2, "0")} h`;
@@ -20,55 +21,69 @@ function Uhr({ seit, bisher }: { seit: string | null; bisher: number }) {
   return <span className="zahlen">{dauer(bisher + laufend)}</span>;
 }
 
+type Stand = { status: string; seit: string | null; bisher: number };
+
+/** Was ein Tipp voraussichtlich bewirkt, genau wie `auftragStatus` und `auftragZeit` auf dem Server. */
+function nachTipp(alt: Stand, fd: FormData): Stand {
+  const jetzt = new Date().toISOString();
+  // Beim Anhalten wandert die laufende Zeit zu den erfassten Minuten, sonst springt die Uhr zurück.
+  const angehalten = alt.bisher + (alt.seit ? Math.max(0, Math.round((Date.now() - new Date(alt.seit).getTime()) / 60000)) : 0);
+  const aktion = fd.get("aktion");
+  if (aktion === "start") return { status: "in_arbeit", seit: jetzt, bisher: alt.bisher };
+  if (aktion === "stopp") return { status: alt.status, seit: null, bisher: angehalten };
+  const status = String(fd.get("status") ?? alt.status);
+  if (status === "in_arbeit") return { status, seit: alt.seit ?? jetzt, bisher: alt.bisher };
+  return { status, seit: null, bisher: angehalten };
+}
+
 /**
  * Auftrag in der Team-App: Anfangen startet die Uhr am Auftrag, Unterbrechen hält sie an, Fertig stoppt sie und
  * meldet ans Büro. `bisher`: schon erfasste Minuten ohne die laufende Zeit, `seit`: Beginn der laufenden.
+ *
+ * Ein Tipp wirkt sofort (`useOptimistic`): Uhr und Knöpfe stehen gleich auf dem neuen Stand, der Server zieht
+ * nach. Ein einziges Formular für alle Knöpfe, damit es beim Umschalten stehen bleibt und eine Fehlermeldung
+ * („Erst die Pause beenden“) sichtbar bleibt, wenn der alte Stand zurückkommt.
  */
 export function AuftragKnoepfe({ id, status, seit = null, bisher = 0, foto = true }: { id: string; status: string; seit?: string | null; bisher?: number; foto?: boolean }) {
-  const laeuft = Boolean(seit);
+  const [stand, vorab] = useOptimistic<Stand, FormData>({ status, seit, bisher }, nachTipp);
+  const laeuft = Boolean(stand.seit);
+  // Uhr-Knöpfe (aktion) gehen an auftragZeit, Status-Knöpfe (status) an auftragStatus.
+  const aktion = (v: Ergebnis, fd: FormData) => (fd.get("aktion") ? auftragZeit(id, v, fd) : auftragStatus(id, v, fd));
   return (
     <div className="mt-3 grid gap-2">
-      {status !== "offen" || bisher ? (
+      {stand.status !== "offen" || stand.bisher ? (
         <p className="flex items-center justify-between text-sm">
           <span className="text-grau">{laeuft ? "Uhr läuft" : "Arbeitszeit"}</span>
           <span className={laeuft ? "font-semibold" : ""}>
-            <Uhr seit={seit} bisher={bisher} />
+            <Uhr seit={stand.seit} bisher={stand.bisher} />
           </span>
         </p>
       ) : null}
-      <div className="grid grid-cols-2 gap-2">
-        {status === "offen" ? (
-          <Formular aktion={auftragStatus.bind(null, id)} className="col-span-2 grid">
-            <Senden name="status" value="in_arbeit" className="min-h-12" vorab="Läuft">Anfangen</Senden>
-          </Formular>
+      <Formular aktion={aktion} sofort={vorab} className="grid grid-cols-2 gap-2">
+        {stand.status === "offen" ? (
+          <Senden name="status" value="in_arbeit" className="col-span-2 min-h-12">Anfangen</Senden>
         ) : null}
-        {status === "in_arbeit" ? (
+        {stand.status === "in_arbeit" ? (
           <>
-            <Formular aktion={auftragZeit.bind(null, id)} className="grid">
-              <Senden art="rahmen" name="aktion" value={laeuft ? "stopp" : "start"} className="min-h-12" vorab={laeuft ? "Unterbrochen" : "Läuft"}>
-                {laeuft ? "Unterbrechen" : "Weiter"}
-              </Senden>
-            </Formular>
-            <Formular aktion={auftragStatus.bind(null, id)} className="grid">
-              <Senden name="status" value="fertig" className="min-h-12" vorab="Fertig gemeldet">Fertig</Senden>
-            </Formular>
+            <Senden art="rahmen" name="aktion" value={laeuft ? "stopp" : "start"} className="min-h-12">
+              {laeuft ? "Unterbrechen" : "Weiter"}
+            </Senden>
+            <Senden name="status" value="fertig" className="min-h-12">Fertig</Senden>
           </>
         ) : null}
-        {status === "fertig" ? (
-          <Formular aktion={auftragStatus.bind(null, id)} className="col-span-2 grid">
-            <Senden art="rahmen" name="status" value="in_arbeit" vorab="Wieder in Arbeit">Doch noch nicht fertig</Senden>
-          </Formular>
+        {stand.status === "fertig" ? (
+          <Senden art="rahmen" name="status" value="in_arbeit" className="col-span-2">Doch noch nicht fertig</Senden>
         ) : null}
-      </div>
+      </Formular>
       {foto ? <FotoKnopf id={id} /> : null}
     </div>
   );
 }
 
-/** Freien Auftrag übernehmen. */
+/** Freien Auftrag übernehmen. In der Liste freier Aufträge (in <Ausblenden>) verschwindet die Karte sofort. */
 export function Uebernehmen({ id }: { id: string }) {
   return (
-    <Formular aktion={auftragUebernehmen.bind(null, id)} className="mt-3 grid">
+    <Formular aktion={auftragUebernehmen.bind(null, id)} ausblenden className="mt-3 grid">
       <Senden art="rahmen" vorab="Übernommen">Übernehmen</Senden>
     </Formular>
   );

@@ -43,7 +43,7 @@ export default async function Einlagerung({ searchParams }: { searchParams: Prom
             <Feld label="Telefon" name="telefon" typ="tel" />
             <Feld label="E-Mail" name="email" typ="email" />
             <EinlagerungFelder />
-            <div className="sm:col-span-2 lg:col-span-4"><Senden>Einlagern</Senden></div>
+            <div className="sm:col-span-2 lg:col-span-4"><Senden vorab="Eingelagert">Einlagern</Senden></div>
           </Formular>
         </Abschnitt>
       ) : null}

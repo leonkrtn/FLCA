@@ -34,7 +34,7 @@ export default async function KundenListe({ searchParams }: { searchParams: Prom
             <Feld label="Name" name="name" required />
             <Feld label="Telefon" name="telefon" typ="tel" />
             <Feld label="E-Mail" name="email" typ="email" />
-            <div className="sm:col-span-3"><Senden>Anlegen</Senden></div>
+            <div className="sm:col-span-3"><Senden vorab="Angelegt">Anlegen</Senden></div>
           </Formular>
         </Abschnitt>
       ) : null}

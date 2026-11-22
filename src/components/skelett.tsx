@@ -68,18 +68,41 @@ export function AbschnittSkelett({ zeilen = 3 }: { zeilen?: number }) {
   );
 }
 
+/** Kopf der Handy-Apps in den Maßen von <MobilKopf>, mit „← zurück“-Zeile auf Unterseiten. */
+function MobilKopfSkelett({ zurueck = false }: { zurueck?: boolean }) {
+  return (
+    <div className="sticky top-0 z-30 border-b border-linie bg-boden px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))]">
+      {zurueck ? (
+        <div className="mb-1 flex h-5 items-center">
+          <S className="h-3.5 w-16" />
+        </div>
+      ) : null}
+      <div className="flex h-8 items-center">
+        <S className="h-6 w-40" />
+      </div>
+      <div className="flex h-5 items-center">
+        <S className="h-3.5 w-32" />
+      </div>
+    </div>
+  );
+}
+
+/** Umschalter unter dem Kopf wie <MobilReiter> (Rechnungen / Kostenvoranschläge). */
+function MobilReiterSkelett() {
+  return (
+    <div className="grid grid-cols-2 gap-1 bg-boden px-4 py-2">
+      <S className="h-9" />
+      <S className="h-9 opacity-50" />
+    </div>
+  );
+}
+
 /** Handy-Apps: Kopfzeile wie <MobilKopf>, darunter Karten wie <Karte> mit Uhrzeit, Titel, Zeile. */
-export function MobilSkelett({ karten = 5 }: { karten?: number }) {
+export function MobilSkelett({ karten = 5, zurueck = false, reiter = false }: { karten?: number; zurueck?: boolean; reiter?: boolean }) {
   return (
     <Laedt>
-      <div className="sticky top-0 z-30 border-b border-linie bg-boden px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))]">
-        <div className="flex h-8 items-center">
-          <S className="h-6 w-40" />
-        </div>
-        <div className="flex h-5 items-center">
-          <S className="h-3.5 w-32" />
-        </div>
-      </div>
+      <MobilKopfSkelett zurueck={zurueck} />
+      {reiter ? <MobilReiterSkelett /> : null}
       <div className="grid grid-cols-1 gap-px bg-linie">
         {Array.from({ length: karten }, (_, i) => (
           <div key={i} className="grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 bg-weiss px-4 py-3">
@@ -91,6 +114,54 @@ export function MobilSkelett({ karten = 5 }: { karten?: number }) {
             <S className="h-5 w-16" />
           </div>
         ))}
+      </div>
+    </Laedt>
+  );
+}
+
+/**
+ * Handy-Apps, Unterseite eines Eintrags (Termin, Kunde, Auftrag, Notiz): Kopf mit „zurück“, darunter einzelne
+ * Karten mit Abstand wie dort (`grid gap-2 p-2`), die erste mit Name und Knöpfen.
+ */
+export function MobilDetailSkelett() {
+  return (
+    <Laedt>
+      <MobilKopfSkelett zurueck />
+      <div className="grid gap-2 p-2">
+        <div className="bg-weiss px-4 py-3">
+          <S className="h-5 w-1/2" />
+          <S className="mt-2 h-4 w-2/3" />
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <S className="h-12" />
+            <S className="h-12" />
+          </div>
+        </div>
+        {[3, 2, 4].map((zeilen, k) => (
+          <div key={k} className="bg-weiss px-4 py-3">
+            <S className="mb-3 h-4 w-28" />
+            {Array.from({ length: zeilen }, (_, i) => (
+              <S key={i} className={`mt-2 h-4 ${i % 2 ? "w-1/2" : "w-5/6"}`} />
+            ))}
+          </div>
+        ))}
+      </div>
+    </Laedt>
+  );
+}
+
+/** Handy-Apps, Formular (Neu anlegen, Beleg bearbeiten): Kopf mit „zurück“, weißer Kasten mit Feldern. */
+export function MobilFormularSkelett({ felder = 5 }: { felder?: number }) {
+  return (
+    <Laedt>
+      <MobilKopfSkelett zurueck />
+      <div className="grid gap-4 bg-weiss p-4">
+        {Array.from({ length: felder }, (_, i) => (
+          <div key={i}>
+            <S className="mb-1.5 h-3.5 w-24" />
+            <S className="h-12 w-full" />
+          </div>
+        ))}
+        <S className="h-12 w-full" />
       </div>
     </Laedt>
   );

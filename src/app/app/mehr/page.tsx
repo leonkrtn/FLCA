@@ -44,7 +44,7 @@ export default async function MehrSeite() {
           ))}
         </nav>
         <form action={abmelden}>
-          <button className="knopf knopf-rahmen w-full">Abmelden</button>
+          <Senden art="rahmen" className="w-full">Abmelden</Senden>
         </form>
       </div>
     </>

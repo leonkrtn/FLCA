@@ -122,12 +122,15 @@ export function NotizZeile({ n, href, jetzt }: { n: Notiz; href: string; jetzt: 
   );
 }
 
-/** Erledigt / wieder öffnen und „später erinnern“ (nur bei einmaligen Erinnerungen). */
-export function NotizKnoepfe({ n, gross = false }: { n: Notiz; gross?: boolean }) {
+/**
+ * Erledigt / wieder öffnen und „später erinnern“ (nur bei einmaligen Erinnerungen). `ausblenden`: in einer Liste
+ * (in <Ausblenden>) verschwindet die Notiz beim Tippen sofort.
+ */
+export function NotizKnoepfe({ n, gross = false, ausblenden = false }: { n: Notiz; gross?: boolean; ausblenden?: boolean }) {
   const klein = !gross;
   return (
     <div className={`flex flex-wrap gap-2 ${gross ? "[&>form]:flex-1" : ""}`}>
-      <Formular aktion={notizErledigt.bind(null, n.id, !n.erledigt_am)}>
+      <Formular aktion={notizErledigt.bind(null, n.id, !n.erledigt_am)} ausblenden={ausblenden}>
         <Senden art={n.erledigt_am ? "rahmen" : "dunkel"} klein={klein} className={gross ? "w-full" : ""} vorab={n.erledigt_am ? "Wieder offen" : "Erledigt"}>
           {n.erledigt_am ? "Wieder öffnen" : "Erledigt"}
         </Senden>
@@ -135,10 +138,10 @@ export function NotizKnoepfe({ n, gross = false }: { n: Notiz; gross?: boolean }
       {!n.erledigt_am && n.erinnern_am && n.wiederholung === "keine" ? (
         <>
           <Formular aktion={notizSpaeter.bind(null, n.id, "stunde")}>
-            <Senden art="rahmen" klein={klein} className={gross ? "w-full" : ""}>In 1 Std.</Senden>
+            <Senden art="rahmen" klein={klein} className={gross ? "w-full" : ""} vorab="Verschoben">In 1 Std.</Senden>
           </Formular>
           <Formular aktion={notizSpaeter.bind(null, n.id, "morgen")}>
-            <Senden art="rahmen" klein={klein} className={gross ? "w-full" : ""}>Morgen 8 Uhr</Senden>
+            <Senden art="rahmen" klein={klein} className={gross ? "w-full" : ""} vorab="Verschoben">Morgen 8 Uhr</Senden>
           </Formular>
         </>
       ) : null}

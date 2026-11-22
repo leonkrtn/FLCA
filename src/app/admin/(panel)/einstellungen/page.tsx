@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Formular, Senden } from "@/components/admin/formular";
+import { Ausblenden, Formular, Senden } from "@/components/admin/formular";
 import { Datenuebernahme } from "@/components/admin/datenuebernahme";
 import { alleFrueherenRechnungen } from "@/lib/altbestand/daten";
 import { FruehereRechnungen, fruehereSumme } from "@/components/admin/fruehere-rechnungen";
@@ -296,7 +296,7 @@ async function FehlerBereich({ erledigte, code }: { erledigte: boolean; code?: s
           {ansicht("", "Offen", !erledigte)}
           {ansicht("erledigt", "Erledigt", erledigte)}
           {!erledigte && eintraege.length > 1 ? (
-            <Formular aktion={fehlerErledigt.bind(null, null)} bestaetigen="Alle offenen Fehler als erledigt markieren?"><Senden art="rahmen" klein>Alle erledigt</Senden></Formular>
+            <Formular aktion={fehlerErledigt.bind(null, null)} bestaetigen="Alle offenen Fehler als erledigt markieren?"><Senden art="rahmen" klein vorab="Erledigt">Alle erledigt</Senden></Formular>
           ) : null}
         </>
       }
@@ -312,13 +312,13 @@ async function FehlerBereich({ erledigte, code }: { erledigte: boolean; code?: s
           </p>
           <ul className="divide-y divide-linie">
             {eintraege.map((f) => (
-              <li key={f.id} className={`grid gap-2 py-4 ${code && f.digest === code ? "-mx-2 rounded-lg bg-flaeche px-2" : ""}`}>
+              <Ausblenden als="li" key={f.id} className={`grid gap-2 py-4 ${code && f.digest === code ? "-mx-2 rounded-lg bg-flaeche px-2" : ""}`}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="min-w-0 font-semibold">{f.ort}</span>
                   <span className="flex items-center gap-2">
                     {f.code ? <Marke>{f.code}</Marke> : null}
                     <span className="zahlen text-sm text-grau">{f.anzahl === 1 ? "einmal" : `${f.anzahl}-mal`}</span>
-                    {!erledigte ? <Formular aktion={fehlerErledigt.bind(null, f.id)}><Senden art="rahmen" klein>Erledigt</Senden></Formular> : null}
+                    {!erledigte ? <Formular aktion={fehlerErledigt.bind(null, f.id)} ausblenden><Senden art="rahmen" klein>Erledigt</Senden></Formular> : null}
                   </span>
                 </div>
                 <p className="whitespace-pre-wrap break-words text-sm">{f.meldung}</p>
@@ -327,7 +327,7 @@ async function FehlerBereich({ erledigte, code }: { erledigte: boolean; code?: s
                   {f.digest ? ` · Fehlercode ${f.digest}` : ""}
                   {f.erledigt_am ? ` · erledigt ${datumZeit(f.erledigt_am)}` : ""}
                 </p>
-              </li>
+              </Ausblenden>
             ))}
           </ul>
         </>
@@ -400,11 +400,11 @@ async function Schnittstellen() {
               ))}
             </div>
           </fieldset>
-          <div><Senden>Webhook anlegen</Senden></div>
+          <div><Senden vorab="Angelegt">Webhook anlegen</Senden></div>
         </Formular>
         <ul className="divide-y divide-linie">
           {(hooks ?? []).map((h) => (
-            <li key={h.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+            <Ausblenden als="li" key={h.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
               <span className="min-w-0">
                 <span className="font-semibold">{h.name}</span>
                 <span className="zahlen block text-sm text-grau">{h.url}</span>
@@ -412,9 +412,9 @@ async function Schnittstellen() {
               </span>
               <span className="flex gap-2">
                 <Formular aktion={webhookTesten.bind(null, h.id)}><Senden art="rahmen" klein>Testen</Senden></Formular>
-                <Formular aktion={webhookLoeschen.bind(null, h.id)} bestaetigen="Webhook löschen?"><Senden art="rahmen" klein>Löschen</Senden></Formular>
+                <Formular aktion={webhookLoeschen.bind(null, h.id)} bestaetigen="Webhook löschen?" ausblenden><Senden art="rahmen" klein>Löschen</Senden></Formular>
               </span>
-            </li>
+            </Ausblenden>
           ))}
         </ul>
         {zustellungen?.length ? (
@@ -435,19 +435,19 @@ async function Schnittstellen() {
         <Formular aktion={apiSchluesselAnlegen} className="mb-6 grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
           <Feld label="Wofür?" name="name" placeholder="z. B. n8n" />
           <div className="pb-3"><Schalter label="darf auch schreiben" name="schreiben" an={false} /></div>
-          <Senden>Schlüssel erzeugen</Senden>
+          <Senden vorab="Erzeugt">Schlüssel erzeugen</Senden>
         </Formular>
         <Tabelle kopf={["Name", "Beginnt mit", "Rechte", "Zuletzt benutzt", ""]}>
           {(schluessel ?? []).map((s) => (
-            <tr key={s.id}>
+            <Ausblenden als="tr" key={s.id}>
               <td>{s.name}</td>
               <td className="zahlen">{s.praefix}…</td>
               <td>{(s.rechte as string[]).join(", ")}</td>
               <td className="zahlen">{datumZeit(s.zuletzt_benutzt) || "nie"}</td>
               <td className="text-right">
-                <Formular aktion={apiSchluesselWiderrufen.bind(null, s.id)} bestaetigen="Schlüssel widerrufen?"><button className="text-sm underline">widerrufen</button></Formular>
+                <Formular aktion={apiSchluesselWiderrufen.bind(null, s.id)} bestaetigen="Schlüssel widerrufen?" ausblenden><button className="text-sm underline">widerrufen</button></Formular>
               </td>
-            </tr>
+            </Ausblenden>
           ))}
         </Tabelle>
       </Abschnitt>

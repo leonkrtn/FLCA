@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Formular, Senden } from "./formular";
+import { Absenden, Formular, Senden } from "./formular";
 import { PositionenUebersicht } from "./positionen-uebersicht";
 import { Auswahl, Feld, Marke, Textfeld } from "./ui";
 import { Unterschrift } from "./unterschrift";
@@ -75,7 +75,7 @@ export function AuftragBereich({ t, ort, kal }: { t: AuftragTermin; ort: Ort; ka
             <summary className="cursor-pointer text-grau">Erteilung zurücknehmen …</summary>
             <Formular aktion={erteilungZuruecknehmenAktion.bind(null, t.id)} bestaetigen="Erteilung wirklich zurücknehmen? Die Unterschrift wird gelöscht." className="mt-3 grid gap-2">
               <p className="max-w-md">Nur bei einem Versehen (falsche Person, falscher Termin). Danach lässt sich der Auftrag neu erteilen.</p>
-              <Senden art="rahmen" klein>Zurücknehmen</Senden>
+              <Senden art="rahmen" klein vorab="Zurückgenommen">Zurücknehmen</Senden>
             </Formular>
           </details>
         </div>
@@ -161,9 +161,9 @@ export function KvAmTerminBereich({ terminId, ort, kvs }: { terminId: string; or
                 <span className="zahlen">{euro(k.summe_brutto_cent)}</span>
               </Link>
               <form action={kvTerminLoesenAktion.bind(null, k.id, terminId)}>
-                <button className="text-xs text-grau underline hover:text-tinte" title="Verknüpfung lösen, der Kostenvoranschlag bleibt">
+                <Absenden className="text-xs text-grau underline hover:text-tinte" title="Verknüpfung lösen, der Kostenvoranschlag bleibt">
                   lösen
-                </button>
+                </Absenden>
               </form>
             </li>
           ))}
@@ -172,7 +172,7 @@ export function KvAmTerminBereich({ terminId, ort, kvs }: { terminId: string; or
         <p className="text-sm text-grau">Nimmt der Kunde einen Kostenvoranschlag zu diesem Termin an, wird er zum erteilten Werkstattauftrag.</p>
       )}
       <form action={kvAusTerminAktion.bind(null, terminId, ort)}>
-        <button className="knopf knopf-rahmen w-full">Kostenvoranschlag erstellen</button>
+        <Senden art="rahmen" className="w-full">Kostenvoranschlag erstellen</Senden>
       </form>
       {kvs.frei.length ? (
         <Formular aktion={kvAmTerminVerknuepfen.bind(null, terminId)} className="grid gap-2">

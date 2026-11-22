@@ -138,7 +138,7 @@ export default async function AngebotSeite({ params }: { params: Promise<{ id: s
 
       {!neu ? (
         <Formular aktion={angebotLoeschen.bind(null, id)} bestaetigen="Angebot endgültig löschen? Termine und Belege behalten ihre Angebotspreise." className="mt-10 border-t border-linie pt-6">
-          <Senden art="rahmen" klein>
+          <Senden art="rahmen" klein vorab="Gelöscht">
             Angebot löschen
           </Senden>
         </Formular>

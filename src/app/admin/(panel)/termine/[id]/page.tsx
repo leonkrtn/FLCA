@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AnnahmeFormular, AuftragBereich, KvAmTerminBereich } from "@/components/admin/auftrag";
-import { Formular, Senden } from "@/components/admin/formular";
+import { Absenden, Formular, Senden } from "@/components/admin/formular";
 import { NotizenAbschnitt } from "@/components/admin/notizen";
 import { TerminAktionen } from "@/components/admin/termin-aktionen";
 import { AusDerWerkstatt } from "@/components/admin/werkstatt-meldungen";
@@ -223,9 +223,9 @@ export default async function TerminDetail({ params, searchParams }: { params: P
                     {/* Stornorechnungen hängen an ihrem Original und gehen mit ihm */}
                     {mitRechnungen && !r.storno_zu ? (
                       <form action={rechnungLoesen.bind(null, t.id, r.id)}>
-                        <button className="text-xs text-grau underline hover:text-tinte" title="Verknüpfung mit dem Termin lösen, die Rechnung bleibt">
+                        <Absenden className="text-xs text-grau underline hover:text-tinte" title="Verknüpfung mit dem Termin lösen, die Rechnung bleibt">
                           lösen
-                        </button>
+                        </Absenden>
                       </form>
                     ) : null}
                   </li>
@@ -234,7 +234,7 @@ export default async function TerminDetail({ params, searchParams }: { params: P
             ) : null}
             {!z.rechnungen.some((r) => r.status !== "storniert" && !r.storno_zu) ? (
               <form action={rechnungAusTermin.bind(null, t.id, "/admin/rechnungen")}>
-                <button className="knopf knopf-dunkel w-full">Rechnung erstellen</button>
+                <Senden className="w-full">Rechnung erstellen</Senden>
                 <p className="mt-2 text-sm text-grau">Entsteht sonst von selbst, wenn die Werkstatt fertig meldet.</p>
               </form>
             ) : null}

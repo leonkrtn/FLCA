@@ -56,7 +56,7 @@ export default async function TeamMehr() {
           <Link href="/app" className="knopf knopf-rahmen w-full">Zur Werkstatt-App</Link>
         ) : null}
         <form action={abmelden}>
-          <button className="knopf knopf-rahmen w-full">Abmelden</button>
+          <Senden art="rahmen" className="w-full">Abmelden</Senden>
         </form>
       </div>
     </>

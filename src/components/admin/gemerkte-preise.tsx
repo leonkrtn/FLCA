@@ -1,4 +1,4 @@
-import { Formular, Senden } from "@/components/admin/formular";
+import { Ausblenden, Formular, Senden } from "@/components/admin/formular";
 import { Leer, Reiter } from "@/components/admin/ui";
 import { gemerktAendern, gemerktLoeschen, paketLoeschen, paketUmbenennen } from "@/lib/aktionen/gedaechtnis";
 import { datum, euro } from "@/lib/format";
@@ -69,7 +69,7 @@ export async function GemerktePreise({ sp }: { sp: { ansicht?: string; q?: strin
               </h2>
               <ul className="divide-y divide-linie">
                 {eintraege.map((g) => (
-                  <li key={g.id} className="grid gap-3 px-4 py-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end md:px-6">
+                  <Ausblenden als="li" key={g.id} className="grid gap-3 px-4 py-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end md:px-6">
                     <div className="min-w-0">
                       <p className="font-semibold">{g.text}</p>
                       <p className="zahlen text-sm text-grau">
@@ -94,13 +94,13 @@ export async function GemerktePreise({ sp }: { sp: { ansicht?: string; q?: strin
                             <input name="ek" defaultValue={centText(g.ek_cent)} inputMode="decimal" className="feld min-h-9 py-1 text-right text-sm" />
                           </label>
                         ) : null}
-                        <Senden art="rahmen" klein>Speichern</Senden>
+                        <Senden art="rahmen" klein vorab="Gespeichert">Speichern</Senden>
                       </Formular>
-                      <form action={gemerktLoeschen.bind(null, g.id)}>
-                        <button className="knopf knopf-rahmen knopf-klein">Vergessen</button>
-                      </form>
+                      <Formular aktion={gemerktLoeschen.bind(null, g.id)} ausblenden>
+                        <Senden art="rahmen" klein>Vergessen</Senden>
+                      </Formular>
                     </div>
-                  </li>
+                  </Ausblenden>
                 ))}
               </ul>
             </section>
@@ -114,7 +114,7 @@ export async function GemerktePreise({ sp }: { sp: { ansicht?: string; q?: strin
         <section className="bg-weiss">
           <ul className="divide-y divide-linie">
             {pakete.map((p) => (
-              <li key={p.id} className="grid gap-3 px-4 py-4 md:grid-cols-[minmax(0,1fr)_auto] md:px-6">
+              <Ausblenden als="li" key={p.id} className="grid gap-3 px-4 py-4 md:grid-cols-[minmax(0,1fr)_auto] md:px-6">
                 <div className="min-w-0">
                   <p className="font-semibold">
                     {p.name} <span className="font-normal text-grau">· {p.marke ? `${p.marke} ${p.modell}` : "ohne Fahrzeug"}</span>
@@ -136,13 +136,13 @@ export async function GemerktePreise({ sp }: { sp: { ansicht?: string; q?: strin
                       <span className="mb-1 block text-xs text-grau">Name</span>
                       <input name="name" defaultValue={p.name} className="feld min-h-9 py-1 text-sm" />
                     </label>
-                    <Senden art="rahmen" klein>Umbenennen</Senden>
+                    <Senden art="rahmen" klein vorab="Umbenannt">Umbenennen</Senden>
                   </Formular>
-                  <form action={paketLoeschen.bind(null, p.id)}>
-                    <button className="knopf knopf-rahmen knopf-klein">Löschen</button>
-                  </form>
+                  <Formular aktion={paketLoeschen.bind(null, p.id)} ausblenden>
+                    <Senden art="rahmen" klein>Löschen</Senden>
+                  </Formular>
                 </div>
-              </li>
+              </Ausblenden>
             ))}
           </ul>
         </section>

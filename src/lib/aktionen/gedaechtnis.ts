@@ -40,10 +40,14 @@ export async function gemerktAendern(id: string, _v: Ergebnis, fd: FormData): Pr
   });
 }
 
-export async function gemerktLoeschen(id: string): Promise<void> {
-  await benutzerMitRecht("rechnungen");
-  await db().from("preis_gedaechtnis").delete().eq("id", id);
-  revalidatePath(PFAD);
+/** Gemerkten Preis vergessen. Gibt ein Ergebnis zurück, damit die Zeile über <Formular ausblenden> sofort verschwindet. */
+export async function gemerktLoeschen(id: string, _v: Ergebnis): Promise<Ergebnis> {
+  return sicher(null, async () => {
+    await benutzerMitRecht("rechnungen");
+    await db().from("preis_gedaechtnis").delete().eq("id", id);
+    revalidatePath(PFAD);
+    return { status: "ok" };
+  });
 }
 
 export async function paketUmbenennen(id: string, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
@@ -58,8 +62,11 @@ export async function paketUmbenennen(id: string, _v: Ergebnis, fd: FormData): P
   });
 }
 
-export async function paketLoeschen(id: string): Promise<void> {
-  await benutzerMitRecht("rechnungen");
-  await db().from("pakete").delete().eq("id", id);
-  revalidatePath(PFAD);
+export async function paketLoeschen(id: string, _v: Ergebnis): Promise<Ergebnis> {
+  return sicher(null, async () => {
+    await benutzerMitRecht("rechnungen");
+    await db().from("pakete").delete().eq("id", id);
+    revalidatePath(PFAD);
+    return { status: "ok" };
+  });
 }

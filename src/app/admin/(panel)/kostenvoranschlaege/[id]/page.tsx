@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { Senden } from "@/components/admin/formular";
 import { BelegEditor } from "@/components/admin/beleg-editor";
 import { KvAnsicht } from "@/components/admin/kv-ansicht";
 import { Abschnitt, Kopf, Marke } from "@/components/admin/ui";
@@ -35,7 +36,7 @@ export default async function KostenvoranschlagSeite({ params }: { params: Promi
       >
         {entwurf ? (
           <form action={kvEntwurfLoeschen.bind(null, k.id, "admin")}>
-            <button className="knopf knopf-rahmen knopf-klein">Entwurf löschen</button>
+            <Senden art="rahmen" klein>Entwurf löschen</Senden>
           </form>
         ) : null}
       </Kopf>

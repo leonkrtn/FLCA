@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { Auffrischen } from "@/components/auffrischen";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -85,6 +86,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </aside>
       <main className="min-w-0 px-4 py-6 md:px-8 lg:px-10 lg:py-10">
         <div className="mx-auto max-w-[1200px]">{children}</div>
+        <Auffrischen />
       </main>
     </div>
   );
