@@ -1,6 +1,4 @@
 import "server-only";
-import { arbeitsMinuten } from "./auftrag-regeln";
-import { weich } from "./fehler";
 import { belegungenMitPerson, planPersonen } from "./mitarbeiter";
 import { konflikte } from "./planung";
 import { db, dbRoh, DbFehler } from "./supabase/admin";
@@ -61,9 +59,6 @@ export async function auftragZeiten(terminIds: string[]): Promise<AuftragZeit[]>
   return (data ?? []) as unknown as AuftragZeit[];
 }
 
-/** Erfasste Minuten eines Auftrags (für den Rechnungsentwurf). 0, wenn die Tabelle noch fehlt. */
-export const auftragMinuten = (terminId: string) => weich(auftragZeiten([terminId]).then((z) => arbeitsMinuten(z)), 0, "Arbeitszeit am Auftrag lesen");
-
 /** Meldungen zu einem Termin, neueste zuerst. */
 export async function meldungenZumTermin(terminId: string): Promise<Meldung[]> {
   const { data } = await db().from("auftrag_meldungen").select("*, profil:profile!auftrag_meldungen_profil_id_fkey(name)").eq("termin_id", terminId).order("erstellt_am", { ascending: false });
@@ -80,13 +75,6 @@ export async function offeneMeldungen(): Promise<Meldung[]> {
     .order("erstellt_am")
     .limit(200);
   return (data ?? []) as unknown as Meldung[];
-}
-
-/** Zahl offener Meldungen für den Menü-Zähler. */
-export async function offeneMeldungenAnzahl(): Promise<number> {
-  const { count, error } = await dbRoh().from("auftrag_meldungen").select("id", { count: "exact", head: true }).eq("status", "offen");
-  if (error) throw new DbFehler(error, { tabelle: "auftrag_meldungen" });
-  return count ?? 0;
 }
 
 /**

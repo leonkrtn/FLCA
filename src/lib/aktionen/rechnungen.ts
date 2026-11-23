@@ -162,8 +162,3 @@ export async function entwurfLoeschen(id: string, basis: Basis): Promise<void> {
   revalidatePath("/admin/rechnungen", "layout");
   redirect(basis);
 }
-
-export async function rechnungFuerEditor(id: string) {
-  await benutzerMitRecht("rechnungen");
-  return rechnungLaden(id);
-}

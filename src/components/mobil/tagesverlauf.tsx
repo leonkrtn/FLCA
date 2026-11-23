@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { Fenster } from "@/lib/einstellungen";
-import { zeit } from "@/lib/format";
 import { berlinUhrzeit, minuten } from "@/lib/zeit";
 
 type Eintrag = { von: number; bis: number; art: "auftrag" | "pause" | "frei"; titel: string; unter?: string; href?: string };
@@ -75,6 +74,3 @@ function Zeile({ zeit: z, text, grau }: { zeit: string; text: string; grau?: boo
     </li>
   );
 }
-
-/** Kurzer Zeittext für Listen („08:30–10:00“). */
-export const vonBis = (t: { beginn: string; ende: string }) => `${zeit(t.beginn)}–${zeit(t.ende)}`;

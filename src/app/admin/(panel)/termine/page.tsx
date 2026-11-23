@@ -34,7 +34,7 @@ export default async function TerminListe({ searchParams }: { searchParams: Prom
   let termine = (data ?? []) as Termin[];
   if (q) {
     const s = q.toLowerCase();
-    termine = termine.filter((t) => [t.kunde?.name, t.kunde?.telefon, t.fahrzeug?.kennzeichen, t.leistung_name, String(t.nummer)].some((x) => x?.toLowerCase().includes(s)));
+    termine = termine.filter((t) => [t.kunde?.name, t.kunde?.telefon, t.fahrzeug?.kennzeichen, t.leistung_name].some((x) => x?.toLowerCase().includes(s)));
   }
   const { count: anfragen } = await db().from("termine").select("id", { count: "exact", head: true }).eq("status", "angefragt");
 
@@ -54,7 +54,7 @@ export default async function TerminListe({ searchParams }: { searchParams: Prom
       </form>
       {termine.length ? (
         <div className="bg-weiss p-4 md:p-6">
-          <Tabelle kopf={["Wann", "Leistung", "Kunde", "Kennzeichen", "Status", "Auftrag", "Mitarbeiter", { text: "Nr.", zahl: true }]}>
+          <Tabelle kopf={["Wann", "Leistung", "Kunde", "Kennzeichen", "Status", "Auftrag", "Mitarbeiter"]}>
             {termine.map((t) => (
               <tr key={t.id} className="hover:bg-papier">
                 <td className="zahlen whitespace-nowrap">
@@ -80,7 +80,6 @@ export default async function TerminListe({ searchParams }: { searchParams: Prom
                   )}
                 </td>
                 <td>{t.mitarbeiter?.name ?? <span className="text-grau">–</span>}</td>
-                <td className="zahl">{t.nummer}</td>
               </tr>
             ))}
           </Tabelle>

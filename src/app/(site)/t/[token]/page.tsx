@@ -46,7 +46,7 @@ export default async function KundenTermin({ params }: { params: Promise<{ token
 
   return (
     <div className="rand pb-24 *:max-w-3xl pt-8 md:pt-14">
-      <p className="mb-2 text-sm font-medium uppercase tracking-[0.14em] text-grau">Termin Nr. {t.nummer}</p>
+      <p className="mb-2 text-sm font-medium uppercase tracking-[0.14em] text-grau">Ihr Termin</p>
       <h1 className="schmal mb-2 text-4xl md:text-5xl">{t.leistung_name}</h1>
       <p className="mb-8 text-lg">
         <span className={`mr-3 inline-block px-2 py-0.5 text-sm font-semibold ${t.status === "bestaetigt" ? "bg-white/10 text-tinte" : "bg-linie"}`}>{status}</span>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bereitsBezahlt, durchZahlungErledigt, fassungsNummer, grundPruefen, offenerBetrag, zahlungseingang } from "./korrektur";
+import { bereitsBezahlt, durchZahlungErledigt, fassungsNummer, grundPruefen, offenerBetrag, stornoStand, zahlungseingang } from "./korrektur";
 
 describe("Rechnungskorrektur", () => {
   it("Nummer der Fassung", () => {
@@ -35,6 +35,14 @@ describe("Rechnungskorrektur", () => {
 
     expect(durchZahlungErledigt({ summe_brutto_cent: 8000 })).toBe(false);
     expect(zahlungseingang({ summe_brutto_cent: 8000 })).toBe(8000);
+  });
+
+  it("Stand einer Stornorechnung", () => {
+    // Original war bezahlt, ohne Korrektur: Geld geht zurück
+    expect(stornoStand({ status: "gestellt" })).toBe("Zu erstatten");
+    expect(stornoStand({ status: "bezahlt", zahlungsart: "ueberweisung" })).toBe("Erstattet");
+    // Original unbezahlt oder Zahlung auf die neue Fassung übergegangen: erledigt ohne Geldfluss
+    expect(stornoStand({ status: "bezahlt", zahlungsart: null })).toBe("Erledigt");
   });
 
   it("Pflichtgrund", () => {

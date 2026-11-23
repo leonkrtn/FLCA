@@ -50,7 +50,7 @@ export function KvAnsicht({ k, ort, termin, termine }: { k: Kostenvoranschlag; o
         {termin ? (
           <div className="flex flex-wrap items-center gap-3">
             <Link href={`/${ort}/termine/${termin.id}`} className="font-semibold hover:underline">
-              Nr. {termin.nummer} · {datumKurzText(termin.beginn)} {zeit(termin.beginn)} · {termin.leistung_name}
+              {datumKurzText(termin.beginn)} {zeit(termin.beginn)} · {termin.leistung_name}
             </Link>
             <form action={kvTerminLoesenAktion.bind(null, k.id, termin.id)}>
               <Absenden className="text-xs text-grau underline hover:text-tinte">lösen</Absenden>
@@ -74,7 +74,7 @@ export function KvAnsicht({ k, ort, termin, termine }: { k: Kostenvoranschlag; o
                   label="Oder vorhandenen Termin verknüpfen"
                   name="termin"
                   leer="bitte wählen"
-                  optionen={termine.map((t) => [t.id, `Nr. ${t.nummer} · ${datumKurzText(t.beginn)} ${zeit(t.beginn)} · ${t.leistung_name}${t.status === "angefragt" ? " (Anfrage)" : ""}`])}
+                  optionen={termine.map((t) => [t.id, `${datumKurzText(t.beginn)} ${zeit(t.beginn)} · ${t.leistung_name}${t.status === "angefragt" ? " (Anfrage)" : ""}`])}
                 />
                 <Senden art="rahmen" klein vorab="Verknüpft">Verknüpfen</Senden>
               </Formular>

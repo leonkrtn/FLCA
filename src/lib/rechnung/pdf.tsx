@@ -348,6 +348,8 @@ export async function rechnungPdf(r: PdfDaten): Promise<Buffer> {
               <Text>
                 {`${r.gueltig_bis ? `Dieser Kostenvoranschlag gilt bis zum ${datum(r.gueltig_bis)}. ` : ""}Sie können ihn über den Link in unserer E-Mail annehmen oder uns einfach anrufen${f.telefon ? ` (${f.telefon})` : ""}.`}
               </Text>
+            ) : r.storno && r.bezahlt ? (
+              <Text>{`Damit ist die Rechnung${r.storno_zu_nummer ? ` ${r.storno_zu_nummer}` : ""} ausgeglichen. Zu zahlen ist nichts.`}</Text>
             ) : r.storno ? (
               <Text>Der Betrag wird Ihnen erstattet bzw. mit offenen Forderungen verrechnet.</Text>
             ) : r.storniert ? (

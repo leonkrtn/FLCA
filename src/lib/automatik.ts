@@ -10,7 +10,7 @@ import { pushSenden } from "./services/push";
 import { db, dbRoh } from "./supabase/admin";
 import { erinnerungenSenden } from "./notizen";
 import { erinnerungSenden, TERMIN_FELDER, type Termin } from "./termine";
-import { berlin, berlinDatum, berlinUhrzeit, plusTage } from "./zeit";
+import { berlin, berlinDatum, berlinUhrzeit, plusMonate, plusTage } from "./zeit";
 import { fehlerMelden } from "./fehler";
 import { protokollAufraeumen } from "./fehlerprotokoll";
 
@@ -133,16 +133,23 @@ export async function takt(): Promise<Bericht> {
         return heute >= start && heute <= plusTage(start, 3);
       });
       if (!faellig) return 0;
-      const { data } = await db().from("einlagerungen").select("saison, kunde:kunden(id, name, email), fahrzeug:fahrzeuge(kennzeichen)").is("ausgelagert_am", null);
+      // Nur wer die Räder der kommenden Saison bei uns hat: im Frühjahr Sommerräder, im Herbst Winterräder.
+      // Ganzjahresräder brauchen keinen Wechsel und bekommen nichts.
+      const saison = faellig === "herbst" ? "winter" : "sommer";
+      const raeder = saison === "winter" ? "Winterräder" : "Sommerräder";
+      const { data } = await db().from("einlagerungen").select("kunde:kunden(id, name, email), fahrzeug:fahrzeuge(kennzeichen)").is("ausgelagert_am", null).eq("saison", saison);
+      // Link und Dauer aus der Preisliste statt fest im Text: Ändert die Werkstatt dort etwas, stimmt die Mail weiter.
+      const { data: wechsel } = await db().from("leistungen").select("slug, dauer_min").eq("slug", "radwechsel").eq("aktiv", true).eq("online_anfragbar", true).maybeSingle();
+      const dauer = wechsel?.dauer_min ? `, der Wechsel dauert rund ${wechsel.dauer_min} Minuten` : "";
+      const link = `${ENV.siteUrl}/termin${wechsel ? `?leistung=${wechsel.slug}` : ""}`;
       let gesendet = 0;
-      for (const z of (data ?? []) as unknown as { saison: string; kunde: { id: string; name: string; email: string } | null; fahrzeug: { kennzeichen: string } | null }[]) {
+      for (const z of (data ?? []) as unknown as { kunde: { id: string; name: string; email: string } | null; fahrzeug: { kennzeichen: string } | null }[]) {
         if (!z.kunde?.email || !(await einmalig("saison", `${jahr}-${faellig}:${z.kunde.id}`))) continue;
-        const raeder = z.saison === "winter" ? "Winterräder" : z.saison === "sommer" ? "Sommerräder" : "Räder";
         const inhalt = mail(e.firma, {
           ueberschrift: faellig === "herbst" ? "Zeit für die Winterreifen." : "Zeit für die Sommerreifen.",
           bausteine: [
-            { art: "absatz", text: `Hallo ${z.kunde.name},\nIhre ${raeder}${z.fahrzeug ? ` für ${z.fahrzeug.kennzeichen}` : ""} liegen bei uns bereit. Suchen Sie sich einen freien Termin aus, der Wechsel dauert rund 30 Minuten.` },
-            { art: "knopf", text: "Termin für den Radwechsel wählen", url: `${ENV.siteUrl}/termin?leistung=radwechsel` },
+            { art: "absatz", text: `Hallo ${z.kunde.name},\nIhre ${raeder}${z.fahrzeug ? ` für ${z.fahrzeug.kennzeichen}` : ""} liegen bei uns bereit. Suchen Sie sich einen freien Termin aus${dauer}.` },
+            { art: "knopf", text: "Termin für den Radwechsel wählen", url: link },
           ],
         });
         await mailer().senden({ an: z.kunde.email, betreff: `Radwechsel bei ${e.firma.name}`, antwortAn: e.firma.email, ...inhalt });
@@ -153,8 +160,10 @@ export async function takt(): Promise<Bericht> {
 
     await schritt("datev", async () => {
       const d = e.automatik.datev;
-      if (!d.aktiv || !d.email || heute.slice(8) !== "01") return "nicht fällig";
-      const vormonat = plusTage(heute, -1).slice(0, 7);
+      if (!d.aktiv || !d.email) return "nicht fällig";
+      // Fällig ab dem 1. und an jedem weiteren Tag, bis der Vormonat raus ist: Fiel der Takt am 1. aus, wird
+      // nachgeholt. Doppelt geht nichts raus, automatik_log hält den Monat fest.
+      const vormonat = plusMonate(`${heute.slice(0, 7)}-01`, -1).slice(0, 7);
       if (!(await einmalig("datev", vormonat))) return "schon gesendet";
       const { zip, anzahl } = await monatsexport(vormonat, d);
       const inhalt = mail(e.firma, {

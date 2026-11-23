@@ -7,6 +7,7 @@ import { entwurfLoeschen } from "@/lib/aktionen/rechnungen";
 import { benutzerMitRecht } from "@/lib/auth";
 import { datumZeit } from "@/lib/format";
 import { editorDaten } from "@/lib/rechnung/editor-daten";
+import { stornoStand } from "@/lib/rechnung/korrektur";
 import { bezuegeLaden, korrekturStand, RECHNUNG_STATUS, rechnungLaden } from "@/lib/rechnung/rechnungen";
 import { kundenSuchen } from "@/lib/kunden";
 import { db } from "@/lib/supabase/admin";
@@ -27,7 +28,7 @@ export default async function RechnungSeite({ params }: { params: Promise<{ id: 
     <>
       <Kopf
         titel={r.storno_zu ? `Stornorechnung ${r.nummer}` : r.nummer ? `Rechnung ${r.nummer}` : korrektur ? `Korrektur zu ${korrektur.original}` : "Rechnungsentwurf"}
-        unter={<Marke ton={r.status === "bezahlt" ? "ok" : r.status === "gestellt" ? "warnung" : "hell"}>{RECHNUNG_STATUS[r.status]}</Marke>}
+        unter={<Marke ton={r.status === "bezahlt" ? "ok" : r.status === "gestellt" ? "warnung" : "hell"}>{r.storno_zu ? stornoStand(r) : RECHNUNG_STATUS[r.status]}</Marke>}
         zurueck={{ href: "/admin/rechnungen", text: "Rechnungen" }}
       >
         {r.status === "entwurf" ? (

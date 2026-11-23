@@ -51,3 +51,13 @@ export function grundPruefen(grund: string): string {
   if (g.length < 3) throw new Error("Bitte den Grund der Korrektur angeben (z. B. „falsche Anschrift“, „Position vergessen“).");
   return g.slice(0, 300);
 }
+
+/**
+ * Stand einer Stornorechnung in Worten. Offen („gestellt“) ist sie nur, wenn auf das Original gezahlt wurde;
+ * „bezahlt“ ohne Zahlungsart heißt erledigt ohne Geldfluss (siehe stornieren() in rechnungen.ts).
+ */
+export function stornoStand(r: { status: string; zahlungsart?: string | null }): string {
+  if (r.status === "gestellt") return "Zu erstatten";
+  if (r.status === "bezahlt") return r.zahlungsart ? "Erstattet" : "Erledigt";
+  return "Storno";
+}

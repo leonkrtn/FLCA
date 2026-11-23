@@ -29,7 +29,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   switch (ressource) {
     case "termine": {
-      let a = dbRoh().from("termine").select("id, nummer, status, beginn, ende, leistung_name, quelle, auftrag_status, kunde:kunden(id, name, email, telefon), fahrzeug:fahrzeuge(kennzeichen, marke_modell)").order("beginn", { ascending: false }).limit(limit);
+      let a = dbRoh().from("termine").select("id, status, beginn, ende, leistung_name, quelle, auftrag_status, kunde:kunden(id, name, email, telefon), fahrzeug:fahrzeuge(kennzeichen, marke_modell)").order("beginn", { ascending: false }).limit(limit);
       if (id) a = a.eq("id", id);
       if (q.get("status")) a = a.eq("status", q.get("status")!);
       if (q.get("von")) a = a.gte("beginn", q.get("von")!);
