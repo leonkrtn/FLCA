@@ -41,6 +41,7 @@ export const EREIGNIS_TYPEN = {
   "kostenvoranschlag.umgewandelt": "Aus einem Kostenvoranschlag wurde ein Rechnungsentwurf",
   "kostenvoranschlag.termin_verknuepft": "Ein Kostenvoranschlag wurde mit einem Termin verknüpft oder davon gelöst",
   "kunde.angelegt": "Ein neuer Kunde wurde angelegt",
+  "kunde.geaendert": "Kundendaten wurden geändert (z. B. vom Kunden selbst am Kundenbildschirm)",
   "kunde.geloescht": "Ein Kunde wurde gelöscht, mit seinen Fahrzeugen (nur Kundennummer, ohne Namen)",
   "daten.importiert": "Kunden, Fahrzeuge und frühere Rechnungen wurden aus CSV-Dateien übernommen (ein Ereignis je Übernahme, mit Anzahlen)",
   "notiz.angelegt": "Eine Notiz wurde angelegt (Inhalt nur bei Büro-Notizen)",

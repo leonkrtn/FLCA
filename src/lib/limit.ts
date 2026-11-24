@@ -22,6 +22,8 @@ const limits = {
   anmeldungKonto: { maximal: 10, fenster: VIERTELSTUNDE },
   passwortLink: { maximal: 10, fenster: STUNDE },
   passwortLinkKonto: { maximal: 3, fenster: STUNDE },
+  // Kundenbildschirm im Büro: viele Kunden über denselben Anschluss, deshalb großzügig
+  kundenbildschirm: { maximal: 300, fenster: VIERTELSTUNDE },
 } as const;
 
 /**

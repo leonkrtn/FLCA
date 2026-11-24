@@ -85,9 +85,9 @@ async function angenommenerKv(terminId: string): Promise<KvKurz | null> {
 /**
  * Auftrag am Termin anlegen (Knopf am Termin, auch an Anfragen). Vorbefüllt mit den Positionen eines
  * angenommenen Kostenvoranschlags (dann ist er gleich erteilt), sonst mit den Leistungen des Termins.
- * Ein zweiter Aufruf ändert nichts.
+ * Ein zweiter Aufruf ändert nichts. Ohne Benutzer: angelegt am Kundenbildschirm, wo der Kunde ihn gleich unterschreibt.
  */
-export async function auftragAnlegen(terminId: string, vonBenutzer: string): Promise<string> {
+export async function auftragAnlegen(terminId: string, vonBenutzer: string | null): Promise<string> {
   const t = await terminLaden(terminId);
   if (!t) throw new TerminFehler("Termin nicht gefunden.");
   if (t.auftrag_nummer) return t.auftrag_nummer;

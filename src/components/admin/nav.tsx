@@ -10,6 +10,9 @@ import { useZielPfad } from "@/lib/hooks/ziel-pfad";
 
 const KALENDER = "/admin/kalender";
 
+/** Pfad ist der Menüpunkt selbst oder eine Unterseite davon. Nur ganze Abschnitte: „/admin/kunden“ markiert nicht „/admin/kundenbildschirm“. */
+const unter = (pfad: string, href: string) => pfad === href || pfad.startsWith(`${href}/`);
+
 // nurMobil: am großen Bildschirm steht der Punkt woanders (Einstellungen als Zahnrad unten im Benutzerblock)
 export type NavEintrag = { href: string; text: string; anzahl?: number; gruppe?: string; nurMobil?: boolean };
 
@@ -26,7 +29,7 @@ export function AdminNav({ eintraege }: { eintraege: NavEintrag[] }) {
   return (
     <nav aria-label="Verwaltung" className="flex gap-0.5 quer-scrollen px-3 pb-1 lg:flex-col lg:overflow-visible">
       {eintraege.map((e, i) => {
-        const aktiv = e.href === "/admin" ? pfad === e.href : pfad.startsWith(e.href);
+        const aktiv = e.href === "/admin" ? pfad === e.href : unter(pfad, e.href);
         // „Kalender“ führt dorthin zurück, wo man zuletzt war (Woche, Tag oder Monat)
         const href = e.href === KALENDER && gemerkt ? gemerkt : e.href;
         return (
@@ -53,7 +56,7 @@ export function AdminNav({ eintraege }: { eintraege: NavEintrag[] }) {
 /** Einstellungen am großen Bildschirm: nur das Zahnrad unten rechts im Benutzerblock, mit Fehlerzähler als Badge. */
 export function EinstellungenSymbol({ href, anzahl }: { href: string; anzahl?: number }) {
   const [pfad, merken] = useZielPfad();
-  const aktiv = pfad.startsWith(href);
+  const aktiv = unter(pfad, href);
   return (
     <Link
       href={href}

@@ -116,6 +116,14 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
               <p className="text-sm text-grau">Noch keine Kontaktdaten.</p>
             )}
             {k.notiz ? <p className="mt-4 whitespace-pre-line border-t border-linie pt-4 text-sm">{k.notiz}</p> : null}
+            {/* Einwilligungen vom Kundenbildschirm (Spalten erst nach der Migration „kundenbildschirm“) */}
+            {k.datenschutz_am || k.whatsapp_ok_am || k.erinnerung_mail_ok_am ? (
+              <ul className="mt-4 grid gap-1 border-t border-linie pt-4 text-sm">
+                {k.datenschutz_am ? <li>Datenschutzhinweis bestätigt {datumZeit(k.datenschutz_am)}</li> : null}
+                <li>{k.whatsapp_ok_am ? `WhatsApp erlaubt seit ${datumZeit(k.whatsapp_ok_am)}` : <span className="text-grau">WhatsApp nicht erlaubt</span>}</li>
+                <li>{k.erinnerung_mail_ok_am ? `Erinnerungen per Mail erlaubt seit ${datumZeit(k.erinnerung_mail_ok_am)}` : <span className="text-grau">Erinnerungen per Mail nicht erlaubt</span>}</li>
+              </ul>
+            ) : null}
             {/* Bearbeiten aufklappbar: Die Akte liest man öfter, als man sie ändert. Ohne Kontaktdaten gleich offen. */}
             <details className="mt-4 border-t border-linie pt-4" open={!sichtbar.length || undefined}>
               <summary className="cursor-pointer text-sm font-semibold">Stammdaten bearbeiten</summary>
