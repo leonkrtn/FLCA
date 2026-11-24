@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Marke } from "@/components/admin/ui";
 import { AuftragKnoepfe, FotoKnopf, MeldungFormular, Uebernehmen } from "@/components/mobil/auftrag";
@@ -8,7 +9,9 @@ import { weich } from "@/lib/fehler";
 import { datum, datumKurzText, datumZeit, telHref, zeit } from "@/lib/format";
 import { db } from "@/lib/supabase/admin";
 import { terminZusatz } from "@/lib/termin-daten";
-import { TERMIN_FELDER, type Termin } from "@/lib/termine";
+import { lektionenZuLeistungen } from "@/lib/schulung/daten";
+import { dauerText } from "@/lib/schulung/inhalt";
+import { leistungIdsVon, TERMIN_FELDER, type Termin } from "@/lib/termine";
 import { auftragZeiten, fahrzeugAkte, MELDUNG_STATUS, MELDUNG_TEXT, meldungenZumTermin } from "@/lib/werkstatt";
 import { stunden } from "@/lib/zeiterfassung";
 
@@ -29,11 +32,13 @@ export default async function TeamAuftrag({ params }: { params: Promise<{ id: st
   if (b.rolle === "mitarbeiter" && t.zugewiesen_an !== b.id && !frei) notFound();
   const eigen = t.zugewiesen_an === b.id || b.rolle !== "mitarbeiter";
 
-  const [akte, zeiten, meldungen, zusatz] = await Promise.all([
+  const [akte, zeiten, meldungen, zusatz, anleitungen] = await Promise.all([
     fahrzeugAkte(t.fahrzeug?.id ?? null, t.id),
     weich(auftragZeiten([t.id]), [], "Auftragszeiten am Auftrag"),
     weich(meldungenZumTermin(t.id), [], "Meldungen am Auftrag"),
     eigen ? terminZusatz(t.id) : Promise.resolve(null),
+    // Lektionen der Schulung zu den Leistungen dieses Auftrags
+    weich(lektionenZuLeistungen(leistungIdsVon(t)), [], "Anleitungen am Auftrag"),
   ]);
   const meine = zeiten.filter((z) => z.profil_id === b.id);
   const laufend = meine.find((z) => !z.ende);
@@ -92,6 +97,22 @@ export default async function TeamAuftrag({ params }: { params: Promise<{ id: st
           {t.notiz_intern ? <p className="mt-1 text-sm">Hinweis: {t.notiz_intern}</p> : null}
           {grenzeText(t) ? <p className="mt-2 text-sm font-semibold text-rot">{grenzeText(t)}</p> : null}
         </Karte>
+
+        {anleitungen.length ? (
+          <Karte>
+            <h2 className="font-semibold">{anleitungen.length === 1 ? "Anleitung" : "Anleitungen"}</h2>
+            <ul className="mt-1 divide-y divide-linie">
+              {anleitungen.map((a) => (
+                <li key={a.id}>
+                  <Link href={`/team/schulung/${a.id}?von=${encodeURIComponent(`/team/auftrag/${t.id}`)}`} className="flex min-h-11 items-center justify-between gap-3 py-1.5 active:bg-papier">
+                    <span className="min-w-0 truncate">{a.titel}</span>
+                    <span className="zahlen shrink-0 text-sm text-grau">{[a.video_url ? "Video" : "", dauerText(a.dauer_min)].filter(Boolean).join(" · ")}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Karte>
+        ) : null}
 
         {t.kunde ? (
           <Karte>

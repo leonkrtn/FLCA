@@ -18,6 +18,20 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-24 · Team-App: Tab „Mehr“ unter Erinnerungen nicht markiert
+
+- **Stand:** behoben
+- **Wo:** `src/app/team/layout.tsx`, `src/app/app/layout.tsx` (Tab-Leiste)
+- **Was man sah:** Unter *Mehr → Meine Erinnerungen* war in der Tab-Leiste kein Tab hervorgehoben, man wusste
+  nicht, wo man ist. Beim Bau der Schulung (ebenfalls unter *Mehr*) bemerkt.
+- **Ursache:** Der Tab „Mehr“ gilt nur für `/team/mehr` selbst. Seiten, die man aus „Mehr“ öffnet, liegen nicht
+  darunter (`/team/notizen`), und `auch` war nicht gesetzt.
+- **Behebung:** `auch: ["/team/schulung", "/team/notizen"]` am Tab „Mehr“.
+- **Muster:** Eine Unterseite eines Tabs, deren Pfad nicht unter dem Pfad des Tabs liegt, ohne Eintrag in `auch`.
+- **Weitere Stellen:** Werkstatt-App gesucht: `/app/notizen` (aus „Mehr“) hatte dasselbe, mitbehoben
+  (`auch: ["/app/notizen"]`). „Alle Anfragen“ hat einen eigenen Tab, die übrigen Links aus „Mehr“ führen in
+  Verwaltung oder Team-App.
+
 ### 2026-11-24 · „Nicht erschienen“ meldete kein Ereignis
 
 - **Stand:** behoben

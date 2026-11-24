@@ -51,6 +51,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: "/admin/preisliste", text: "Preisliste", recht: "rechnungen" },
     { href: "/admin/angebote", text: "Angebote", recht: "angebote" },
     { href: "/admin/mitarbeiter", text: "Mitarbeiter", recht: "team", anzahl: abwesenheiten, gruppe: "Betrieb" },
+    { href: "/admin/schulung", text: "Schulung", recht: "schulung" },
     { href: "/admin/karriere", text: "Karriere", recht: "karriere", anzahl: bewerbungen, modul: "karriere" },
     { href: "/admin/website", text: "Website", recht: "website" },
     // Das Büro sieht dort nur den Reiter „Gemerkte Preise“ (Recht „rechnungen“). Am großen Bildschirm steht

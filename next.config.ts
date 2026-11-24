@@ -15,6 +15,8 @@ const csp = [
   `media-src 'self' blob: ${supabase}`.trim(),
   "font-src 'self'",
   `connect-src 'self' ${supabase}`.trim(),
+  // Videos der Schulung (Team-App) sind eingebettete YouTube- bzw. Vimeo-Player
+  "frame-src 'self' https://www.youtube-nocookie.com https://player.vimeo.com",
   "worker-src 'self'",
   "manifest-src 'self'",
   "object-src 'none'",
