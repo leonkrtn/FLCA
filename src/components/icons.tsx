@@ -116,12 +116,6 @@ export const Download = (p: Props) => (
     <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
   </Icon>
 );
-export const Glocke = (p: Props) => (
-  <Icon {...p}>
-    <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15Z" />
-    <path d="M10 20.5a2 2 0 0 0 4 0" />
-  </Icon>
-);
 export const Zahnrad = (p: Props) => (
   <Icon {...p}>
     <circle cx="12" cy="12" r="3" />

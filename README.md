@@ -49,7 +49,7 @@ Website, Terminvergabe, Werkstatt-Verwaltung, Rechnungen, Team und Karriere für
    - `supabase/migrations/20261108100000_grundsystem.sql`
    - `supabase/migrations/20261109100000_angebot.sql` (Leistungen und Rechnungspositionen in einer Liste)
    - `supabase/migrations/20261120100000_kostenvoranschlaege.sql` (Kostenvoranschläge mit eigenem Nummernkreis)
-   - `supabase/migrations/20261121100000_termine_loeschen.sql` (Termine endgültig löschen, Auftragsnummern rücken nach)
+   - `supabase/migrations/20261121100000_termine_loeschen.sql` (Termine endgültig löschen, spätere Terminnummern rücken nach)
    - `supabase/migrations/20261121110000_google_kalender_entfernen.sql` (Google-Kalender entfernt)
    - `supabase/migrations/20261121120000_notizen.sql` (Notizen mit Erinnerung per Push)
    - `supabase/migrations/20261121140000_mehrere_leistungen.sql` (mehrere Leistungen pro Termin)
@@ -65,6 +65,7 @@ Website, Terminvergabe, Werkstatt-Verwaltung, Rechnungen, Team und Karriere für
    - `supabase/migrations/20261125120000_kunde_loeschen.sql` (Kunden löschen, mit Fahrzeugen; gestellte Rechnungen bleiben)
    - `supabase/migrations/20261126100000_rechnung_korrigieren.sql` (gestellte Rechnungen berichtigen: Storno und neue Fassung mit derselben Nummer)
    - `supabase/migrations/20261127100000_team_werkstatt.sql` (Mitarbeiter immer eingeplant, Arbeitszeit je Auftrag, Befunde und Teile aus der Werkstatt, Pausen beim Stempeln)
+   - `supabase/migrations/20261128100000_storno_erledigt.sql` (Stornorechnungen ohne zu erstattenden Betrag gelten als erledigt, nicht mehr als offen)
    - Zuletzt die Zeitsteuerung: `supabase/zeitsteuerung-einrichten.sql` (Adresse darin prüfen, derzeit `https://flca.vercel.app`). Das Skript richtet den Takt jede Minute ein und zeigt in der Spalte `cron_secret_fuer_vercel` das Geheimnis; diesen Wert in Vercel als `CRON_SECRET` eintragen und neu deployen. Jederzeit wiederholbar. Ist das Geheimnis verloren, vorher `select cron.unschedule('flc-takt');` ausführen, dann gibt es ein neues. (Ersetzt `20261108100100_zeitsteuerung.sql` und `20261121130000_zeitsteuerung_minuetlich.sql`.)
 3. *Authentication → Sign In / Providers*: „Allow new users to sign up“ **aus** (Konten legt nur der Inhaber an), Provider „Email“ an.
 4. *Authentication → Emails → SMTP Settings*: eigenen SMTP eintragen, sonst schickt Supabase nur 2 Mails pro Stunde. Mit Resend: Host `smtp.resend.com`, Port 465, Benutzer `resend`, Passwort = Resend-API-Key, Absender wie `MAIL_FROM`.

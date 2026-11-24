@@ -308,6 +308,10 @@ export async function stellen(id: string, vonBenutzer: string, pakete: PaketWuns
     throw new Error("Die Rechnung, die korrigiert werden soll, gibt es nicht mehr oder sie ist nicht gestellt.");
   }
   const heute = berlinDatum();
+  // Korrektur eines schon stornierten Originals: Wurde der Betrag schon erstattet, ist nichts mehr bezahlt, was
+  // die neue Fassung übernehmen könnte. Sonst übernimmt sie die Zahlung, und das alte Storno ist damit erledigt.
+  const zahlung = original ? await uebernommeneZahlung(original) : null;
+  const altesStorno = zahlung?.storno ?? null;
   // Empfänger ohne Kunden: jetzt in die Kartei (gefunden oder neu). Stornos übernehmen den Kunden des Originals.
   const kundeId = r.kunde_id ?? (r.storno_zu ? null : await kundeAusBeleg(r.empfaenger, r.fahrzeug));
   await db()
@@ -317,7 +321,7 @@ export async function stellen(id: string, vonBenutzer: string, pakete: PaketWuns
       faellig_am: plusTage(heute, rechnung.zahlungszielTage),
       leistungsdatum: r.leistungsdatum ?? heute,
       kunde_id: kundeId,
-      ...(original ? { bereits_bezahlt_cent: bereitsBezahlt(original) } : {}),
+      ...(original ? { bereits_bezahlt_cent: zahlung!.cent } : {}),
     })
     .eq("id", id)
     .eq("status", "entwurf");
@@ -327,6 +331,10 @@ export async function stellen(id: string, vonBenutzer: string, pakete: PaketWuns
     // Erst gilt das Original nicht mehr, dann die neue Fassung. Scheitert das Stellen danach, bleibt der
     // Entwurf stehen, und der nächste Versuch überspringt das schon erledigte Storno.
     if (original.status !== "storniert") await stornieren(original.id, vonBenutzer, grund);
+    else if (altesStorno?.status === "gestellt") {
+      await db().from("rechnungen").update({ status: "bezahlt", bezahlt_am: heute, faellig_am: null }).eq("id", altesStorno.id).eq("status", "gestellt");
+      await verlauf("rechnung", altesStorno.id, `Erledigt: Die Zahlung auf ${original.nummer} geht auf die berichtigte Rechnung über.`, vonBenutzer);
+    }
     const { data, error } = await dbRoh().rpc("rechnung_korrektur_stellen", { p_id: id, p_firma: firma });
     if (error) {
       if (error.message.includes("KEINE_POSITIONEN")) throw new Error("Die Rechnung hat keine Positionen.");
@@ -431,6 +439,20 @@ export async function korrekturAnlegen(id: string, grundEingabe: string, vonBenu
 
 export type KorrekturStand = { id: string; original: string; datum: string | null; fassung: string; gesendet: boolean; grund: string; bereits: number };
 
+/**
+ * Was die neue Fassung vom Original als schon bezahlt übernimmt. Wurde das Original vorher schon storniert und
+ * der Betrag erstattet (Storno „bezahlt“ mit Zahlungsart), ist nichts mehr übrig. `storno` gibt das Storno des
+ * Originals mit, damit stellen() es danach als erledigt führen kann.
+ */
+async function uebernommeneZahlung(o: Rechnung): Promise<{ cent: number; storno: { id: string; status: string; zahlungsart: string | null } | null }> {
+  const storno =
+    o.status === "storniert"
+      ? ((await db().from("rechnungen").select("id, status, zahlungsart").eq("storno_zu", o.id).neq("status", "entwurf").maybeSingle()).data as { id: string; status: string; zahlungsart: string | null } | null)
+      : null;
+  const erstattet = storno?.status === "bezahlt" && Boolean(storno.zahlungsart);
+  return { cent: erstattet ? 0 : bereitsBezahlt(o), storno };
+}
+
 /** Für den Korrekturentwurf: welches Original, welche Nummer die Fassung voraussichtlich bekommt, was verrechnet wird. */
 export async function korrekturStand(r: Rechnung): Promise<KorrekturStand | null> {
   if (!r.korrektur_zu) return null;
@@ -445,7 +467,7 @@ export async function korrekturStand(r: Rechnung): Promise<KorrekturStand | null
     fassung: fassungsNummer(o.nummer, Boolean(o.korrektur_zu), (data ?? []).map((x) => String(x.nummer))),
     gesendet: Boolean(o.gesendet_am),
     grund: r.korrektur_grund ?? "",
-    bereits: bereitsBezahlt(o),
+    bereits: (await uebernommeneZahlung(o)).cent,
   };
 }
 
@@ -541,7 +563,7 @@ export async function vorschauPdf(r: Rechnung): Promise<Buffer> {
     storno: false,
     korrektur_zu: original?.nummer ? { nummer: original.nummer, datum: original.rechnungsdatum } : null,
     korrektur_grund: r.korrektur_grund ?? "",
-    bereits_bezahlt_cent: original ? bereitsBezahlt(original) : 0,
+    bereits_bezahlt_cent: original ? (await uebernommeneZahlung(original)).cent : 0,
     rechnungsdatum: berlinDatum(),
     leistungsdatum: r.leistungsdatum,
     faellig_am: plusTage(berlinDatum(), rechnung.zahlungszielTage),
@@ -675,6 +697,12 @@ export async function alsUnbezahlt(id: string, vonBenutzer: string): Promise<voi
  * Storno: eine eigene Rechnung mit negativen Beträgen und eigener Nummer, die auf das Original verweist.
  * Das Original bleibt unverändert erhalten (GoBD) und bekommt nur den Status „storniert“.
  * `korrekturGrund`: Das Storno gehört zu einer Korrektur und nennt deren Grund.
+ *
+ * Gibt es nichts zu erstatten, ist das Storno gleich erledigt (Status „bezahlt“, ohne Fälligkeit): Das ist so,
+ * wenn das Original nicht bezahlt war, und bei einer Korrektur, weil dort die neue Fassung die Zahlung
+ * übernimmt (`bereits_bezahlt_cent`). Sonst stünde der negative Betrag als offen da und zöge die Summe „offen“
+ * ein zweites Mal ab (Fehlerbuch: Stornorechnung zählt als offener Posten). Offen bleibt nur das Storno einer
+ * bezahlten Rechnung ohne Korrektur: Dort ist der Betrag wirklich zu erstatten.
  */
 export async function stornieren(id: string, vonBenutzer: string, korrekturGrund = ""): Promise<string> {
   const r = await rechnungLaden(id);
@@ -695,6 +723,16 @@ export async function stornieren(id: string, vonBenutzer: string, korrekturGrund
   const nummer = await stellen(stornoId, vonBenutzer);
   await db().from("rechnungen").update({ status: "storniert" }).eq("id", id);
   await verlauf("rechnung", id, `Storniert durch ${nummer}`, vonBenutzer);
+  if (!r.bezahlt_am || korrekturGrund) {
+    // Kein Zahlungsereignis: Es fließt kein Geld, DATEV bucht dafür nichts (zahlungseingang ist 0).
+    await db().from("rechnungen").update({ status: "bezahlt", bezahlt_am: berlinDatum(), faellig_am: null }).eq("id", stornoId).eq("status", "gestellt");
+    await verlauf(
+      "rechnung",
+      stornoId,
+      korrekturGrund && r.bezahlt_am ? `Erledigt: Die Zahlung auf ${r.nummer} geht auf die berichtigte Rechnung über.` : `Erledigt: ${r.nummer} war nicht bezahlt, es ist nichts zu erstatten.`,
+      vonBenutzer,
+    );
+  }
   await melden("rechnung.storniert", { ...ereignisDaten(r), storno_nummer: nummer });
   return stornoId;
 }

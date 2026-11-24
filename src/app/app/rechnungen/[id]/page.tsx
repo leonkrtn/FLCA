@@ -5,6 +5,7 @@ import { MobilKopf } from "@/components/mobil/teile";
 import { benutzerMitRecht } from "@/lib/auth";
 import { kundenSuchen } from "@/lib/kunden";
 import { editorDaten } from "@/lib/rechnung/editor-daten";
+import { stornoStand } from "@/lib/rechnung/korrektur";
 import { bezuegeLaden, korrekturStand, RECHNUNG_STATUS, rechnungLaden } from "@/lib/rechnung/rechnungen";
 
 export default async function AppRechnung({ params }: { params: Promise<{ id: string }> }) {
@@ -20,7 +21,7 @@ export default async function AppRechnung({ params }: { params: Promise<{ id: st
   ]);
   return (
     <>
-      <MobilKopf titel={r.storno_zu ? `Stornorechnung ${r.nummer}` : r.nummer ? `Rechnung ${r.nummer}` : korrektur ? `Korrektur zu ${korrektur.original}` : "Rechnungsentwurf"} unter={RECHNUNG_STATUS[r.status]} zurueck={r.termin_id ? `/app/termine/${r.termin_id}` : "/app/rechnungen"} />
+      <MobilKopf titel={r.storno_zu ? `Stornorechnung ${r.nummer}` : r.nummer ? `Rechnung ${r.nummer}` : korrektur ? `Korrektur zu ${korrektur.original}` : "Rechnungsentwurf"} unter={r.storno_zu ? stornoStand(r) : RECHNUNG_STATUS[r.status]} zurueck={r.termin_id ? `/app/termine/${r.termin_id}` : "/app/rechnungen"} />
       <div className="bg-weiss p-4">
         {korrektur ? <KorrekturHinweis k={korrektur} basis="/app/rechnungen" /> : null}
         {r.status === "entwurf" ? (

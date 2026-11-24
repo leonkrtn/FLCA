@@ -18,6 +18,101 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-23 · DATEV: Erstattungen an Kunden werden nicht gebucht
+
+- **Stand:** offen
+- **Wo:** `monatsexport` in `src/lib/rechnung/datev.ts`, `zahlungseingang` in `korrektur.ts`
+- **Was man sah:** (beim Beheben des Storno-Eintrags) Wird das Storno einer bezahlten Rechnung als erstattet
+  markiert, bucht der Export dafür nichts: `zahlungseingang` ist für negative Beträge 0. Ebenso fehlt die
+  Erstattung, wenn eine berichtigte Fassung niedriger ist als das schon Gezahlte. Das Debitorenkonto bleibt dann
+  mit dem Erstattungsbetrag stehen.
+- **Ursache:** Der Export kennt nur Zahlungseingänge, keine Auszahlungen.
+- **Behebung:** noch keine. Vor dem Ändern mit dem Steuerberater klären, wie Erstattungen gebucht werden sollen
+  (Debitor an Bank/Kasse).
+- **Muster:** Geldfluss, der nur in eine Richtung gedacht ist (`Math.max(0, …)` bei Beträgen).
+- **Weitere Stellen:** `zugferd.ts` (Vorauszahlung in der E-Rechnung, kann nicht negativ sein): in Ordnung.
+
+### 2026-11-23 · Stornorechnung zählt als offener Posten und wird „überfällig“
+
+- **Stand:** behoben
+- **Wo:** `stornieren`/`stellen` in `src/lib/rechnung/rechnungen.ts`; Summen in `src/app/admin/(panel)/page.tsx`,
+  `kunden/[id]/page.tsx`, `src/app/app/rechnungen/page.tsx`, Liste `rechnungen/page.tsx`
+- **Was man sah:** (beim Durchsehen) Wird eine **unbezahlte** Rechnung storniert, steht das Original auf
+  „storniert“ (fällt aus „offen“ heraus), die Stornorechnung aber auf „gestellt“ mit negativem Betrag und
+  `faellig_am`. Die Summe „offen“ sinkt um den Betrag ein zweites Mal (bei einer Korrektur: neue Fassung minus
+  Storno statt nur neue Fassung), die Stornorechnung zählt als offener Posten und wird nach dem Zahlungsziel rot
+  „überfällig“.
+- **Ursache:** „Offen“ wird aus `status === "gestellt"` abgeleitet; eine Stornorechnung hat diesen Status, obwohl
+  bei unbezahltem Original nichts zu zahlen oder zu erstatten ist. Der frühere Eintrag nahm das als gewollt an;
+  gewollt passt nur, wenn das Original bezahlt war (dann ist die Gutschrift wirklich offen).
+- **Behebung:** Ist nichts zu erstatten (Original unbezahlt, oder eine Korrektur übernimmt die Zahlung), steht
+  das Storno gleich auf „bezahlt“ ohne Zahlungsart und ohne Fälligkeit; angezeigt als „Erledigt“ (`stornoStand`
+  in `korrektur.ts`), PDF „ausgeglichen, zu zahlen ist nichts“. Offen bleibt nur das Storno einer bezahlten
+  Rechnung ohne Korrektur („Zu erstatten“, Knöpfe „Bar erstattet“/„Überwiesen“). Wird ein schon storniertes
+  Original später berichtigt, übernimmt die Fassung die Zahlung nur, wenn noch nicht erstattet wurde
+  (`uebernommeneZahlung`), und das alte Storno wird erledigt. Vorhandene Stornos: Migration `storno_erledigt`.
+- **Muster:** Ein Gegenbeleg, der einen anderen Beleg aufhebt, in Summen mitgezählt, obwohl der aufgehobene schon
+  herausfällt (doppelt abgezogen).
+- **Weitere Stellen:** alle Stellen mit `status === "gestellt"` für Summen/Zähler (oben unter „Wo“) betroffen.
+
+### 2026-11-23 · Reifensaison-Mail passt nicht zu den eingelagerten Rädern
+
+- **Stand:** behoben
+- **Wo:** Schritt `saison` in `src/lib/automatik.ts`
+- **Was man sah:** (beim Durchsehen) Die Mail geht an **jede** offene Einlagerung, egal welche Räder liegen. Im
+  Frühjahr bekommt jemand mit eingelagerten Winterrädern „Zeit für die Sommerreifen. Ihre Winterräder liegen bei
+  uns bereit.“, Ganzjahresräder werden zweimal im Jahr zum Wechsel gerufen.
+- **Ursache:** Ausgewählt wird nur nach Datum (`fruehjahr`/`herbst`), nicht nach `einlagerungen.saison`.
+- **Behebung:** Frühjahr nur `saison = 'sommer'`, Herbst nur `'winter'`, `ganzjahr` nie. Link und Dauer kommen
+  aus der Preisliste (Leistung `radwechsel`, aktiv und online anfragbar); fehlt sie, führt der Link auf `/termin`
+  und die Dauer entfällt.
+- **Muster:** Serienmail, deren Anlass (Datum) und deren Inhalt (Datensatz) nicht gegeneinander geprüft werden.
+- **Weitere Stellen:** übrige Serienmails im Takt (Erinnerung, Bewertung) wählen passend nach Status: in Ordnung.
+  Nebenbei behoben: „rund 30 Minuten“ stand fest im Text.
+
+### 2026-11-23 · „Kunde nicht erschienen“ setzt den Werkstattauftrag auf „fertig“
+
+- **Stand:** behoben
+- **Wo:** `erledigen` in `src/lib/termine.ts`
+- **Was man sah:** (beim Durchsehen) Auch mit `status = "nicht_erschienen"` wird `auftrag_status: "fertig"`
+  geschrieben. Ein Auftrag, an dem nie gearbeitet wurde, gilt als fertig.
+- **Ursache:** Beide Abschlüsse teilen eine Funktion, das Update unterscheidet nicht.
+- **Behebung:** `auftrag_status` wird nur bei `erledigt` gesetzt.
+- **Muster:** Eine Funktion für mehrere Ausgänge, die Nebenfelder für alle gleich setzt.
+- **Weitere Stellen:** sonst setzt nur `src/lib/auftrag.ts` den Auftragsstand: in Ordnung.
+
+### 2026-11-23 · Terminnummern ändern sich nach dem Löschen eines Termins
+
+- **Stand:** behoben
+- **Wo:** `termin_loeschen` (`supabase/migrations/20261121100000_termine_loeschen.sql`), Kommentar an `loeschen`
+  in `src/lib/termine.ts`
+- **Was man sah:** (beim Durchsehen) Nach dem Löschen rücken alle späteren **Terminnummern** um eins nach. Die
+  Nummer steht aber auf dem Werkstattauftrag (`termin_nummer`, PDF/Unterschrift), in Notizen („Termin Nr.“), im
+  Kostenvoranschlag und in Webhooks/API (`nummer`). Danach zeigen alte Ausdrucke und gespeicherte Ereignisse auf
+  einen anderen Termin. Der Kommentar spricht von „Auftragsnummern“, die rücken aber gar nicht nach.
+- **Ursache:** Lückenlose Nummern wurden über die Beständigkeit einer nach außen gegebenen Kennung gestellt.
+- **Behebung:** Entscheidung des Betreibers: Nachrücken bleibt, die Terminnummer erscheint aber nur noch in
+  Notizen (dort bei jedem Anzeigen frisch gelesen, passt sich also an). Entfernt aus Kundenseite `t/[token]`,
+  Termindetail und -liste der Verwaltung, Kostenvoranschlag, Löschdialog, Webhooks (`termin.*`,
+  `auftrag.*`, `rechnung.termin_verknuepft`) und `/api/v1/termine`. Verlaufstexte nennen Datum und Leistung statt
+  der Nummer (gespeicherter Text würde sonst veralten). Kommentare und README sprechen von Terminnummern.
+- **Muster:** Eine Kennung, die nach außen geht (Ausdruck, Mail, Webhook) oder als Text gespeichert wird
+  (Verlauf), wird nachträglich geändert.
+- **Weitere Stellen:** sonst nummeriert keine Funktion nach (`grep "nummer = -nummer"`).
+
+### 2026-11-23 · DATEV-Monatsversand fällt aus, wenn der Takt am 1. nicht läuft
+
+- **Stand:** behoben
+- **Wo:** Schritt `datev` in `src/lib/automatik.ts`
+- **Was man sah:** (beim Durchsehen) Der Versand prüft `heute.slice(8) !== "01"`. Läuft der tägliche Teil am 1.
+  nicht (Zeitsteuerung aus, Fehler davor), wird der Vormonat nie mehr geschickt.
+- **Ursache:** fester Tag statt „ab dem 1., solange für den Vormonat noch nichts gesendet ist“; das
+  `automatik_log` verhindert Doppelversand ohnehin.
+- **Behebung:** Fällig an jedem Tag ab dem 1., bis der Vormonat gesendet ist (`automatik_log` verhindert
+  Doppelversand). Beschriftung in Einstellungen → Automatik nennt das Nachholen.
+- **Muster:** Tägliche Aufgabe, die nur an genau einem Datum fällig ist, ohne Nachholen.
+- **Weitere Stellen:** `saison` hat ein Fenster von vier Tagen: in Ordnung.
+
 ### 2026-11-22 · Website: Hallenfoto im Startbereich fehlte
 
 - **Stand:** behoben
@@ -225,7 +320,8 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 - **Weitere Stellen:** Werkstatt-App am Termin (`offene` schließt `storniert` aus), Kundenseite `t/[token]`
   (zeigt nur den Link aufs PDF, jetzt mit Vermerk), offene Summen in Startseite und Werkstatt-App (zählen nur
   `gestellt`, ziehen jetzt Verrechnetes über `offenerBetrag` ab): in Ordnung. Bewusst gelassen: Die Summe
-  „offen“ enthält Stornorechnungen (Status `gestellt`, negativ), das war schon vorher so gewollt.
+  „offen“ enthält Stornorechnungen (Status `gestellt`, negativ), das war schon vorher so gewollt. Nachtrag 2026-11-23: bei unbezahltem Original falsch, siehe Eintrag
+  „Stornorechnung zählt als offener Posten“.
 
 ### 2026-11-22 · Verwaltung: dunkle linke Leiste stand manchmal versetzt
 

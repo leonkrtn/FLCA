@@ -469,7 +469,7 @@ async function kundenMail(t: Termin, art: "eingang" | "eingang_eng" | "gegenvors
         ]
       : undefined,
   });
-  if (!ergebnis.ok) console.warn(`Mail „${art}“ zu Termin ${t.nummer} nicht versendet: ${ergebnis.fehler}`);
+  if (!ergebnis.ok) console.warn(`Mail „${art}“ zu Termin ${t.id} nicht versendet: ${ergebnis.fehler}`);
 }
 
 async function betriebBenachrichtigen(t: Termin, art: "neu" | "storniert" | "vorschlag_ja" | "vorschlag_nein") {
@@ -510,7 +510,6 @@ async function betriebBenachrichtigen(t: Termin, art: "neu" | "storniert" | "vor
 
 const ereignisDaten = (t: Termin) => ({
   termin_id: t.id,
-  nummer: t.nummer,
   status: t.status,
   beginn: t.beginn,
   ende: t.ende,
@@ -1090,7 +1089,8 @@ export async function nachAbwesenheitUmverteilen(
 export async function erledigen(id: string, vonBenutzer: string, status: "erledigt" | "nicht_erschienen" = "erledigt"): Promise<void> {
   const { data, error } = await db()
     .from("termine")
-    .update({ status, auftrag_status: "fertig" })
+    // Werkstattauftrag nur bei „erledigt“ auf fertig: Ist der Kunde nicht gekommen, wurde nichts gemacht.
+    .update(status === "erledigt" ? { status, auftrag_status: "fertig" } : { status })
     .eq("id", id)
     .in("status", ["bestaetigt", "angefragt"])
     .select("id");
@@ -1103,8 +1103,9 @@ export async function erledigen(id: string, vonBenutzer: string, status: "erledi
 }
 
 /**
- * Löscht einen Termin endgültig, mit Fotos und Verlauf. Die späteren Auftragsnummern
- * rücken nach (termin_loeschen). Rechnungen zum Termin bleiben, sie verlieren nur den Verweis. Der Kunde
+ * Löscht einen Termin endgültig, mit Fotos und Verlauf. Die späteren Terminnummern rücken nach
+ * (termin_loeschen). Das geht, weil die Terminnummer nur intern in Notizen erscheint (die lesen sie bei jedem
+ * Anzeigen neu), nie auf Belegen, Kundenseiten, Mails oder Webhooks. Rechnungen zum Termin bleiben, sie verlieren nur den Verweis. Der Kunde
  * bekommt keine Mail: Wer ihm Bescheid geben will, sagt den Termin vorher ab.
  */
 export async function loeschen(id: string, vonBenutzer: string): Promise<void> {

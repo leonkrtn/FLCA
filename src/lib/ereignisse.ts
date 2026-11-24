@@ -16,7 +16,7 @@ export const EREIGNIS_TYPEN = {
   "termin.storniert": "Ein Termin wurde storniert",
   "termin.verschoben": "Ein Termin wurde verschoben",
   "termin.erledigt": "Ein Auftrag wurde abgeschlossen",
-  "termin.geloescht": "Ein Termin wurde endgültig gelöscht (spätere Auftragsnummern rücken nach)",
+  "termin.geloescht": "Ein Termin wurde endgültig gelöscht",
   "termin.gegenvorschlag": "Dem Kunden wurde statt seiner Wunschzeit eine andere Zeit vorgeschlagen",
   "termin.zugewiesen": "Ein Termin wurde einem Mitarbeiter zugeteilt oder abgenommen (vorher = bisherige Person)",
   "termin.kunde_verknuepft": "Ein Termin wurde mit einem anderen Kunden verknüpft",

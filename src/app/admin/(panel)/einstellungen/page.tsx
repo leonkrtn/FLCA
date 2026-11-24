@@ -149,7 +149,7 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
               <Feld label="Herbst (MM-TT)" name="herbst" wert={e.automatik.saison.herbst} />
             </div>
             <fieldset className="grid gap-3 border-t border-linie pt-4 sm:grid-cols-3">
-              <div className="sm:col-span-3"><Schalter label="DATEV-Export am 1. jedes Monats an den Steuerberater senden" name="datev" an={e.automatik.datev.aktiv} /></div>
+              <div className="sm:col-span-3"><Schalter label="DATEV-Export für den Vormonat am 1. an den Steuerberater senden (fällt der Versand aus, wird er nachgeholt)" name="datev" an={e.automatik.datev.aktiv} /></div>
               <Feld label="E-Mail Steuerberater" name="datev_email" wert={e.automatik.datev.email} typ="email" />
               <Feld label="Beraternummer" name="beraterNr" wert={e.automatik.datev.beraterNr} />
               <Feld label="Mandantennummer" name="mandantNr" wert={e.automatik.datev.mandantNr} />

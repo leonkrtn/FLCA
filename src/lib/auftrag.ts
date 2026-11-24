@@ -52,7 +52,6 @@ export type AuftragTermin = NonNullable<Awaited<ReturnType<typeof auftragLaden>>
 
 const ereignisDaten = (t: Termin) => ({
   termin_id: t.id,
-  termin_nummer: t.nummer,
   auftrag_nummer: t.auftrag_nummer,
   stand: auftragStand(t),
   brutto_cent: t.auftrag_summe_brutto_cent ?? 0,
@@ -384,12 +383,4 @@ export async function nachFertig(terminId: string, vonBenutzer: string, wer: str
     ]);
   });
   return rechnungId;
-}
-
-/** Für Listen: kurzer Text zum Stand des Auftrags (Datum der Erteilung oder was fehlt). */
-export function auftragKurz(t: Termin): string {
-  const stand = auftragStand(t);
-  if (stand === "kein") return "";
-  if (stand === "erteilt") return `${t.auftrag_nummer} · erteilt ${datum(t.auftrag_erteilt_am)}`;
-  return `${t.auftrag_nummer} · ${stand === "beim_kunden" ? "beim Kunden" : "nicht erteilt"}`;
 }

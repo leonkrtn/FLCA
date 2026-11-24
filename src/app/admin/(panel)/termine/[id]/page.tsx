@@ -73,12 +73,12 @@ export default async function TerminDetail({ params, searchParams }: { params: P
             <Marke ton={TERMIN_TON[t.status]}>{STATUS_TEXT[t.status]}</Marke>
             {stand !== "kein" ? <Marke ton={AUFTRAG_STAND_TON[stand]}>{`Auftrag ${AUFTRAG_STAND_TEXT[stand].toLowerCase()}`}</Marke> : null}
             <span>
-              {datumLangText(t.beginn)}, {zeit(t.beginn)} bis {zeit(t.ende)} Uhr · Nr. {t.nummer} · {t.quelle === "website" ? "über die Website" : "eingetragen"}
+              {datumLangText(t.beginn)}, {zeit(t.beginn)} bis {zeit(t.ende)} Uhr · {t.quelle === "website" ? "über die Website" : "eingetragen"}
             </span>
           </span>
         }
       >
-        <TerminLoeschen id={t.id} nummer={t.nummer} status={t.status} ziel="/admin/termine" kal={kal ? kalWert(kal) : undefined} />
+        <TerminLoeschen id={t.id} status={t.status} ziel="/admin/termine" kal={kal ? kalWert(kal) : undefined} />
       </Kopf>
       <div className="grid gap-x-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div>

@@ -7,14 +7,12 @@ import { loeschenAktion } from "@/lib/aktionen/termine";
  */
 export function TerminLoeschen({
   id,
-  nummer,
   status,
   ziel,
   kal,
   gross = false,
 }: {
   id: string;
-  nummer: number;
   status: string;
   ziel: "/admin/termine" | "/app";
   /** Aus dem Kalender geöffnet (`?kal=…`): nach dem Löschen dorthin zurück */
@@ -24,8 +22,8 @@ export function TerminLoeschen({
 }) {
   const steht = ["angefragt", "bestaetigt"].includes(status);
   const frage = [
-    `Termin Nr. ${nummer} endgültig löschen?`,
-    "Fotos und Verlauf werden mitgelöscht, die späteren Auftragsnummern rücken um eins nach. Rechnungen zum Termin bleiben erhalten.",
+    "Termin endgültig löschen?",
+    "Fotos und Verlauf werden mitgelöscht. Rechnungen zum Termin bleiben erhalten.",
     steht ? "Der Kunde bekommt keine Nachricht. Soll er Bescheid bekommen, den Termin vorher absagen." : "",
   ]
     .filter(Boolean)

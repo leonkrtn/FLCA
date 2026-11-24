@@ -314,7 +314,7 @@ export async function kvInRechnung(id: string, vonBenutzer: string): Promise<str
 export async function kvMitTerminVerknuepfen(id: string, terminId: string, vonBenutzer: string | null): Promise<void> {
   const k = await kvLaden(id);
   if (!k) throw new Error("Kostenvoranschlag nicht gefunden.");
-  const { data: t } = await db().from("termine").select("id, nummer, kunde_id, status").eq("id", terminId).maybeSingle();
+  const { data: t } = await db().from("termine").select("id, beginn, leistung_name, kunde_id, status").eq("id", terminId).maybeSingle();
   if (!t) throw new Error("Termin nicht gefunden.");
   if (k.termin_id === terminId) return;
   if (k.termin_id) throw new Error("Der Kostenvoranschlag gehört schon zu einem anderen Termin. Bitte dort zuerst lösen.");
@@ -324,7 +324,7 @@ export async function kvMitTerminVerknuepfen(id: string, terminId: string, vonBe
     await db().from("rechnungen").update({ termin_id: terminId }).or(`id.eq.${k.rechnung_id},storno_zu.eq.${k.rechnung_id}`).is("termin_id", null);
   }
   const name = k.nummer ?? "Kostenvoranschlag (Entwurf)";
-  await verlauf("kostenvoranschlag", id, `Mit Termin Nr. ${t.nummer} verknüpft`, vonBenutzer);
+  await verlauf("kostenvoranschlag", id, `Mit Termin vom ${datum(t.beginn)} (${t.leistung_name}) verknüpft`, vonBenutzer);
   await verlauf("termin", terminId, `${name} verknüpft`, vonBenutzer);
   await melden("kostenvoranschlag.termin_verknuepft", { ...ereignisDaten(k), termin_id: terminId, verknuepft: true });
   if (k.status === "angenommen") await auftragAusKv(terminId, k, vonBenutzer);

@@ -37,13 +37,20 @@ export function RechnungAnsicht({
       <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         <DateiKnopf art="datei" href={pdfHref} className="knopf knopf-dunkel">PDF öffnen</DateiKnopf>
         <DateiKnopf art="datei" href={`/admin/rechnungen/${r.id}/xml`} className="knopf knopf-rahmen">{xrechnung ? "XRechnung (XML)" : "E-Rechnung (XML)"}</DateiKnopf>
-        {r.status === "gestellt" ? (
+        {r.status === "gestellt" && r.storno_zu ? (
+          // Offen ist ein Storno nur, wenn auf das Original gezahlt wurde: Dann geht Geld zurück an den Kunden.
+          <Formular aktion={bezahltAktion.bind(null, r.id)} className="contents">
+            <input type="hidden" name="am" value={berlinDatum()} />
+            <Senden art="rahmen" name="zahlungsart" value="bar" vorab="Erstattet">Bar erstattet</Senden>
+            <Senden art="rahmen" name="zahlungsart" value="ueberweisung" vorab="Erstattet">Überwiesen</Senden>
+          </Formular>
+        ) : r.status === "gestellt" ? (
           <Formular aktion={bezahltAktion.bind(null, r.id)} className="contents">
             <input type="hidden" name="am" value={berlinDatum()} />
             <Senden art="rahmen" name="zahlungsart" value="bar" vorab="Bezahlt">Bar bezahlt</Senden>
             <Senden art="rahmen" name="zahlungsart" value="ueberweisung" vorab="Bezahlt">Überweisung da</Senden>
           </Formular>
-        ) : r.status === "bezahlt" ? (
+        ) : r.status === "bezahlt" && !(r.storno_zu && !r.zahlungsart) ? (
           <Formular aktion={unbezahltAktion.bind(null, r.id)} className="contents">
             <Senden art="rahmen" vorab="Wird zurückgesetzt">Nicht bezahlt</Senden>
           </Formular>
