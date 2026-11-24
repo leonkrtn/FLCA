@@ -723,7 +723,8 @@ export async function stornieren(id: string, vonBenutzer: string, korrekturGrund
   const nummer = await stellen(stornoId, vonBenutzer);
   await db().from("rechnungen").update({ status: "storniert" }).eq("id", id);
   await verlauf("rechnung", id, `Storniert durch ${nummer}`, vonBenutzer);
-  if (!r.bezahlt_am || korrekturGrund) {
+  const nichtsZuErstatten = !r.bezahlt_am || Boolean(korrekturGrund);
+  if (nichtsZuErstatten) {
     // Kein Zahlungsereignis: Es fließt kein Geld, DATEV bucht dafür nichts (zahlungseingang ist 0).
     await db().from("rechnungen").update({ status: "bezahlt", bezahlt_am: berlinDatum(), faellig_am: null }).eq("id", stornoId).eq("status", "gestellt");
     await verlauf(
@@ -733,6 +734,7 @@ export async function stornieren(id: string, vonBenutzer: string, korrekturGrund
       vonBenutzer,
     );
   }
-  await melden("rechnung.storniert", { ...ereignisDaten(r), storno_nummer: nummer });
+  // zu_erstatten: Das Storno wurde als „gestellt“ gemeldet; ohne dieses Feld hielte ein Abonnent es für offen.
+  await melden("rechnung.storniert", { ...ereignisDaten(r), storno_nummer: nummer, zu_erstatten: !nichtsZuErstatten });
   return stornoId;
 }

@@ -1099,7 +1099,7 @@ export async function erledigen(id: string, vonBenutzer: string, status: "erledi
   if (!data?.length) throw new TerminFehler("Der Termin wurde in der Zwischenzeit schon bearbeitet.");
   const termin = (await terminLaden(id))!;
   await verlauf("termin", id, status === "erledigt" ? "Erledigt" : "Kunde nicht erschienen", vonBenutzer);
-  if (status === "erledigt") after(() => melden("termin.erledigt", ereignisDaten(termin)));
+  after(() => melden(status === "erledigt" ? "termin.erledigt" : "termin.nicht_erschienen", ereignisDaten(termin)));
 }
 
 /**
