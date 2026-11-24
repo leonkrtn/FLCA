@@ -3,6 +3,7 @@ import Link from "next/link";
 import halle from "@/assets/halle-lancia.jpg";
 import handschuhe from "@/assets/handschuhe.jpg";
 import lanciaHeck from "@/assets/lancia-heck.jpg";
+import panamera from "@/assets/panamera-reifen.jpg";
 import porsche from "@/assets/porsche-felge.jpg";
 import { Nachricht, Pfeil, Route, Telefon } from "@/components/icons";
 import { Sterne } from "@/components/icons-stern";
@@ -145,14 +146,16 @@ export default async function Startseite() {
             </Link>
           ) : null}
         </div>
-        <div className="rand flex snap-x snap-mandatory gap-4 quer-scrollen pb-2 [scrollbar-width:none] md:grid md:grid-cols-3 md:overflow-visible">
+        <div className="rand flex snap-x snap-mandatory gap-4 quer-scrollen pb-2 [scrollbar-width:none] md:grid md:grid-cols-2 md:overflow-visible lg:grid-cols-4">
           {[
             { src: porsche, alt: "Porsche 911 mit schwarzen Felgen und gelben Bremssätteln in der Halle" },
+            { src: panamera, alt: "Weißer Porsche Panamera auf der Hebebühne, davor ein Stapel Reifen und die Reifenmontiermaschine" },
             { src: lanciaHeck, alt: "Roter Lancia Delta von hinten, daneben ein schwarzer BMW" },
             { src: halle, alt: "Werkstatthalle mit geöffneter Motorhaube" },
           ].map((b, i) => (
-            <div key={b.alt} className={`group relative aspect-[3/4] w-[78vw] shrink-0 snap-start overflow-hidden rounded-lg sm:w-[45vw] md:w-auto ${i === 1 ? "md:mt-12" : ""}`}>
-              <Image src={b.src} alt={b.alt} fill sizes="(min-width: 768px) 30vw, 78vw" className="object-cover transition-transform duration-700 group-hover:scale-[1.04]" />
+            // Jedes zweite Bild versetzt, damit die Reihe nicht wie ein Raster wirkt (erst ab vier Spalten, darunter stünden die Lücken mitten im Zweierraster)
+            <div key={b.alt} className={`group relative aspect-[3/4] w-[78vw] shrink-0 snap-start overflow-hidden rounded-lg sm:w-[45vw] md:w-auto ${i % 2 === 1 ? "lg:mt-12" : ""}`}>
+              <Image src={b.src} alt={b.alt} fill sizes="(min-width: 1024px) 23vw, (min-width: 768px) 45vw, 78vw" className="object-cover transition-transform duration-700 group-hover:scale-[1.04]" />
             </div>
           ))}
         </div>
