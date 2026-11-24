@@ -21,6 +21,7 @@ import {
   webhookAnlegen,
   webhookLoeschen,
   webhookTesten,
+  whatsappSpeichern,
   zeitenSpeichern,
 } from "@/lib/aktionen/einstellungen";
 import { benutzerMitRecht } from "@/lib/auth";
@@ -32,6 +33,7 @@ import { datum, datumZeit, euro } from "@/lib/format";
 import { darf } from "@/lib/rollen";
 import { db, DbFehler, dbRoh } from "@/lib/supabase/admin";
 import { berlinDatum } from "@/lib/zeit";
+import { WHATSAPP_PLATZHALTER, WHATSAPP_STANDARD, WHATSAPP_VORLAGEN } from "@/lib/whatsapp";
 
 export const metadata = { title: "Einstellungen" };
 
@@ -43,6 +45,7 @@ const BEREICHE = [
   ["preise", "Gemerkte Preise"],
   ["automatik", "Automatik"],
   ["benachrichtigung", "Benachrichtigungen"],
+  ["whatsapp", "WhatsApp-Texte"],
   ["module", "Module"],
   ["schnittstellen", "Schnittstellen"],
   ["recht", "Rechtstexte"],
@@ -168,6 +171,28 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
         <Abschnitt titel="Benachrichtigungen">
           <Formular aktion={benachrichtigungSpeichern} className="grid max-w-xl gap-4">
             <Textfeld label="E-Mail-Adressen für neue Anfragen und Bewerbungen" name="emails" wert={e.benachrichtigung.emails.join("\n")} zeilen={3} hilfe={`Eine pro Zeile. Leer = ${e.firma.email}. Push-Nachrichten schaltet jede Person in ihrer Handy-App selbst ein.`} />
+            <div><Senden vorab="Gespeichert">Speichern</Senden></div>
+          </Formular>
+        </Abschnitt>
+      ) : null}
+
+      {bereich === "whatsapp" ? (
+        <Abschnitt titel="WhatsApp-Texte" aktion={<span className="text-sm text-grau">Werkstatt-App: Termin, Kostenvoranschlag, Rechnung.</span>}>
+          <Formular aktion={whatsappSpeichern} className="grid max-w-2xl gap-5">
+            <p className="text-sm text-grau">
+              Der Knopf „WhatsApp“ nimmt automatisch den Text, der zum Stand passt, und öffnet WhatsApp mit dem Kunden. Abgeschickt wird von Hand. Im Verlauf steht, wer ihn wann geöffnet hat. Ein leeres Feld setzt den Standardtext zurück.
+            </p>
+            {WHATSAPP_VORLAGEN.map((v) => (
+              <Textfeld key={v.schluessel} label={v.titel} name={v.schluessel} wert={e.whatsapp[v.schluessel] || WHATSAPP_STANDARD[v.schluessel]} zeilen={3} hilfe={`Wann: ${v.wann}`} />
+            ))}
+            <dl className="grid gap-x-4 gap-y-1 text-sm sm:grid-cols-[9rem_minmax(0,1fr)]">
+              {WHATSAPP_PLATZHALTER.map(([k, t]) => (
+                <div key={k} className="contents">
+                  <dt className="font-semibold">{`{${k}}`}</dt>
+                  <dd className="text-grau">{t}</dd>
+                </div>
+              ))}
+            </dl>
             <div><Senden vorab="Gespeichert">Speichern</Senden></div>
           </Formular>
         </Abschnitt>

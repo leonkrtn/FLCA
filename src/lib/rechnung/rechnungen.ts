@@ -588,13 +588,16 @@ export function dateiname(r: Pick<Rechnung, "nummer" | "storno_zu">, endung: "pd
  * Sendet eine gestellte Rechnung per Mail. Eine Korrektur geht mit der Stornorechnung ihres Originals im
  * Anhang: Wer das Original bekommen hat, braucht beide, um es auszubuchen.
  */
+/** Seite, auf der der Kunde die Rechnung ansieht und herunterlädt. */
+export const rechnungLink = (r: Pick<Rechnung, "token">) => `${ENV.siteUrl}/r/${r.token}`;
+
 export async function versenden(id: string, an: string, vonBenutzer: string): Promise<void> {
   const r = await rechnungLaden(id);
   if (!r || r.status === "entwurf") throw new Error("Bitte die Rechnung zuerst stellen.");
   const { firma } = await einstellungen();
   const pdf = await pdfErzeugen(r);
   const xrechnung = istXRechnung(r);
-  const link = `${ENV.siteUrl}/r/${r.token}`;
+  const link = rechnungLink(r);
   const storno = Boolean(r.storno_zu);
   const b = await bezuegeLaden(r);
   const korrektur = r.korrektur_zu && b.original?.nummer ? b.original : null;

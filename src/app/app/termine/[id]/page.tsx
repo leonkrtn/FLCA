@@ -14,6 +14,9 @@ import { benutzerMitRecht } from "@/lib/auth";
 import { darf } from "@/lib/rollen";
 import { kvsZumTermin, terminZusatz } from "@/lib/termin-daten";
 import { datumLangText, euro, telHref, whatsappHref, zeit } from "@/lib/format";
+import { WhatsappKnopf } from "@/components/mobil/whatsapp-knopf";
+import { whatsappVermerken } from "@/lib/aktionen/whatsapp";
+import { terminWhatsapp } from "@/lib/whatsapp-daten";
 import { TERMIN_TON } from "@/lib/status";
 import { db } from "@/lib/supabase/admin";
 import { anfrageLage, STATUS_TEXT } from "@/lib/termine";
@@ -25,11 +28,12 @@ export default async function AppTermin({ params }: { params: Promise<{ id: stri
   const t = await auftragLaden(id);
   if (!t) notFound();
   const mitRechnungen = darf(b.rolle, "rechnungen");
-  const [{ data: rechnungen }, lage, z, kvs] = await Promise.all([
+  const [{ data: rechnungen }, lage, z, kvs, wa] = await Promise.all([
     db().from("rechnungen").select("id, nummer, status, summe_brutto_cent, storno_zu").eq("termin_id", id),
     t.status === "angefragt" ? anfrageLage(t) : Promise.resolve(undefined),
     terminZusatz(id),
     mitRechnungen ? kvsZumTermin(id, t.kunde?.id ?? null) : Promise.resolve(null),
+    terminWhatsapp(t),
   ]);
   const stand = auftragStand(t);
   const offene = (rechnungen ?? []).find((r) => r.status !== "storniert" && !r.storno_zu);
@@ -45,7 +49,12 @@ export default async function AppTermin({ params }: { params: Promise<{ id: stri
           {t.kunde?.telefon ? (
             <div className="mt-3 grid grid-cols-2 gap-2">
               <a href={telHref(t.kunde.telefon)} className="knopf knopf-rahmen">Anrufen</a>
-              <a href={whatsappHref(t.kunde.telefon)} className="knopf knopf-rahmen" rel="noopener noreferrer">WhatsApp</a>
+              {/* Nachricht passend zum Stand (Bestätigung, Freigabe, fertig …), Texte unter Einstellungen → WhatsApp */}
+              {wa ? (
+                <WhatsappKnopf href={wa.href} vermerken={whatsappVermerken.bind(null, "termin", t.id, wa.vorlage)} />
+              ) : (
+                <a href={whatsappHref(t.kunde.telefon)} className="knopf knopf-rahmen" rel="noopener noreferrer">WhatsApp</a>
+              )}
             </div>
           ) : null}
         </Karte>

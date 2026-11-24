@@ -11,6 +11,7 @@ import { db, DbFehler, dbRoh } from "../supabase/admin";
 import { alsErledigt } from "../fehlerprotokoll";
 import { berlinDatum } from "../zeit";
 import { eingabeFehler, gleich, type Nummernkreis, nummerText } from "../rechnung/nummernkreis";
+import { WHATSAPP_STANDARD, WHATSAPP_VORLAGEN } from "../whatsapp";
 
 const alles = () => revalidatePath("/", "layout");
 
@@ -145,6 +146,22 @@ export async function benachrichtigungSpeichern(_v: Ergebnis, fd: FormData): Pro
     await benutzerMitRecht("einstellungen");
     const emails = text(fd, "emails", 1000).split(/[\s,;]+/).map((e) => e.trim().toLowerCase()).filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)).slice(0, 10);
     await einstellungenSpeichern("benachrichtigung", { emails });
+    return { status: "ok", meldung: "Gespeichert." };
+  });
+}
+
+/** WhatsApp-Texte der Werkstatt-App. Ein leeres Feld setzt den Standardtext zurück. */
+export async function whatsappSpeichern(_v: Ergebnis, fd: FormData): Promise<Ergebnis> {
+  return sicher(fd, async () => {
+    await benutzerMitRecht("einstellungen");
+    const texte = { ...WHATSAPP_STANDARD };
+    for (const { schluessel } of WHATSAPP_VORLAGEN) {
+      // Nicht über text(): das schneidet das Leerzeichen am Ende ab, hinter dem man in WhatsApp weiterschreibt.
+      const roh = fd.get(schluessel);
+      const wert = typeof roh === "string" ? roh.replace(/\r\n?/g, "\n").replace(/[^\P{C}\n\t]/gu, "").slice(0, 1000) : "";
+      texte[schluessel] = wert.trim() ? wert.replace(/^\s+/, "") : WHATSAPP_STANDARD[schluessel];
+    }
+    await einstellungenSpeichern("whatsapp", texte);
     return { status: "ok", meldung: "Gespeichert." };
   });
 }
