@@ -1,3 +1,4 @@
+import { NachTastatur } from "@/components/nach-tastatur";
 import type { Viewport } from "next";
 import { Fuss } from "@/components/site/fuss";
 import { Kopf } from "@/components/site/kopf";
@@ -14,6 +15,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       <Kopf module={e.module} telefon={e.firma.telefon} oeffnungszeiten={e.oeffnungszeiten} />
       <main>{children}</main>
       <Fuss e={e} />
+      <NachTastatur />
       <MobilLeiste telefon={e.firma.telefon} whatsapp={e.firma.whatsapp} />
     </div>
   );

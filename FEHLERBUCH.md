@@ -18,6 +18,22 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-24 · Werkstatt-App: Tab-Leiste schwebt mitten auf der Seite
+
+- **Stand:** behoben (am iPhone noch zu bestätigen)
+- **Wo:** `src/components/mobil/leiste.tsx` (Tab-Leiste), betroffen jede `fixed bottom-0`-Leiste
+- **Was man sah:** Auf der Terminseite stand die dunkle Tab-Leiste rund 230 pt über dem unteren Rand, darunter lief
+  die Seite weiter. Der dunkle Streifen, der sonst unter der Leiste weitergeht, fehlte.
+- **Ursache:** iOS 26 rechnet das Fenster nicht neu, wenn die Tastatur zugeht, vor allem wenn dabei die Seite
+  wechselt (Notiz speichern → `redirect` zurück zum Termin). `fixed bottom-0` hängt dann an der alten
+  Tastaturkante, 230 pt sind etwa die Tastaturhöhe. Fehler in WebKit, nicht im Code der Leiste.
+- **Behebung:** `NachTastatur` (`src/components/nach-tastatur.tsx`) in den Layouts von Werkstatt-App, Team-App und
+  Website: Beim Absenden verlässt das Feld den Fokus (Tastatur zu vor dem Seitenwechsel). Nach dem Schließen der
+  Tastatur und nach jedem Seitenwechsel springt die Seite einen Pixel und zurück, das lässt WebKit neu vermessen.
+- **Muster:** Ein neuer Bereich mit eigenem Layout und `fixed bottom-0`-Leiste ohne `<NachTastatur>`.
+- **Weitere Stellen:** Website (`src/components/site/mobil-leiste.tsx`, Leiste in `src/components/site/buchung.tsx`)
+  über das Layout von `(site)` mit abgedeckt. Die Verwaltung (`/admin`) hat keine unten feste Leiste.
+
 ### 2026-11-24 · Team-App: Tab „Mehr“ unter Erinnerungen nicht markiert
 
 - **Stand:** behoben

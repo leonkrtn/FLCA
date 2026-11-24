@@ -1,3 +1,4 @@
+import { NachTastatur } from "@/components/nach-tastatur";
 import { after } from "next/server";
 import { Auffrischen } from "@/components/auffrischen";
 import type { Metadata, Viewport } from "next";
@@ -30,6 +31,7 @@ export default async function TeamLayout({ children }: { children: React.ReactNo
     <div className="handy-app grund-weiss min-h-dvh bg-grund pb-[calc(4.5rem+env(safe-area-inset-bottom))]" data-leiste="hell">
       <div className="mx-auto max-w-xl">{children}</div>
       <Auffrischen />
+      <NachTastatur />
       <PushAbgleich />
       <TabLeiste
         tabs={[

@@ -1,3 +1,4 @@
+import { NachTastatur } from "@/components/nach-tastatur";
 import { after } from "next/server";
 import { Auffrischen } from "@/components/auffrischen";
 import type { Metadata, Viewport } from "next";
@@ -36,6 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="mx-auto max-w-xl">{children}</div>
       <PushAbgleich />
       <Auffrischen />
+      <NachTastatur />
       <TabLeiste
         dunkel
         tabs={[
