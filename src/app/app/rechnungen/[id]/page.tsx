@@ -6,6 +6,9 @@ import { benutzerMitRecht } from "@/lib/auth";
 import { kundenSuchen } from "@/lib/kunden";
 import { editorDaten } from "@/lib/rechnung/editor-daten";
 import { stornoStand } from "@/lib/rechnung/korrektur";
+import { WhatsappKnopf } from "@/components/mobil/whatsapp-knopf";
+import { whatsappVermerken } from "@/lib/aktionen/whatsapp";
+import { rechnungWhatsapp } from "@/lib/whatsapp-daten";
 import { bezuegeLaden, korrekturStand, RECHNUNG_STATUS, rechnungLaden } from "@/lib/rechnung/rechnungen";
 
 export default async function AppRechnung({ params }: { params: Promise<{ id: string }> }) {
@@ -13,11 +16,12 @@ export default async function AppRechnung({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const r = await rechnungLaden(id);
   if (!r) notFound();
-  const [daten, zuletzt, bezuege, korrektur] = await Promise.all([
+  const [daten, zuletzt, bezuege, korrektur, wa] = await Promise.all([
     r.status === "entwurf" ? editorDaten(r.fahrzeug) : null,
     r.status === "entwurf" ? kundenSuchen("", 6) : [],
     bezuegeLaden(r),
     r.status === "entwurf" ? korrekturStand(r) : null,
+    rechnungWhatsapp(r),
   ]);
   return (
     <>
@@ -37,6 +41,7 @@ export default async function AppRechnung({ params }: { params: Promise<{ id: st
         ) : (
           <RechnungAnsicht r={r} basis="/app/rechnungen" pdfHref={`/admin/rechnungen/${r.id}/pdf`} bezuege={bezuege} />
         )}
+        {wa ? <WhatsappKnopf href={wa.href} vermerken={whatsappVermerken.bind(null, "rechnung", r.id, wa.vorlage)} className="knopf knopf-rahmen mt-4 w-full">Per WhatsApp schicken</WhatsappKnopf> : null}
       </div>
     </>
   );

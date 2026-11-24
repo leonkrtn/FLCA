@@ -3,6 +3,7 @@ import { cache } from "react";
 import { KONFIGURIERT } from "./env";
 import { db, DbFehler, dbRoh } from "./supabase/admin";
 import { fehlerMelden } from "./fehler";
+import { WHATSAPP_STANDARD, type WhatsappVorlage } from "./whatsapp";
 
 /** Zeitfenster als „HH:MM“, z. B. ["08:30", "13:00"]. */
 export type Fenster = [string, string];
@@ -115,6 +116,8 @@ export type Einstellungen = {
     heroVideo: string;
     ueberBild: string;
   };
+  /** Vorausgefüllte WhatsApp-Nachrichten der Werkstatt-App, je Anlass ein Text mit Platzhaltern. */
+  whatsapp: Record<WhatsappVorlage, string>;
   rechtstexte: {
     datenschutzUrl: string;
     agbUrl: string;
@@ -213,6 +216,7 @@ export const STANDARD: Einstellungen = {
     karriereText: "Kleiner Betrieb, kurze Wege, ein Meister, der selbst mit anpackt. Bewerben geht in zwei Minuten, ein Lebenslauf ist kein Muss.",
   },
   medien: { heroBild: "", heroVideo: "", ueberBild: "" },
+  whatsapp: WHATSAPP_STANDARD,
   rechtstexte: { datenschutzUrl: "", agbUrl: "", datenschutzText: "", agbText: "" },
 };
 

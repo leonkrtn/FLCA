@@ -334,7 +334,7 @@ export async function fahrzeugFindenOderAnlegen(kennzeichen: string, kundeId: st
 // Mails rund um den Termin
 // ---------------------------------------------------------------------------
 
-function terminLink(t: Pick<Termin, "token">) {
+export function terminLink(t: Pick<Termin, "token">) {
   return `${ENV.siteUrl}/t/${t.token}`;
 }
 
