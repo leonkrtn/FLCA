@@ -18,6 +18,23 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-24 · „Nicht erschienen“ meldete kein Ereignis
+
+- **Stand:** behoben
+- **Wo:** `erledigen` in `src/lib/termine.ts`, `EREIGNIS_TYPEN` in `src/lib/ereignisse.ts`
+- **Was man sah:** (vom Betreiber nachgefragt) Nach „Nicht erschienen“ erfuhren Webhooks und
+  `/api/v1/ereignisse` nichts, „Erledigt“ meldete dagegen `termin.erledigt`. Für Abonnenten blieb der Termin
+  „bestätigt“.
+- **Ursache:** `melden` stand nur im Zweig für `erledigt`.
+- **Behebung:** neuer Typ `termin.nicht_erschienen`, `erledigen` meldet in beiden Fällen.
+- **Muster:** Eine fachliche Statusänderung ohne `melden`, oder eine, die einen schon gemeldeten Stand danach
+  still ändert.
+- **Weitere Stellen:** alle `update({ status` in `src/lib` gesucht. Termine (ablehnen, stornieren,
+  Gegenvorschlag), Rechnungen (bezahlt, unbezahlt, Korrektur) und Kostenvoranschläge melden. Mitbehoben: Das
+  Storno wird als `rechnung.gestellt` (offen) gemeldet und gleich danach still erledigt; `rechnung.storniert`
+  sagt jetzt mit `zu_erstatten`, ob es offen bleibt. Bewerbungen, Abwesenheiten und Werkstatt-Meldungen haben
+  keine Ereignistypen (interne Personal- und Werkstattsachen): bewusst gelassen.
+
 ### 2026-11-23 · DATEV: Erstattungen an Kunden werden nicht gebucht
 
 - **Stand:** offen
