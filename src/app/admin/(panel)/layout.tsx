@@ -27,7 +27,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // Ein kaputter Zähler darf nicht jede Seite der Verwaltung umwerfen: dann 0, aber im Fehlerprotokoll.
   const zaehlen = (tabelle: string, spalte: string, wert: string) =>
     weich(db().from(tabelle).select("id", { count: "exact", head: true }).eq(spalte, wert).then((r) => r.count ?? 0), 0, `Menü-Zähler ${tabelle}`);
-  const [anfragen, abwesenheiten, bewerbungen, erinnerungen, ohnePerson, fehler, meldungen] = await Promise.all([
+  const [anfragen, abwesenheiten, bewerbungen, erinnerungen, ohnePerson, fehler, meldungen, kundenEingaben] = await Promise.all([
     zaehlen("termine", "status", "angefragt"),
     darf(b.rolle, "team") ? zaehlen("abwesenheiten", "status", "beantragt") : 0,
     darf(b.rolle, "karriere") ? zaehlen("bewerbungen", "status", "neu") : 0,
@@ -36,6 +36,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     darf(b.rolle, "einstellungen") ? offeneFehlerAnzahl() : 0,
     // Befunde und angeforderte Teile aus der Team-App
     darf(b.rolle, "termine") ? zaehlen("auftrag_meldungen", "status", "offen") : 0,
+    // Was Kunden am Kundenbildschirm eingetragen haben und noch niemand angesehen hat
+    darf(b.rolle, "kunden")
+      ? weich(
+          db().from("kundenbildschirm_eingaben").select("id", { count: "exact", head: true }).is("gesehen_am", null).then((r) => r.count ?? 0),
+          0,
+          "Menü-Zähler kundenbildschirm_eingaben",
+        )
+      : 0,
   ]);
 
   const alle: (NavEintrag & { recht: Parameters<typeof darf>[1]; modul?: keyof typeof e.module })[] = [
@@ -45,6 +53,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: "/admin/auftraege", text: "Werkstattaufträge", recht: "termine", anzahl: meldungen },
     { href: "/admin/notizen", text: "Notizen", recht: "notizen", anzahl: erinnerungen },
     { href: "/admin/kunden", text: "Kunden", recht: "kunden" },
+    { href: "/admin/kundenbildschirm", text: "Kundenbildschirm", recht: "kunden", anzahl: kundenEingaben },
     { href: "/admin/einlagerung", text: "Einlagerung", recht: "einlagerung", modul: "einlagerung" },
     { href: "/admin/rechnungen", text: "Rechnungen", recht: "rechnungen", gruppe: "Geld" },
     { href: "/admin/kostenvoranschlaege", text: "Kostenvoranschläge", recht: "rechnungen" },

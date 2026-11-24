@@ -28,7 +28,7 @@ export function TabLeiste({ tabs, dunkel }: { tabs: Tab[]; dunkel?: boolean }) {
   const [offenAuf, setOffenAuf] = useState<string | null>(null);
   const offen = offenAuf === echterPfad;
   const setOffen = (o: boolean) => setOffenAuf(o ? echterPfad : null);
-  const istAktiv = (t: Tab) => [t.href, ...(t.auch ?? [])].some((h) => h === pfad || (h.split("/").length > 2 && pfad.startsWith(h)));
+  const istAktiv = (t: Tab) => [t.href, ...(t.auch ?? [])].some((h) => h === pfad || (h.split("/").length > 2 && pfad.startsWith(`${h}/`)));
   return (
     <>
       {offen ? (

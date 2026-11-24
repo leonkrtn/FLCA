@@ -94,6 +94,19 @@ export function datumZeit(wert: string | Date | null | undefined): string {
   return wert ? `${datum(wert)}, ${zeit(wert)}` : "";
 }
 
+/**
+ * Telefonnummer zum Vergleichen: nur Ziffern, international (wie telHref). „0171 123“, „+49 171 123“ und
+ * „0049 (171) 123“ ergeben dasselbe.
+ */
+export function telefonVergleich(telefon: string): string {
+  return telHref(telefon).slice("tel:".length).replace(/\D/g, "");
+}
+
+/** Kennzeichen zum Vergleichen, wie die Spalte fahrzeuge.kennzeichen_norm: „of-ab 123“ = „OFAB123“. */
+export function kennzeichenNorm(wert: string): string {
+  return wert.toUpperCase().replace(/[^A-ZÄÖÜ0-9]/g, "");
+}
+
 /** Kennzeichen einheitlich groß, mit einfachen Leerzeichen. */
 export function kennzeichen(wert: string): string {
   return wert.toUpperCase().replace(/\s+/g, " ").trim();

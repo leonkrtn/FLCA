@@ -16,6 +16,7 @@ import {
   kvTerminLoesenAktion,
 } from "@/lib/aktionen/auftrag";
 import type { AuftragTermin } from "@/lib/auftrag";
+import { auftragAnBildschirmAktion } from "@/lib/aktionen/kundenbildschirm";
 import { type KalenderAnsicht, mitKal } from "@/lib/kalender-ansicht";
 import { AUFTRAG_STAND_TEXT, AUFTRAG_STAND_TON, auftragStand, erteiltText, grenzeText, TANKSTAENDE } from "@/lib/auftrag-regeln";
 import { datum, datumZeit, euro } from "@/lib/format";
@@ -82,6 +83,12 @@ export function AuftragBereich({ t, ort, kal }: { t: AuftragTermin; ort: Ort; ka
       ) : OFFEN.includes(t.status) ? (
         <div className="grid gap-4 border-t border-linie pt-4">
           <p className="text-sm font-semibold text-warnung">Der Kunde hat den Auftrag noch nicht erteilt. Die Werkstatt kann trotzdem anfangen, sieht aber einen Hinweis.</p>
+          <Formular aktion={auftragAnBildschirmAktion.bind(null, t.id)} className="grid gap-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <Senden art="rahmen" vorab="Geschickt">Am Kundenbildschirm unterschreiben</Senden>
+              <span className="text-sm text-grau">Der Kunde sieht den Auftrag am Bildschirm im Büro und unterschreibt mit der Maus.</span>
+            </div>
+          </Formular>
           <details open={ort === "app"}>
             <summary className="cursor-pointer font-semibold">Vor Ort unterschreiben lassen</summary>
             <div className="mt-3">

@@ -18,6 +18,20 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-24 · Menü: „Kunden“ wäre auf „Kundenbildschirm“ mit markiert gewesen
+
+- **Stand:** behoben
+- **Wo:** `src/components/admin/nav.tsx` (Menü und Zahnrad), `src/components/mobil/leiste.tsx` (Tab-Leiste)
+- **Was man sah:** (beim Einbauen des Kundenbildschirms bemerkt) Auf `/admin/kundenbildschirm` standen „Kunden“
+  und „Kundenbildschirm“ beide als aktiv da.
+- **Ursache:** Aktiv war ein Menüpunkt, wenn der Pfad mit seiner Adresse *beginnt* (`pfad.startsWith(href)`).
+  `/admin/kundenbildschirm` beginnt mit `/admin/kunden`.
+- **Behebung:** Nur ganze Abschnitte zählen: gleich oder `startsWith(href + "/")`. Ebenso in der Tab-Leiste.
+- **Muster:** `startsWith` auf Pfade ohne `/` am Ende. Jeder neue Menüpunkt, dessen Adresse eine andere verlängert,
+  markiert dann beide.
+- **Weitere Stellen:** `kalender-merken.ts` prüft `startsWith("/admin/kalender")` nur für die eigene Adresse, dort
+  gibt es keine längere; gelassen. Die `auch`-Einträge der Tab-Leisten sind ganze Abschnitte, gehen weiter.
+
 ### 2026-11-24 · Werkstatt-App: Tab-Leiste schwebt mitten auf der Seite
 
 - **Stand:** behoben (am iPhone noch zu bestätigen)

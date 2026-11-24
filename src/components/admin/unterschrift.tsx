@@ -6,16 +6,59 @@ import { LEER } from "@/lib/forms";
 
 /**
  * Der Kunde unterschreibt den Auftrag mit dem Finger oder Stift auf dem Gerät (Tablet am Tresen, Handy in der
- * Werkstatt). Gezeichnet wird in ein Canvas, gespeichert als PNG mit durchsichtigem Grund und dunkler Tinte,
- * damit die Unterschrift auf dem weißen PDF steht wie auf Papier.
+ * Werkstatt). Das Zeichenfeld steckt in UnterschriftFeld und wird auch vom Kundenbildschirm genutzt.
  */
 export function Unterschrift({ terminId, name: vorgabe }: { terminId: string; name: string }) {
+  const [bild, setBild] = useState("");
+  const [zustand, aktion, laeuft] = useActionState(unterschriftAktion.bind(null, terminId), LEER);
+  const leer = !bild;
+
+  if (zustand.status === "ok") return <p className="font-semibold text-ok" role="status">{zustand.meldung}</p>;
+
+  return (
+    <form action={aktion} className="grid gap-3">
+      <input type="hidden" name="bild" value={bild} />
+      <label className="block">
+        <span className="label">Name des Unterzeichners</span>
+        <input name="name" defaultValue={vorgabe} required autoComplete="off" className="feld" />
+      </label>
+      <UnterschriftFeld onBild={setBild} />
+      <p className="text-sm text-grau">Mit der Unterschrift erteilt der Kunde den Auftrag zu den Positionen und Bedingungen im PDF.</p>
+      <button type="submit" disabled={leer || laeuft} className={`knopf knopf-dunkel ${leer || laeuft ? "opacity-60" : ""}`}>
+        {laeuft ? "Wird gespeichert …" : "Auftrag erteilen"}
+      </button>
+      {zustand.status === "fehler" ? <p className="text-sm font-semibold text-rot">{zustand.meldung}</p> : null}
+    </form>
+  );
+}
+
+/**
+ * Zeichenfeld für die Unterschrift (Finger, Stift oder Maus). Gezeichnet wird in ein Canvas, gespeichert als PNG
+ * mit durchsichtigem Grund und dunkler Tinte, damit die Unterschrift auf dem weißen PDF steht wie auf Papier.
+ * `onBild` bekommt nach jedem Strich das Bild als data:-URL, nach „Neu“ einen leeren Text.
+ */
+export function UnterschriftFeld({
+  onBild,
+  label = "Unterschrift",
+  hilfe = "Mit Finger oder Stift unterschreiben",
+  neuText = "Neu",
+  hoch = false,
+}: {
+  onBild: (bild: string) => void;
+  label?: string;
+  hilfe?: string;
+  neuText?: string;
+  hoch?: boolean;
+}) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const zeichnet = useRef(false);
   const letzter = useRef<{ x: number; y: number } | null>(null);
-  const [leer, setLeer] = useState(true);
-  const [bild, setBild] = useState("");
-  const [zustand, aktion, laeuft] = useActionState(unterschriftAktion.bind(null, terminId), LEER);
+  const leer = useRef(true);
+  // Aktuelle Rückgabe merken, ohne das Einrichten bei jedem Neuzeichnen des Elternteils zu wiederholen
+  const melden = useRef(onBild);
+  useEffect(() => {
+    melden.current = onBild;
+  });
 
   // Auflösung an das Gerät anpassen, sonst wird die Linie auf dem iPhone unscharf. Das Feld steckt oft in einem
   // zugeklappten Abschnitt und hat erst beim Aufklappen eine Größe; dreht sich das Gerät, beginnt es neu.
@@ -36,8 +79,8 @@ export function Unterschrift({ terminId, name: vorgabe }: { terminId: string; na
       ctx.lineJoin = "round";
       // Tinte bleibt dunkel, auch im PDF: Das Bild ist ein Beleg, kein Teil der Oberfläche.
       ctx.strokeStyle = "#141414";
-      setLeer(true);
-      setBild("");
+      leer.current = true;
+      melden.current("");
     };
     einrichten();
     const beobachter = new ResizeObserver(einrichten);
@@ -65,55 +108,41 @@ export function Unterschrift({ terminId, name: vorgabe }: { terminId: string; na
     ctx.lineTo(p.x, p.y);
     ctx.stroke();
     letzter.current = p;
-    if (leer) setLeer(false);
+    leer.current = false;
   }
 
   function ende() {
     if (!zeichnet.current) return;
     zeichnet.current = false;
     letzter.current = null;
-    if (!leer) setBild(canvas.current!.toDataURL("image/png"));
+    if (!leer.current) melden.current(canvas.current!.toDataURL("image/png"));
   }
 
   function loeschen() {
     const c = canvas.current!;
     c.getContext("2d")!.clearRect(0, 0, c.width, c.height);
-    setLeer(true);
-    setBild("");
+    leer.current = true;
+    melden.current("");
   }
 
-  if (zustand.status === "ok") return <p className="font-semibold text-ok" role="status">{zustand.meldung}</p>;
-
   return (
-    <form action={aktion} className="grid gap-3">
-      <input type="hidden" name="bild" value={bild} />
-      <label className="block">
-        <span className="label">Name des Unterzeichners</span>
-        <input name="name" defaultValue={vorgabe} required autoComplete="off" className="feld" />
-      </label>
-      <div>
-        <span className="label">Unterschrift</span>
-        <canvas
-          ref={canvas}
-          onPointerDown={start}
-          onPointerMove={ziehen}
-          onPointerUp={ende}
-          onPointerCancel={ende}
-          onPointerLeave={ende}
-          // touch-none: Beim Unterschreiben darf die Seite nicht mitscrollen.
-          className="block h-44 w-full touch-none rounded-md border border-linie bg-flaeche"
-          aria-label="Feld für die Unterschrift"
-        />
-        <div className="mt-1 flex items-center justify-between text-sm text-grau">
-          <span>Mit Finger oder Stift unterschreiben</span>
-          <button type="button" onClick={loeschen} className="underline">Neu</button>
-        </div>
+    <div>
+      <span className="label">{label}</span>
+      <canvas
+        ref={canvas}
+        onPointerDown={start}
+        onPointerMove={ziehen}
+        onPointerUp={ende}
+        onPointerCancel={ende}
+        onPointerLeave={ende}
+        // touch-none: Beim Unterschreiben darf die Seite nicht mitscrollen.
+        className={`block w-full touch-none rounded-md border border-linie bg-flaeche ${hoch ? "h-56 cursor-crosshair" : "h-44"}`}
+        aria-label={label}
+      />
+      <div className="mt-1 flex items-center justify-between text-sm text-grau">
+        <span>{hilfe}</span>
+        <button type="button" onClick={loeschen} className="underline">{neuText}</button>
       </div>
-      <p className="text-sm text-grau">Mit der Unterschrift erteilt der Kunde den Auftrag zu den Positionen und Bedingungen im PDF.</p>
-      <button type="submit" disabled={leer || laeuft} className={`knopf knopf-dunkel ${leer || laeuft ? "opacity-60" : ""}`}>
-        {laeuft ? "Wird gespeichert …" : "Auftrag erteilen"}
-      </button>
-      {zustand.status === "fehler" ? <p className="text-sm font-semibold text-rot">{zustand.meldung}</p> : null}
-    </form>
+    </div>
   );
 }
