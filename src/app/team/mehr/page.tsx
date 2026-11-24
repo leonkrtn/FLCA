@@ -28,6 +28,11 @@ export default async function TeamMehr() {
       <MobilKopf titel="Mehr" unter={`${b.name || b.email} · ${rollenName(b.rolle)}`} />
       <div className="grid gap-6 p-4">
         <section className="grid gap-2">
+          <h2 className="font-semibold">Schulung</h2>
+          <p className="text-sm text-grau">Anleitungen und Videos: wie die App funktioniert und wie bestimmte Arbeiten gemacht werden.</p>
+          <Link href="/team/schulung" className="knopf knopf-dunkel w-full">Zur Schulung</Link>
+        </section>
+        <section className="grid gap-2">
           <h2 className="font-semibold">Benachrichtigungen</h2>
           <p className="text-sm text-grau">Push, wenn dein Urlaub genehmigt ist, sich etwas an deinen Aufträgen ändert oder eine Erinnerung fällig ist.</p>
           <PushSchalter />

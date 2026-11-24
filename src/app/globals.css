@@ -12,6 +12,9 @@
   --font-sans: var(--font-barlow), system-ui, sans-serif;
 
   --color-boden: #ecebe7;
+  /* Grund der Handy-Apps und Farbe der hellen Tab-Leiste; die Team-App stellt beides auf Weiß (.grund-weiss) */
+  --color-grund: #ecebe7;
+  --color-leiste: #f6f5f2;
   --color-papier: #f6f5f2;
   --color-weiss: #ffffff;
   --color-tinte: #141414;
@@ -359,6 +362,28 @@ html:has(.handy-app) {
 }
 html:has(.handy-app[data-leiste="dunkel"]) {
   background: var(--color-graphit);
+}
+
+/*
+ * Team-App auf Weiß statt Hallengrau (Wunsch des Betreibers). Karten heben sich dann nicht mehr über die Farbe
+ * ab, sondern über einen feinen Rahmen. Die Werkstatt-App bleibt beim grauen Grund.
+ */
+.grund-weiss {
+  --color-grund: var(--color-weiss);
+  --color-leiste: var(--color-weiss);
+}
+html:has(.handy-app.grund-weiss) {
+  background: var(--color-weiss);
+}
+/* Als innerer Schatten statt border: Karten mit farbigem linken Rand (border-l-4) behalten ihn. In Listen mit
+   Trennlinien (gap-px auf linie) trennen schon die Linien, dort kein zweiter Rahmen. */
+.grund-weiss .karte {
+  box-shadow: inset 0 0 0 1px var(--color-linie);
+  border-radius: 0.5rem;
+}
+.grund-weiss .gap-px > .karte {
+  box-shadow: none;
+  border-radius: 0;
 }
 
 /*

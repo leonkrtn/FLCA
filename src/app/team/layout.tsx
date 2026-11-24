@@ -17,7 +17,8 @@ export const metadata: Metadata = {
   robots: { index: false },
 };
 
-export const viewport: Viewport = { themeColor: "#ecebe7", viewportFit: "cover" };
+// Weiß wie Grund und Kopf der Team-App, damit die Statusleiste nahtlos anschließt
+export const viewport: Viewport = { themeColor: "#ffffff", viewportFit: "cover" };
 
 export default async function TeamLayout({ children }: { children: React.ReactNode }) {
   const b = await benutzerMitRecht("werkstatt");
@@ -26,7 +27,7 @@ export default async function TeamLayout({ children }: { children: React.ReactNo
   const { module } = await einstellungen();
   const zeiten = module.zeiterfassung && b.zeiterfassung;
   return (
-    <div className="handy-app min-h-dvh bg-boden pb-[calc(4.5rem+env(safe-area-inset-bottom))]" data-leiste="hell">
+    <div className="handy-app grund-weiss min-h-dvh bg-grund pb-[calc(4.5rem+env(safe-area-inset-bottom))]" data-leiste="hell">
       <div className="mx-auto max-w-xl">{children}</div>
       <Auffrischen />
       <PushAbgleich />
@@ -36,7 +37,8 @@ export default async function TeamLayout({ children }: { children: React.ReactNo
           { href: "/team/woche", text: "Woche", icon: <Kalender /> },
           { href: "/team/abwesenheit", text: "Urlaub", icon: <Person /> },
           ...(zeiten ? [{ href: "/team/zeiten", text: "Zeiten", icon: <Uhr /> }] : []),
-          { href: "/team/mehr", text: "Mehr", icon: <Mehr /> },
+          // Schulung und Erinnerungen öffnet man aus „Mehr“, dort bleibt der Tab markiert
+          { href: "/team/mehr", text: "Mehr", icon: <Mehr />, auch: ["/team/schulung", "/team/notizen"] },
         ]}
       />
     </div>

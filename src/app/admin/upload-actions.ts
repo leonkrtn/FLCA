@@ -20,14 +20,15 @@ const ENDUNGEN: Record<string, string> = {
  * Server-Funktion (Vercel begrenzt deren Anfragen auf 4,5 MB, ein Startseiten-Video ist größer).
  */
 export async function uploadAdresse(
-  bucket: "website" | "auftragsfotos",
+  bucket: "website" | "auftragsfotos" | "schulung",
   ordner: string,
   typ: string,
 ): Promise<{ ok: true; pfad: string; url: string } | { ok: false; meldung: string }> {
-  const b = await benutzerMitRecht(bucket === "website" ? undefined : "werkstatt");
+  const b = await benutzerMitRecht(bucket === "website" ? undefined : bucket === "schulung" ? "schulung" : "werkstatt");
   // In den Website-Speicher lädt, wer die Website pflegt oder Angebote (mit Bild für die Startseite) anlegt.
   if (bucket === "website" && !darf(b.rolle, "website") && !darf(b.rolle, "angebote")) return { ok: false, meldung: "Dafür fehlt Ihnen die Berechtigung." };
-  if (!ENDUNGEN[typ] || (bucket === "auftragsfotos" && typ.startsWith("video/"))) return { ok: false, meldung: "Dieses Dateiformat geht nicht." };
+  // Videos der Schulung kommen als Link (YouTube, Vimeo), nicht in den Speicher
+  if (!ENDUNGEN[typ] || (bucket !== "website" && typ.startsWith("video/"))) return { ok: false, meldung: "Dieses Dateiformat geht nicht." };
   const sauber = ordner.replace(/[^a-z0-9-]/gi, "").slice(0, 40) || "allgemein";
   const pfad = `${sauber}/${randomUUID()}.${ENDUNGEN[typ]}`;
   const { data, error } = await db().storage.from(bucket).createSignedUploadUrl(pfad);

@@ -38,7 +38,7 @@ export function TabLeiste({ tabs, dunkel }: { tabs: Tab[]; dunkel?: boolean }) {
       <nav
         aria-label="Bereiche"
         // Unter der Leiste läuft ihre Farbe weiter (after:), damit beim Nachfedern am Seitenende nichts hell durchscheint.
-        className={`fixed inset-x-0 bottom-0 z-40 border-t pb-[env(safe-area-inset-bottom)] after:absolute after:inset-x-0 after:top-full after:h-32 after:bg-inherit ${dunkel ? "border-white/10 bg-graphit text-boden" : "border-linie bg-papier text-tinte"}`}
+        className={`fixed inset-x-0 bottom-0 z-40 border-t pb-[env(safe-area-inset-bottom)] after:absolute after:inset-x-0 after:top-full after:h-32 after:bg-inherit ${dunkel ? "border-white/10 bg-graphit text-boden" : "border-linie bg-leiste text-tinte"}`}
       >
         <div className="mx-auto grid max-w-xl" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
           {tabs.map((t) => {

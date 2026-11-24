@@ -10,7 +10,7 @@ import Link from "next/link";
  */
 export function MobilKopf({ titel, unter, zurueck, aktion }: { titel: string; unter?: React.ReactNode; zurueck?: string; aktion?: React.ReactNode }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-linie bg-boden px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))]">
+    <header className="sticky top-0 z-30 border-b border-linie bg-grund px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))]">
       {zurueck ? (
         <Link href={zurueck} className="mb-1 inline-block text-sm text-grau">
           ← zurück
@@ -30,7 +30,7 @@ export function MobilKopf({ titel, unter, zurueck, aktion }: { titel: string; un
 }
 
 export function Karte({ children, href, className = "" }: { children: React.ReactNode; href?: string; className?: string }) {
-  const k = `block bg-weiss px-4 py-3 ${className}`;
+  const k = `karte block bg-weiss px-4 py-3 ${className}`;
   return href ? (
     <Link href={href} className={`${k} active:bg-papier`}>
       {children}

@@ -15,9 +15,10 @@ export function manifest(art: "app" | "team") {
       scope: "/",
       display: "standalone",
       orientation: "portrait",
-      // Hell wie der Seitengrund und der Kopf der Apps, damit Statusleiste und Startbild nahtlos anschließen.
-      background_color: "#ecebe7",
-      theme_color: "#ecebe7",
+      // Wie der Seitengrund und der Kopf der App, damit Statusleiste und Startbild nahtlos anschließen
+      // (Team-App weiß, Werkstatt-App hallengrau). Wirkt auf dem iPhone erst nach Neuinstallation.
+      background_color: app ? "#ecebe7" : "#ffffff",
+      theme_color: app ? "#ecebe7" : "#ffffff",
       lang: "de",
       icons: [
         { src: `/icons/${art}-192.png`, sizes: "192x192", type: "image/png" },

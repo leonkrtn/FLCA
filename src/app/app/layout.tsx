@@ -32,7 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   after(() => weich(erinnerungenNachholen(), undefined, "Erinnerungen nachholen"));
   const count = await weich(db().from("termine").select("id", { count: "exact", head: true }).eq("status", "angefragt").then((r) => r.count), 0, "Zähler Anfragen (App)");
   return (
-    <div className="handy-app min-h-dvh bg-boden pb-[calc(4.5rem+env(safe-area-inset-bottom))]" data-leiste="dunkel">
+    <div className="handy-app min-h-dvh bg-grund pb-[calc(4.5rem+env(safe-area-inset-bottom))]" data-leiste="dunkel">
       <div className="mx-auto max-w-xl">{children}</div>
       <PushAbgleich />
       <Auffrischen />
@@ -57,7 +57,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             ],
           },
           { href: "/app/rechnungen", text: "Rechnungen", icon: <Dokument />, auch: ["/app/kostenvoranschlaege"] },
-          { href: "/app/mehr", text: "Mehr", icon: <Mehr /> },
+          // Notizen öffnet man aus „Mehr“, dort bleibt der Tab markiert
+          { href: "/app/mehr", text: "Mehr", icon: <Mehr />, auch: ["/app/notizen"] },
         ]}
       />
     </div>

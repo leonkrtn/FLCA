@@ -71,7 +71,7 @@ export function AbschnittSkelett({ zeilen = 3 }: { zeilen?: number }) {
 /** Kopf der Handy-Apps in den Maßen von <MobilKopf>, mit „← zurück“-Zeile auf Unterseiten. */
 function MobilKopfSkelett({ zurueck = false }: { zurueck?: boolean }) {
   return (
-    <div className="sticky top-0 z-30 border-b border-linie bg-boden px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))]">
+    <div className="sticky top-0 z-30 border-b border-linie bg-grund px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))]">
       {zurueck ? (
         <div className="mb-1 flex h-5 items-center">
           <S className="h-3.5 w-16" />
@@ -128,7 +128,7 @@ export function MobilDetailSkelett() {
     <Laedt>
       <MobilKopfSkelett zurueck />
       <div className="grid gap-2 p-2">
-        <div className="bg-weiss px-4 py-3">
+        <div className="karte bg-weiss px-4 py-3">
           <S className="h-5 w-1/2" />
           <S className="mt-2 h-4 w-2/3" />
           <div className="mt-3 grid grid-cols-2 gap-2">
@@ -137,7 +137,7 @@ export function MobilDetailSkelett() {
           </div>
         </div>
         {[3, 2, 4].map((zeilen, k) => (
-          <div key={k} className="bg-weiss px-4 py-3">
+          <div key={k} className="karte bg-weiss px-4 py-3">
             <S className="mb-3 h-4 w-28" />
             {Array.from({ length: zeilen }, (_, i) => (
               <S key={i} className={`mt-2 h-4 ${i % 2 ? "w-1/2" : "w-5/6"}`} />
