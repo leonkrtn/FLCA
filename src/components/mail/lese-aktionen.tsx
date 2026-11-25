@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { type ReactNode, useState, useTransition } from "react";
+import { Antworten, Archiv, Drucker, Etikett, Fahne, Glocke, Nadel, Papierkorb, Person, Posteingang, Ungelesen, Weiterleiten, Wiederherstellen } from "@/components/icons";
 import { mailOrdnen } from "@/lib/aktionen/mail";
 import type { Aktion, Ansicht } from "@/lib/mail/postfach";
 import type { Kategorie, PersonKurz } from "./liste";
@@ -10,7 +11,8 @@ import { useSchreiben } from "./schreiben";
 /**
  * Leiste über einer geöffneten Mail: Antworten, Weiterleiten, Drucken, Kennzeichnen, Anheften, Kategorie,
  * Zuweisen, Erinnern, Archivieren, Löschen, Ungelesen. Was die Mail aus dem Ordner nimmt (Archivieren, Löschen),
- * führt zurück zur Liste.
+ * führt zurück zur Liste. Nur Icons, damit die Leiste in einer Zeile bleibt; was ein Icon tut, sagt der Hinweis
+ * beim Darüberfahren (und für Screenreader das aria-label).
  */
 export function LeseAktionen({
   ziel,
@@ -56,7 +58,6 @@ export function LeseAktionen({
     tun({ art: "erinnern", am: am.toISOString() }, true);
   }
 
-  const k = "min-h-9 rounded-sm px-2.5 text-sm font-semibold hover:bg-boden";
   const morgen8 = () => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
@@ -72,63 +73,95 @@ export function LeseAktionen({
 
   return (
     <div className={`relative flex flex-wrap items-center gap-0.5 ${laeuft ? "opacity-70" : ""}`}>
-      <button type="button" className={`${k} bg-tinte text-weiss hover:bg-tinte/90`} onClick={() => oeffnen("antwort", antwortAuf)}>Antworten</button>
-      <button type="button" className={k} onClick={() => oeffnen("weiter", weiterleiten)}>Weiterleiten</button>
+      <Knopf text="Antworten" links className="bg-tinte text-flaeche hover:bg-tinte/90" onClick={() => oeffnen("antwort", antwortAuf)}>
+        <Antworten />
+      </Knopf>
+      <Knopf text="Weiterleiten" onClick={() => oeffnen("weiter", weiterleiten)}>
+        <Weiterleiten />
+      </Knopf>
       {stand.imPapierkorb ? (
         <>
-          <button type="button" className={k} onClick={() => tun({ art: "wiederherstellen" }, true)}>Wiederherstellen</button>
-          <button type="button" className={k} onClick={() => window.confirm("Endgültig löschen?") && tun({ art: "loeschen" }, true)}>Endgültig löschen</button>
+          <Knopf text="Wiederherstellen" onClick={() => tun({ art: "wiederherstellen" }, true)}>
+            <Wiederherstellen />
+          </Knopf>
+          <Knopf text="Endgültig löschen" onClick={() => window.confirm("Endgültig löschen?") && tun({ art: "loeschen" }, true)}>
+            <Papierkorb />
+          </Knopf>
         </>
       ) : (
         <>
           {stand.eingang ? (
             stand.archiviert ? (
-              <button type="button" className={k} onClick={() => tun({ art: "verschieben", ordner: "eingang" }, true)}>In Posteingang</button>
+              <Knopf text="In Posteingang" onClick={() => tun({ art: "verschieben", ordner: "eingang" }, true)}>
+                <Posteingang />
+              </Knopf>
             ) : (
-              <button type="button" className={k} onClick={() => tun({ art: "verschieben", ordner: "archiv" }, true)}>Archivieren</button>
+              <Knopf text="Archivieren" onClick={() => tun({ art: "verschieben", ordner: "archiv" }, true)}>
+                <Archiv />
+              </Knopf>
             )
           ) : null}
-          <button type="button" className={k} onClick={() => tun({ art: "loeschen" }, true)}>Löschen</button>
+          <Knopf text="Löschen" onClick={() => tun({ art: "loeschen" }, true)}>
+            <Papierkorb />
+          </Knopf>
         </>
       )}
-      <button type="button" className={`${k} ${stand.gekennzeichnet ? "text-rot" : ""}`} onClick={() => tun({ art: stand.gekennzeichnet ? "entkennzeichnen" : "kennzeichnen" })}>
-        {stand.gekennzeichnet ? "Gekennzeichnet" : "Kennzeichnen"}
-      </button>
-      <button type="button" className={k} onClick={() => tun({ art: stand.angeheftet ? "loesen" : "anheften" })}>{stand.angeheftet ? "Lösen" : "Anheften"}</button>
+      <Knopf
+        text={stand.gekennzeichnet ? "Kennzeichnung entfernen" : "Kennzeichnen"}
+        className={stand.gekennzeichnet ? "text-rot" : ""}
+        onClick={() => tun({ art: stand.gekennzeichnet ? "entkennzeichnen" : "kennzeichnen" })}
+      >
+        <Fahne an={stand.gekennzeichnet} />
+      </Knopf>
+      <Knopf text={stand.angeheftet ? "Lösen" : "Anheften"} onClick={() => tun({ art: stand.angeheftet ? "loesen" : "anheften" })}>
+        <Nadel an={stand.angeheftet} />
+      </Knopf>
       {kategorien.length ? (
-        <select
-          aria-label="Kategorie"
-          className="min-h-9 rounded-sm bg-transparent px-1 text-sm font-semibold"
-          value=""
-          onChange={(e) => {
-            const id = e.target.value;
-            if (id) tun({ art: "kategorie", id, an: !stand.kategorien.includes(id) });
-          }}
-        >
-          <option value="" disabled>Kategorie</option>
-          {kategorien.map((x) => (
-            <option key={x.id} value={x.id}>{stand.kategorien.includes(x.id) ? `✓ ${x.name}` : x.name}</option>
-          ))}
-        </select>
+        <Auswahl text={stand.kategorien.length ? `Kategorie: ${kategorien.filter((x) => stand.kategorien.includes(x.id)).map((x) => x.name).join(", ")}` : "Kategorie"} aktiv={stand.kategorien.length > 0} icon={<Etikett />}>
+          <select
+            aria-label="Kategorie"
+            className={auswahlFeld}
+            value=""
+            onChange={(e) => {
+              const id = e.target.value;
+              if (id) tun({ art: "kategorie", id, an: !stand.kategorien.includes(id) });
+            }}
+          >
+            <option value="" disabled>Kategorie</option>
+            {kategorien.map((x) => (
+              <option key={x.id} value={x.id}>{stand.kategorien.includes(x.id) ? `✓ ${x.name}` : x.name}</option>
+            ))}
+          </select>
+        </Auswahl>
       ) : null}
       {zuweisbar ? (
-        <select
-          aria-label="Zuweisen"
-          className="min-h-9 rounded-sm bg-transparent px-1 text-sm font-semibold"
-          value={stand.zugewiesen_an ?? ""}
-          onChange={(e) => tun({ art: "zuweisen", an: e.target.value || null })}
+        <Auswahl
+          text={stand.zugewiesen_an ? `Zugewiesen an ${personen.find((p) => p.id === stand.zugewiesen_an)?.name ?? "jemanden"}` : "Zuweisen"}
+          aktiv={Boolean(stand.zugewiesen_an)}
+          icon={<Person />}
         >
-          <option value="">Niemandem zugewiesen</option>
-          {personen.map((p) => (
-            <option key={p.id} value={p.id}>An {p.name}</option>
-          ))}
-        </select>
+          <select aria-label="Zuweisen" className={auswahlFeld} value={stand.zugewiesen_an ?? ""} onChange={(e) => tun({ art: "zuweisen", an: e.target.value || null })}>
+            <option value="">Niemandem zugewiesen</option>
+            {personen.map((p) => (
+              <option key={p.id} value={p.id}>An {p.name}</option>
+            ))}
+          </select>
+        </Auswahl>
       ) : null}
-      <button type="button" className={k} onClick={() => setErinnernOffen(!erinnernOffen)} aria-expanded={erinnernOffen}>Später erinnern</button>
-      <button type="button" className={k} onClick={() => tun({ art: "ungelesen" }, true)}>Ungelesen</button>
-      <a href={druckHref} target="_blank" rel="noopener" className={k + " flex items-center"}>Drucken</a>
+      <Knopf text="Später erinnern" onClick={() => setErinnernOffen(!erinnernOffen)} aria-expanded={erinnernOffen}>
+        <Glocke />
+      </Knopf>
+      <Knopf text="Als ungelesen markieren" onClick={() => tun({ art: "ungelesen" }, true)}>
+        <Ungelesen />
+      </Knopf>
+      <span className="group relative">
+        <a href={druckHref} target="_blank" rel="noopener" aria-label="Drucken" className={knopf}>
+          <Drucker />
+        </a>
+        <Hinweis text="Drucken" />
+      </span>
       {erinnernOffen ? (
-        <div className="absolute left-0 top-full z-20 mt-1 grid w-64 gap-1 rounded-md bg-weiss p-2 text-sm shadow-xl ring-1 ring-black/10">
+        <div className="absolute left-0 top-full z-20 mt-1 grid w-64 gap-1 rounded-md bg-flaeche p-2 text-sm shadow-xl ring-1 ring-black/10">
           <button type="button" className="rounded-sm px-2 py-2 text-left hover:bg-boden" onClick={() => erinnern(new Date(Date.now() + 3 * 3600_000))}>In 3 Stunden</button>
           <button type="button" className="rounded-sm px-2 py-2 text-left hover:bg-boden" onClick={() => erinnern(morgen8())}>Morgen, 8 Uhr</button>
           <button type="button" className="rounded-sm px-2 py-2 text-left hover:bg-boden" onClick={() => erinnern(montag8())}>Nächste Woche, Montag 8 Uhr</button>
@@ -140,5 +173,43 @@ export function LeseAktionen({
       ) : null}
       {meldung ? <p role="alert" className="w-full text-sm font-semibold text-rot">{meldung}</p> : null}
     </div>
+  );
+}
+
+const knopf = "grid size-9 place-items-center rounded-sm hover:bg-boden focus-visible:bg-boden";
+// Unsichtbar über dem Icon: Der Tipp öffnet die Auswahl des Systems (am Handy die native Liste).
+const auswahlFeld = "absolute inset-0 size-full cursor-pointer opacity-0";
+
+/** Kurzer Text unter einem Icon beim Darüberfahren (nur mit Maus, Tailwind setzt hover dort voraus) oder per Tastatur. */
+function Hinweis({ text, links = false }: { text: string; links?: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={`pointer-events-none absolute top-full z-30 mt-1 whitespace-nowrap rounded-sm bg-tinte px-2 py-1 text-xs font-semibold text-flaeche opacity-0 transition-opacity group-hover:opacity-100 group-hover:delay-300 group-has-focus-visible:opacity-100 ${links ? "left-0" : "left-1/2 -translate-x-1/2"}`}
+    >
+      {text}
+    </span>
+  );
+}
+
+function Knopf({ text, links, className = "", children, ...rest }: { text: string; links?: boolean; children: ReactNode } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <span className="group relative">
+      <button type="button" aria-label={text} className={`${knopf} ${className}`} {...rest}>
+        {children}
+      </button>
+      {/* Der erste Knopf steht am linken Rand, dort würde ein mittiger Hinweis abgeschnitten */}
+      <Hinweis text={text} links={links} />
+    </span>
+  );
+}
+
+function Auswahl({ text, aktiv, icon, children }: { text: string; aktiv: boolean; icon: ReactNode; children: ReactNode }) {
+  return (
+    <span className={`group relative ${knopf} ${aktiv ? "bg-boden" : ""} has-focus-visible:bg-boden`}>
+      {icon}
+      {children}
+      <Hinweis text={text} />
+    </span>
   );
 }

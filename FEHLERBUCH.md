@@ -34,6 +34,9 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 - **Weitere Stellen:** `ENV.siteUrl` speist Links in Mails, Signatur und Sitemap (Browser folgen der Weiterleitung,
   unkritisch) und die Anzeige des Endpunkts in Einstellungen → E-Mail → Einrichtung (zeigt die falsche Adresse, solange
   `NEXT_PUBLIC_SITE_URL` ohne www ist). Ausgehende Webhooks der App rufen fremde Adressen auf, nicht betroffen.
+  Mitbehoben (vom Nutzer gemeldet): Das Logo der Mail-Signatur (`${siteUrl}/mail/logo.png`) fehlte in Postfach und
+  Editor, weil die Content-Security-Policy nur Bilder von 'self' (www) zulässt. `next.config.ts` erlaubt in `img-src`
+  jetzt die eingestellte Website-Adresse mit und ohne www, so zeigen auch schon gesendete Mails ihr Logo.
 
 ### 2026-11-25 · Einstellungen: abgewählter Haken war nach „Speichern“ wieder gesetzt
 
