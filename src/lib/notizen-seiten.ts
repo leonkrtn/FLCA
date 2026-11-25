@@ -12,7 +12,7 @@ export async function notizTeam(): Promise<{ id: string; name: string }[]> {
 
 /** Bezug fürs Formular: bei einer neuen Notiz aus ?kunde= / ?termin=, sonst aus der Notiz selbst. */
 export async function notizBezug(notiz: Notiz | null, such: { kunde?: string; termin?: string }): Promise<NotizBezug> {
-  const terminText = (t: { nummer: number; leistung_name: string; beginn: string }) => `Nr. ${t.nummer}, ${t.leistung_name}, ${datumZeit(t.beginn)}`;
+  const terminText = (t: { nummer: number; leistung_name: string; beginn: string | null }) => `Nr. ${t.nummer}, ${t.leistung_name}, ${t.beginn ? datumZeit(t.beginn) : "ohne Termin"}`;
   if (notiz) {
     return {
       kunde: notiz.kunde,
@@ -26,7 +26,7 @@ export async function notizBezug(notiz: Notiz | null, such: { kunde?: string; te
       ? db().from("termine").select("id, nummer, leistung_name, beginn, kunde:kunden(id, name)").eq("id", such.termin).maybeSingle()
       : { data: null },
   ]);
-  const termin = t.data as unknown as { id: string; nummer: number; leistung_name: string; beginn: string; kunde: { id: string; name: string } | null } | null;
+  const termin = t.data as unknown as { id: string; nummer: number; leistung_name: string; beginn: string | null; kunde: { id: string; name: string } | null } | null;
   // Notiz zu einem Termin hängt automatisch auch am Kunden des Termins
   return {
     kunde: (k.data as { id: string; name: string } | null) ?? termin?.kunde ?? null,

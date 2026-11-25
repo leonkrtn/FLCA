@@ -8,7 +8,8 @@ import { faelligeAnzahl } from "@/lib/notizen";
 import { darf } from "@/lib/rollen";
 import { TERMIN_TON } from "@/lib/status";
 import { db } from "@/lib/supabase/admin";
-import { STATUS_TEXT, TERMIN_FELDER, type Termin } from "@/lib/termine";
+import { weich } from "@/lib/fehler";
+import { auftraegeOhneTerminAnzahl, type GeplanterTermin, STATUS_TEXT, TERMIN_FELDER } from "@/lib/termine";
 import { berlin, berlinDatum, istDatum, plusTage } from "@/lib/zeit";
 
 export const metadata = { title: "Heute" };
@@ -18,7 +19,7 @@ export default async function Heute({ searchParams }: { searchParams: Promise<{ 
   const { tag: t } = await searchParams;
   const heute = berlinDatum();
   const tag = istDatum(t) ? t : heute;
-  const [{ data }, erinnerungen] = await Promise.all([
+  const [{ data }, erinnerungen, wartend] = await Promise.all([
     db()
       .from("termine")
       .select(TERMIN_FELDER)
@@ -27,8 +28,10 @@ export default async function Heute({ searchParams }: { searchParams: Promise<{ 
       .lt("beginn", berlin(plusTage(tag, 1)).toISOString())
       .order("beginn"),
     darf(b.rolle, "notizen") ? faelligeAnzahl(b) : 0,
+    weich(auftraegeOhneTerminAnzahl(), 0, "Werkstatt-App: Aufträge ohne Termin zählen"),
   ]);
-  const termine = (data ?? []) as Termin[];
+  // Nach Zeitraum gefragt: Jeder Treffer hat eine Zeit.
+  const termine = (data ?? []) as GeplanterTermin[];
   const name = tag === heute ? "Heute" : tag === plusTage(heute, 1) ? "Morgen" : datumLangText(tag);
   return (
     <>
@@ -46,6 +49,12 @@ export default async function Heute({ searchParams }: { searchParams: Promise<{ 
       {erinnerungen ? (
         <Link href="/app/notizen?ansicht=erinnerungen" className="flex items-center justify-between gap-3 border-b border-linie bg-kreide px-4 py-3 font-semibold text-tinte">
           {erinnerungen === 1 ? "1 Erinnerung fällig" : `${erinnerungen} Erinnerungen fällig`}
+          <span aria-hidden>→</span>
+        </Link>
+      ) : null}
+      {wartend ? (
+        <Link href="/app/ohne-termin" className="flex items-center justify-between gap-3 border-b border-linie bg-papier px-4 py-3 font-semibold text-tinte">
+          {wartend === 1 ? "1 Auftrag wartet auf einen Termin" : `${wartend} Aufträge warten auf einen Termin`}
           <span aria-hidden>→</span>
         </Link>
       ) : null}

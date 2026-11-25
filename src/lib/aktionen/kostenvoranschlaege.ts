@@ -6,7 +6,7 @@ import { benutzerMitRecht } from "../auth";
 import { type Ergebnis, istEmail, ja, text } from "../forms";
 import { sicher } from "../sicher";
 import { belegAus } from "../rechnung/eingabe";
-import { kvAbschliessen, kvBeantworten, kvInRechnung, kvKopieren, kvSpeichern, kvVersenden } from "../rechnung/kostenvoranschlaege";
+import { kvAbschliessen, kvBeantworten, kvKopieren, kvSpeichern, kvVersenden, kvZumAuftrag } from "../rechnung/kostenvoranschlaege";
 import { db } from "../supabase/admin";
 import type { Ort } from "./belege";
 
@@ -57,12 +57,22 @@ export async function kvAntwortAktion(id: string, _v: Ergebnis, fd: FormData): P
   });
 }
 
-export async function kvInRechnungAktion(id: string, ort: Ort): Promise<void> {
-  const b = await benutzerMitRecht("rechnungen");
-  const rechnungId = await kvInRechnung(id, b.id);
-  neuLaden(id);
-  revalidatePath("/admin/rechnungen", "layout");
-  redirect(`/${ort}/rechnungen/${rechnungId}`);
+/**
+ * Der Kunde hat zugesagt: Der Kostenvoranschlag wird zum erteilten Werkstattauftrag (am Termin oder ohne Termin)
+ * und die Seite des Auftrags öffnet sich. Von da an läuft alles über den Auftrag, auch die Rechnung.
+ */
+export async function kvZumAuftragAktion(id: string, ort: Ort, _v: Ergebnis): Promise<Ergebnis> {
+  let ziel = "";
+  const ergebnis = await sicher(null, async () => {
+    const b = await benutzerMitRecht("rechnungen");
+    const terminId = await kvZumAuftrag(id, b.id);
+    neuLaden(id);
+    revalidatePath("/admin", "layout");
+    ziel = `/${ort}/termine/${terminId}`;
+    return { status: "ok", meldung: "Werkstattauftrag erteilt." };
+  });
+  if (ziel) redirect(ziel);
+  return ergebnis;
 }
 
 export async function kvKopierenAktion(id: string, ort: Ort): Promise<void> {

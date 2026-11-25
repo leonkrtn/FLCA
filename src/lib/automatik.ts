@@ -10,7 +10,7 @@ import { mailer } from "./services/email";
 import { pushSenden } from "./services/push";
 import { db, dbRoh } from "./supabase/admin";
 import { erinnerungenSenden } from "./notizen";
-import { erinnerungSenden, TERMIN_FELDER, type Termin } from "./termine";
+import { erinnerungSenden, type GeplanterTermin, TERMIN_FELDER, type Termin } from "./termine";
 import { berlin, berlinDatum, berlinUhrzeit, plusMonate, plusTage } from "./zeit";
 import { fehlerMelden } from "./fehler";
 import { protokollAufraeumen } from "./fehlerprotokoll";
@@ -78,7 +78,8 @@ export async function takt(): Promise<Bericht> {
       .is("erinnerung_am", null)
       .gte("beginn", new Date(jetzt + 20 * 3600000).toISOString())
       .lte("beginn", new Date(jetzt + 26 * 3600000).toISOString());
-    for (const t of (data ?? []) as Termin[]) {
+    // Nach Zeitraum gefragt: Jeder Treffer hat eine Zeit.
+    for (const t of (data ?? []) as GeplanterTermin[]) {
       if (await einmalig("erinnerung", t.id)) await erinnerungSenden(t);
     }
     return data?.length ?? 0;

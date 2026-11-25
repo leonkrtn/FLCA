@@ -25,7 +25,7 @@ export default async function KostenvoranschlagSeite({ params }: { params: Promi
     entwurf ? kundenSuchen("", 6) : [],
     db().from("verlauf").select("text, erstellt_am").eq("bezug_typ", "kostenvoranschlag").eq("bezug_id", id).order("erstellt_am", { ascending: false }),
     entwurf || k.termin_id ? [] : termineFuerKv(k.kunde_id),
-    k.termin_id ? db().from("termine").select("id, nummer, beginn, leistung_name, status").eq("id", k.termin_id).maybeSingle() : Promise.resolve({ data: null }),
+    k.termin_id ? db().from("termine").select("id, nummer, beginn, leistung_name, status, auftrag_nummer").eq("id", k.termin_id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
   return (
     <>

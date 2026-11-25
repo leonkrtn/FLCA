@@ -45,7 +45,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <TabLeiste
         dunkel
         tabs={[
-          { href: "/app", text: "Heute", icon: <Kalender /> },
+          // „Ohne Termin“ öffnet man aus „Heute“, dort bleibt der Tab markiert
+          { href: "/app", text: "Heute", icon: <Kalender />, auch: ["/app/ohne-termin"] },
           { href: "/app/anfragen", text: "Anfragen", icon: <Liste />, anzahl: count ?? 0 },
           {
             href: "/app/neu",

@@ -9,7 +9,8 @@ import { ansichtAusSuche, kalenderHref, type KalenderAnsicht, mitKal, monatsRast
 import { planPersonen, planungAktiv } from "@/lib/mitarbeiter";
 import { abwesenheitAm, abwesenheitText, arbeitsfenster, farbeVon, konflikte, type PersonBelegung, type PlanPerson } from "@/lib/planung";
 import { db } from "@/lib/supabase/admin";
-import { TERMIN_FELDER, type Termin } from "@/lib/termine";
+import { auftraegeOhneTerminAnzahl, type GeplanterTermin, TERMIN_FELDER } from "@/lib/termine";
+import { weich } from "@/lib/fehler";
 import { berlin, berlinDatum, berlinUhrzeit, minuten, plusMonate, plusTage, uhrzeit, wochenbeginn, wochentag } from "@/lib/zeit";
 
 export const metadata = { title: "Kalender" };
@@ -40,7 +41,7 @@ export default async function KalenderSeite({ searchParams }: { searchParams: Pr
   const bis = tagAnsicht ? bezug : ansicht.art === "monat" ? raster[raster.length - 1] : plusTage(montag, 6);
 
   const alleFenster = Object.values(oeffnungszeiten).flat();
-  const [personen, aktiv, { data: termine }, { data: ohnePerson }] = await Promise.all([
+  const [personen, aktiv, { data: termine }, { data: ohnePerson }, wartend] = await Promise.all([
     planPersonen(von, bis, false),
     planungAktiv(),
     db()
@@ -58,8 +59,10 @@ export default async function KalenderSeite({ searchParams }: { searchParams: Pr
       .gte("beginn", new Date().toISOString())
       .order("beginn")
       .limit(8),
+    weich(auftraegeOhneTerminAnzahl(), 0, "Kalender: Aufträge ohne Termin zählen"),
   ]);
-  const liste = (termine ?? []) as Termin[];
+  // Nach Zeitraum gefragt: Aufträge ohne Termin sind nicht dabei, jeder Treffer hat eine Zeit.
+  const liste = (termine ?? []) as GeplanterTermin[];
   // Personen-Arbeitszeiten können vor oder nach den Öffnungszeiten liegen; das Raster deckt beides ab.
   const personenFenster = ansicht.art === "monat" ? [] : personen.flatMap((p) => Array.from({ length: tagAnsicht ? 1 : 6 }, (_, i) => arbeitsfenster(p, plusTage(von, i))).flat());
   const startStunde = Math.floor(Math.min(...[...alleFenster, ...personenFenster].map(([a]) => minuten(a)), 8 * 60) / 60);
@@ -109,7 +112,7 @@ export default async function KalenderSeite({ searchParams }: { searchParams: Pr
   // Merkt sich die Ansicht für „Kalender“ im Menü (je Tab, nur heute)
   const merken = <KalenderMerken href={kalenderHref(ansicht)} />;
 
-  const hinweisOhne =
+  const hinweisPerson =
     aktiv && ohnePerson?.length ? (
       <div className="mb-4 border-l-4 border-rot bg-weiss px-4 py-3 text-sm">
         <p className="font-semibold">Ohne Mitarbeiter</p>
@@ -125,6 +128,17 @@ export default async function KalenderSeite({ searchParams }: { searchParams: Pr
         </ul>
       </div>
     ) : null;
+  const hinweisOhne = (
+    <>
+      {wartend ? (
+        <Link href="/admin/auftraege?ansicht=ohne" className="mb-4 flex items-center justify-between gap-3 border-l-4 border-kreide bg-weiss px-4 py-3 text-sm font-semibold hover:underline">
+          {wartend === 1 ? "1 Werkstattauftrag wartet auf einen Termin" : `${wartend} Werkstattaufträge warten auf einen Termin`}
+          <span aria-hidden>→</span>
+        </Link>
+      ) : null}
+      {hinweisPerson}
+    </>
+  );
 
   if (tagAnsicht) {
     const fenster = oeffnungszeiten[String(wochentag(bezug)) as keyof typeof oeffnungszeiten];
@@ -139,7 +153,7 @@ export default async function KalenderSeite({ searchParams }: { searchParams: Pr
     const belegungen: PersonBelegung[] = liste
       .filter((t) => t.status === "angefragt" || t.status === "bestaetigt")
       .map((t) => ({ id: t.id, beginn: new Date(t.beginn).getTime(), bis: new Date(t.belegt_bis).getTime(), gewicht: 1, profil: t.zugewiesen_an }));
-    const warnung = (t: Termin) => {
+    const warnung = (t: GeplanterTermin) => {
       const p = spaltenPersonen.find((x) => x.id === t.zugewiesen_an);
       if (!p || (t.status !== "angefragt" && t.status !== "bestaetigt")) return undefined;
       const z = { beginn: new Date(t.beginn), ende: new Date(t.ende), bis: new Date(t.belegt_bis), leistungIds: t.leistung_ids ?? [], id: t.id };
@@ -206,7 +220,7 @@ export default async function KalenderSeite({ searchParams }: { searchParams: Pr
 
   if (ansicht.art === "monat") {
     const monat = bezug.slice(0, 7);
-    const proTag = new Map<string, Termin[]>();
+    const proTag = new Map<string, GeplanterTermin[]>();
     for (const t of gefiltert) {
       const d = berlinDatum(new Date(t.beginn));
       proTag.set(d, [...(proTag.get(d) ?? []), t]);

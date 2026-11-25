@@ -39,7 +39,7 @@ export function MeldungZeile({ m, mitTermin = false, basis = "/admin" }: { m: Me
               {" · "}
               <Link href={`${basis}/termine/${m.termin.id}`} className="underline">
                 {m.termin.leistung_name}
-                {m.termin.fahrzeug ? `, ${m.termin.fahrzeug.kennzeichen}` : ""} ({datumKurzText(m.termin.beginn)})
+                {m.termin.fahrzeug ? `, ${m.termin.fahrzeug.kennzeichen}` : ""} ({m.termin.beginn ? datumKurzText(m.termin.beginn) : "ohne Termin"})
               </Link>
             </>
           ) : null}

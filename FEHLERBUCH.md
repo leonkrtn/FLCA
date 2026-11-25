@@ -18,6 +18,29 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-25 · Kostenvoranschlag: Zusage ohne Termin ergab keinen Auftrag, Rechnung am Auftrag vorbei
+
+- **Stand:** behoben
+- **Wo:** `kvBeantworten`, `kvInRechnung` (entfernt) in `src/lib/rechnung/kostenvoranschlaege.ts`, `auftragAnlegen` in
+  `src/lib/auftrag.ts`, `ablehnen`/`stornieren`/`vorschlagAntworten` in `src/lib/termine.ts`
+- **Was man sah:** (vom Nutzer gemeldet: „Kann man einen KVA nicht zu einem Auftrag machen?“) Ein angenommener
+  Kostenvoranschlag ohne Termin hatte keinen Auftrag, bis jemand einen Termin verknüpfte. „In Rechnung übernehmen“
+  am KV legte die Rechnung aus den KV-Positionen an, Mehrarbeit aus dem Auftrag fehlte darin. „Werkstattauftrag
+  anlegen“ an einem Termin mit offenem KV nahm die Leistungen des Termins statt der KV-Positionen. Wurde die Anfrage
+  zu einem erteilten Auftrag abgelehnt (oder der Gegenvorschlag), verschwand der erteilte Auftrag mit ihr.
+- **Ursache:** Der Auftrag konnte nur an einem Termin mit Zeit hängen, und vom KV zur Rechnung gab es zwei Wege.
+- **Behebung:** Stand `ungeplant` (Migration `auftrag_ohne_termin`): Zusage heißt immer erteilter Auftrag, notfalls
+  ohne Termin; eingeplant wird später. Der KV geht nur noch über den Auftrag zur Rechnung. Lehnt das Büro die Zeit
+  ab oder sagt der Kunde ab, bleibt der erteilte Auftrag und wartet wieder ohne Termin (`zeitAufheben`).
+- **Muster:** Zwei Wege zum selben Ergebnis, von denen einer spätere Änderungen übergeht (Beleg aus der Vorlage statt
+  aus dem lebenden Dokument). Oder eine Statusänderung am Träger (Termin), die etwas Verbindliches daran (erteilter
+  Auftrag) stillschweigend mitnimmt.
+- **Weitere Stellen:** `entwurfAusTermin` nimmt den Auftrag schon vor dem KV, in Ordnung. Mitbehoben: Eine Rechnung
+  aus einem Auftrag ohne Termin bekäme als Leistungsdatum den 1.1.1970 (`new Date(null)`), jetzt der Tag der
+  Rechnung. Alle `beginn`-Stellen über den Typ geprüft (`beginn` ist jetzt `string | null`); Abfragen nach Zeitraum
+  sehen ungeplante Aufträge nie (`GeplanterTermin`). Erledigen, Nicht erschienen und Absagen durch den Kunden gibt es
+  für einen Auftrag ohne Termin nicht.
+
 ### 2026-11-25 · Eingehende Mails und Takt kamen nicht an: Domain ohne www leitet weiter
 
 - **Stand:** behoben (Code/Doku); in Resend und Supabase muss die Adresse noch umgestellt werden

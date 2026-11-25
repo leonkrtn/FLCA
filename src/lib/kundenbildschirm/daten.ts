@@ -314,7 +314,9 @@ export type BildschirmAuftrag = {
   kostengrenze: number | null;
 };
 
-const terminText = (beginn: string): Record<Sprache, string> => {
+const terminText = (beginn: string | null): Record<Sprache, string> => {
+  // Auftrag ohne Termin (aus einem Kostenvoranschlag): Die Zeit wird noch vereinbart.
+  if (!beginn) return { de: "wird noch vereinbart", en: "to be arranged" };
   const format = (locale: string) =>
     new Intl.DateTimeFormat(locale, { timeZone: ZONE, weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }).format(new Date(beginn));
   return { de: `${format("de-DE")} Uhr`, en: format("en-GB") };
@@ -323,7 +325,7 @@ const terminText = (beginn: string): Record<Sprache, string> => {
 /** Was der Bildschirm vom Auftrag zeigt; null, wenn er nicht (mehr) unterschrieben werden kann. */
 export async function bildschirmAuftrag(terminId: string): Promise<BildschirmAuftrag | null> {
   const t = await auftragLaden(terminId);
-  if (!t?.auftrag_nummer || t.auftrag_erteilt_am || !["angefragt", "bestaetigt", "erledigt"].includes(t.status)) return null;
+  if (!t?.auftrag_nummer || t.auftrag_erteilt_am || !["ungeplant", "angefragt", "bestaetigt", "erledigt"].includes(t.status)) return null;
   const positionen = t.auftrag_positionen ?? [];
   const s = berechne(positionen);
   return {

@@ -1,6 +1,7 @@
 import type { Termin } from "./termine";
 
 export const TERMIN_TON: Record<Termin["status"], "warnung" | "dunkel" | "hell" | "ok" | "neutral"> = {
+  ungeplant: "neutral",
   angefragt: "warnung",
   bestaetigt: "dunkel",
   abgelehnt: "hell",

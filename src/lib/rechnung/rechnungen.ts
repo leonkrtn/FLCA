@@ -227,7 +227,8 @@ export async function entwurfAusTermin(terminId: string, vonBenutzer: string): P
       fahrzeug: { kennzeichen: fahrzeug?.kennzeichen, ...(fahrzeug ? markeUndModell(fahrzeug) : {}), km: t.km_stand ?? fahrzeug?.km_stand ?? null },
       positionen,
       hinweis,
-      leistungsdatum: berlinDatum(new Date(t.beginn)),
+      // Auftrag ohne Termin: Leistungsdatum ist der Tag der Rechnung (im Entwurf änderbar), nicht der 1.1.1970.
+      leistungsdatum: t.beginn ? berlinDatum(new Date(t.beginn)) : berlinDatum(),
     },
     vonBenutzer,
   );

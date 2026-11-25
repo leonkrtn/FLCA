@@ -9,6 +9,7 @@ import { berlinDatum, plusTage } from "./zeit";
 
 export type WhatsappVorlage =
   | "anfrage"
+  | "einplanen"
   | "gegenvorschlag"
   | "bestaetigt"
   | "erinnerung"
@@ -25,6 +26,7 @@ export type WhatsappVorlage =
 /** Reihenfolge, Name und Anlass je Vorlage, für die Einstellungen und den Verlauf. */
 export const WHATSAPP_VORLAGEN: { schluessel: WhatsappVorlage; titel: string; wann: string }[] = [
   { schluessel: "anfrage", titel: "Rückfrage zur Anfrage", wann: "Termin angefragt" },
+  { schluessel: "einplanen", titel: "Termin vereinbaren", wann: "Werkstattauftrag ohne Termin" },
   { schluessel: "gegenvorschlag", titel: "Gegenvorschlag", wann: "Anfrage mit offenem Gegenvorschlag" },
   { schluessel: "bestaetigt", titel: "Termin bestätigt", wann: "Bestätigter Termin, ab übermorgen" },
   { schluessel: "erinnerung", titel: "Erinnerung", wann: "Bestätigter Termin morgen oder heute, noch nicht begonnen" },
@@ -41,6 +43,7 @@ export const WHATSAPP_VORLAGEN: { schluessel: WhatsappVorlage; titel: string; wa
 
 export const WHATSAPP_STANDARD: Record<WhatsappVorlage, string> = {
   anfrage: "Hallo {name}, danke für Ihre Anfrage zu {leistung} am {datum} um {uhrzeit} Uhr. Kurze Rückfrage: ",
+  einplanen: "Hallo {name}, Ihr Auftrag für Ihr Fahrzeug {fahrzeug} liegt bei uns bereit. Wann können Sie das Auto bringen? Antworten Sie einfach hier oder rufen Sie an: {telefon}",
   gegenvorschlag:
     "Hallo {name}, zu Ihrer Wunschzeit ist bei uns leider schon alles belegt. Passt Ihnen {datum} um {uhrzeit} Uhr? Hier können Sie mit einem Tipp zusagen: {link}",
   bestaetigt: "Hallo {name}, Ihr Termin für {leistung} am {datum} um {uhrzeit} Uhr ist bestätigt. Sie finden uns in der {adresse}. Alle Angaben: {link}\n\nViele Grüße\n{firma}",
@@ -97,8 +100,9 @@ export function fahrzeugText(f: { kennzeichen?: string | null; marke_modell?: st
 }
 
 type TerminFuerVorlage = Pick<AuftragFelder, "auftrag_nummer" | "auftrag_erteilt_am" | "auftrag_gesendet_am" | "auftrag_kostengrenze_cent" | "auftrag_summe_brutto_cent"> & {
-  status: "angefragt" | "bestaetigt" | "abgelehnt" | "storniert" | "erledigt" | "nicht_erschienen";
-  beginn: string;
+  status: "ungeplant" | "angefragt" | "bestaetigt" | "abgelehnt" | "storniert" | "erledigt" | "nicht_erschienen";
+  /** Leer nur beim Auftrag ohne Termin */
+  beginn: string | null;
   auftrag_status: "offen" | "in_arbeit" | "fertig";
   vorschlag_am?: string | null;
 };
@@ -109,8 +113,11 @@ type TerminFuerVorlage = Pick<AuftragFelder, "auftrag_nummer" | "auftrag_erteilt
  */
 export function terminVorlage(t: TerminFuerVorlage, jetzt: Date = new Date()): WhatsappVorlage {
   const heute = berlinDatum(jetzt);
-  const tag = berlinDatum(new Date(t.beginn));
+  // Ohne Termin zählt der Tag als vorbei (für „erledigt“ heißt das: um eine Bewertung bitten).
+  const tag = t.beginn ? berlinDatum(new Date(t.beginn)) : "";
   switch (t.status) {
+    case "ungeplant":
+      return auftragStand(t) === "beim_kunden" ? "freigabe" : "einplanen";
     case "angefragt":
       return t.vorschlag_am ? "gegenvorschlag" : "anfrage";
     case "erledigt":
@@ -123,7 +130,7 @@ export function terminVorlage(t: TerminFuerVorlage, jetzt: Date = new Date()): W
       if (t.auftrag_status === "fertig") return "fertig";
       if (ueberKostengrenze(t)) return "kostengrenze";
       if (auftragStand(t) === "beim_kunden") return "freigabe";
-      if (new Date(t.beginn).getTime() > jetzt.getTime() && t.auftrag_status === "offen") {
+      if (t.beginn && new Date(t.beginn).getTime() > jetzt.getTime() && t.auftrag_status === "offen") {
         return tag <= plusTage(heute, 1) ? "erinnerung" : "bestaetigt";
       }
       return "rueckfrage";

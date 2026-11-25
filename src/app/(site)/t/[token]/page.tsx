@@ -16,6 +16,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Ihr Termin", robots: { index: false, follow: false } };
 
 const STATUS: Record<string, [string, string]> = {
+  ungeplant: ["Termin folgt", "Ihr Auftrag ist bei uns. Den Termin vereinbaren wir mit Ihnen."],
   angefragt: ["Angefragt", "Wir halten den Termin für Sie frei und bestätigen ihn per E-Mail."],
   bestaetigt: ["Bestätigt", "Ihr Termin steht. Wir freuen uns auf Sie."],
   abgelehnt: ["Nicht möglich", "Zu dieser Zeit klappt es leider nicht. Bitte wählen Sie einen anderen Termin."],
@@ -34,6 +35,11 @@ export default async function KundenTermin({ params }: { params: Promise<{ token
     .select("nummer, token, summe_brutto_cent, status, storno_zu")
     .eq("termin_id", t.id)
     .in("status", ["gestellt", "bezahlt", "storniert"]);
+  // Auftrag aus einem Kostenvoranschlag, der noch ohne Termin wartet: Die Zeit wählt der Kunde dort.
+  const { data: kv } =
+    t.status === "ungeplant" && buchung.aktiv
+      ? await db().from("kostenvoranschlaege").select("token").eq("termin_id", t.id).eq("status", "angenommen").limit(1).maybeSingle()
+      : { data: null };
   // Anfrage zur belegten Zeit und offener Gegenvorschlag haben eigene Texte
   const vorschlag = t.status === "angefragt" && Boolean(t.vorschlag_am);
   const [status, erklaerung] = vorschlag
@@ -42,7 +48,7 @@ export default async function KundenTermin({ params }: { params: Promise<{ token
       ? ["Angefragt", "Zu dieser Zeit ist es bei uns eng. Wir melden uns mit einer Zusage oder einem anderen Vorschlag."]
       : STATUS[t.status];
   const absagbar =
-    t.status === "angefragt" || (t.status === "bestaetigt" && new Date(t.beginn).getTime() - jetztMs() >= buchung.stornoFristStd * 3600000);
+    t.status === "angefragt" || (t.status === "bestaetigt" && t.beginn !== null && new Date(t.beginn).getTime() - jetztMs() >= buchung.stornoFristStd * 3600000);
 
   return (
     <div className="rand pb-24 *:max-w-3xl pt-8 md:pt-14">
@@ -54,9 +60,7 @@ export default async function KundenTermin({ params }: { params: Promise<{ token
       </p>
       <dl className="grid gap-y-4 border-t border-grau-hell pt-5 sm:grid-cols-[10rem_minmax(0,1fr)]">
         <dt className="text-grau">{vorschlag ? "Vorschlag" : "Wann"}</dt>
-        <dd className="font-semibold">
-          {datumLangText(t.beginn)}, {zeit(t.beginn)} Uhr
-        </dd>
+        <dd className="font-semibold">{t.beginn ? `${datumLangText(t.beginn)}, ${zeit(t.beginn)} Uhr` : "wird noch vereinbart"}</dd>
         {vorschlag && t.vorschlag_nachricht ? (
           <>
             <dt className="text-grau">Nachricht</dt>
@@ -99,6 +103,11 @@ export default async function KundenTermin({ params }: { params: Promise<{ token
 
       <div className="mt-12 flex flex-wrap items-start gap-3">
         {vorschlag ? <VorschlagAntwort token={token} /> : null}
+        {kv ? (
+          <a href={`/k/${kv.token}`} className="knopf knopf-rot">
+            Termin wählen
+          </a>
+        ) : null}
         {absagbar && !vorschlag ? <AbsageKnopf token={token} /> : null}
         <a href={telHref(firma.telefon)} className="knopf knopf-rahmen">
           Anrufen
@@ -121,7 +130,7 @@ function Auftrag({ t, token }: { t: NonNullable<Awaited<ReturnType<typeof termin
   const positionen = t.auftrag_positionen ?? [];
   const s = berechne(positionen);
   const erteilt = auftragStand(t) === "erteilt";
-  const offen = ["angefragt", "bestaetigt", "erledigt"].includes(t.status);
+  const offen = ["ungeplant", "angefragt", "bestaetigt", "erledigt"].includes(t.status);
   return (
     <section id="auftrag" className="mt-10 scroll-mt-24">
       <h2 className="mb-1 font-semibold">Werkstattauftrag {t.auftrag_nummer}</h2>
