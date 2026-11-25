@@ -21,7 +21,10 @@ export async function GET(request: NextRequest) {
 
   if (kvToken) {
     const kv = await kvPerToken(kvToken);
-    if (!kv || kv.status !== "angenommen" || kv.termin_id) return NextResponse.json({ fehler: "Nicht buchbar" }, { status: 404 });
+    // Seit „auftrag_ohne_termin“ hängt jeder angenommene KV an einer Terminzeile: Wartet sie ohne Zeit
+    // („ungeplant“), wählt der Kunde hier ihren Termin. Gleiche Regel wie kvTerminAnfragen und die Seite /k/<token>.
+    const { data: amTermin } = kv?.termin_id ? await db().from("termine").select("status").eq("id", kv.termin_id).maybeSingle() : { data: null };
+    if (!kv || kv.status !== "angenommen" || (amTermin && amTermin.status !== "ungeplant")) return NextResponse.json({ fehler: "Nicht buchbar" }, { status: 404 });
     const { bedarf } = await bedarfAusPositionen(kv.positionen.map((x) => x.artikel_id));
     return NextResponse.json({ tage: await freieTermine(bedarf, von, tage) }, { headers: { "cache-control": "no-store" } });
   }

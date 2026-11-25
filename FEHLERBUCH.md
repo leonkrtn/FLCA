@@ -18,6 +18,23 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-25 · Kundenlink Kostenvoranschlag: „Die freien Termine konnten nicht geladen werden“
+
+- **Stand:** behoben
+- **Wo:** `src/app/api/termine/frei/route.ts` (Zweig `?kv=`)
+- **Was man sah:** (vom Nutzer gemeldet, Screenshot) Nach dem Annehmen eines Kostenvoranschlags zeigte
+  „Termin wählen“ auf `/k/<token>` nur die Fehlermeldung, keine Tage.
+- **Ursache:** Seit „auftrag_ohne_termin“ legt die Zusage eine Terminzeile „ungeplant“ an und setzt
+  `kostenvoranschlaege.termin_id`. Die Schnittstelle lehnte jeden KV mit `termin_id` ab (404), Seite und
+  `kvTerminAnfragen` ließen „ungeplant“ dagegen zu.
+- **Behebung:** Die Schnittstelle lädt den Stand der Terminzeile und lässt „ungeplant“ durch, wie die Seite und die
+  Aktion.
+- **Muster:** `termin_id` gesetzt heißt nicht mehr „hat einen Termin“. Wer daraus „schon eingeplant“ ableitet,
+  muss den Stand prüfen (`ungeplant`), sonst sperrt er genau den wartenden Auftrag aus.
+- **Weitere Stellen:** alle Abfragen auf `termin_id` geprüft. `kvVorlage` (`src/lib/termin-daten.ts`) gibt bei
+  gesetzter `termin_id` bewusst `null` zurück: ein wartender Auftrag wird über „Einplanen“ terminiert, nicht über
+  einen neuen Termin. `kundeAntwortet` liest `termin_id` vor der Zusage, also die alte Verknüpfung: richtig.
+
 ### 2026-11-25 · Kostenvoranschlag: Zusage ohne Termin ergab keinen Auftrag, Rechnung am Auftrag vorbei
 
 - **Stand:** behoben
