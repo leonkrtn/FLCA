@@ -146,6 +146,7 @@ export async function benachrichtigungSpeichern(_v: Ergebnis, fd: FormData): Pro
     await benutzerMitRecht("einstellungen");
     const emails = text(fd, "emails", 1000).split(/[\s,;]+/).map((e) => e.trim().toLowerCase()).filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)).slice(0, 10);
     await einstellungenSpeichern("benachrichtigung", { emails });
+    alles();
     return { status: "ok", meldung: "Gespeichert." };
   });
 }
@@ -162,6 +163,7 @@ export async function whatsappSpeichern(_v: Ergebnis, fd: FormData): Promise<Erg
       texte[schluessel] = wert.trim() ? wert.replace(/^\s+/, "") : WHATSAPP_STANDARD[schluessel];
     }
     await einstellungenSpeichern("whatsapp", texte);
+    alles();
     return { status: "ok", meldung: "Gespeichert." };
   });
 }
@@ -186,6 +188,7 @@ export async function automatikSpeichern(_v: Ergebnis, fd: FormData): Promise<Er
         debitorSammel: text(fd, "debitorSammel", 10) || "10000",
       },
     });
+    alles();
     return { status: "ok", meldung: "Gespeichert." };
   });
 }

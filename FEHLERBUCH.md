@@ -18,6 +18,22 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-25 · Einstellungen: abgewählter Haken war nach „Speichern“ wieder gesetzt
+
+- **Stand:** behoben
+- **Wo:** `src/lib/aktionen/einstellungen.ts` (`automatikSpeichern`, `benachrichtigungSpeichern`, `whatsappSpeichern`)
+- **Was man sah:** (vom Nutzer gemeldet) In *Einstellungen → Automatik* einen Haken entfernen und speichern: Der Haken
+  stand sofort wieder da, erst nach dem Neuladen der Seite stimmte es. Gespeichert war es richtig.
+- **Ursache:** React setzt ein Formular mit Server Action nach dem Absenden auf seine Startwerte zurück
+  (`defaultChecked`, `defaultValue`). Diese drei Aktionen riefen kein `revalidatePath`, also kamen keine neuen
+  Startwerte vom Server, und das Formular sprang auf den alten Stand.
+- **Behebung:** `alles()` (`revalidatePath("/", "layout")`) nach dem Speichern, wie in den übrigen Aktionen dort.
+- **Muster:** Eine Server Action, die etwas speichert, das ein Formular mit `defaultValue`/`defaultChecked` anzeigt,
+  ohne `revalidatePath`. Das Formular zeigt nach dem Speichern wieder den alten Wert.
+- **Weitere Stellen:** Alle Aktionen in `src/lib/aktionen/` durchsucht: Nur diese drei fehlten. `pushAbonnieren`,
+  `pushAbmelden` und `mailPushSchalten` speichern ohne Formular mit Startwerten (Schalter mit eigenem Zustand), dort ist
+  nichts zu tun.
+
 ### 2026-11-25 · Postfach: HTML-Mails unten abgeschnitten oder mit Leerraum
 
 - **Stand:** behoben
