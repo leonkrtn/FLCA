@@ -1390,13 +1390,23 @@ export async function loeschen(id: string, vonBenutzer: string): Promise<void> {
   const termin = await terminLaden(id);
   if (!termin) throw new TerminFehler("Termin nicht gefunden.");
   const { data: fotos } = await db().from("termin_fotos").select("pfad").eq("termin_id", id);
+  // Die Datenbank löscht die Kostenvoranschläge des Termins mit (Migration „termin_loeschen_kv“); ihr Verlauf
+  // hängt nicht am Termin und geht deshalb hier mit.
+  const { data: kvs } = await db().from("kostenvoranschlaege").select("id, nummer").eq("termin_id", id);
   const { error } = await dbRoh().rpc("termin_loeschen", { p_id: id });
   if (error) dbFehler(error);
   await db().from("verlauf").delete().eq("bezug_typ", "termin").eq("bezug_id", id);
+  const kvIds = (kvs ?? []).map((k) => k.id as string);
+  if (kvIds.length) {
+    // Vor der Migration bleiben die KVs stehen (dann ohne Termin), ihr Verlauf auch.
+    const { data: geblieben } = await db().from("kostenvoranschlaege").select("id").in("id", kvIds);
+    const weg = kvIds.filter((x) => !geblieben?.some((g) => g.id === x));
+    if (weg.length) await db().from("verlauf").delete().eq("bezug_typ", "kostenvoranschlag").in("bezug_id", weg);
+  }
   after(async () => {
     if (termin.status === "bestaetigt" && istGeplant(termin) && new Date(termin.beginn).getTime() > Date.now()) await personBenachrichtigen(termin.zugewiesen_an, termin, "entfaellt");
     if (fotos?.length) await db().storage.from("auftragsfotos").remove(fotos.map((f) => f.pfad as string));
-    await melden("termin.geloescht", { ...ereignisDaten(termin), geloescht_von: vonBenutzer });
+    await melden("termin.geloescht", { ...ereignisDaten(termin), geloescht_von: vonBenutzer, kostenvoranschlaege: (kvs ?? []).map((k) => k.nummer ?? k.id) });
   });
 }
 
