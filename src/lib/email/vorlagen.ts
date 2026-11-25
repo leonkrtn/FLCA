@@ -37,16 +37,21 @@ export function mail(
   });
 
   const fuss = `${firma.name} · ${firma.inhaber}, ${firma.titel} · ${firma.strasse}, ${firma.plz} ${firma.ort} · ${firma.telefon}`;
-  const html = `<!doctype html><html lang="de"><body style="margin:0;background:#ecebe7;font-family:Helvetica,Arial,sans-serif;color:#141414;font-size:15px;line-height:1.55">
-<table role="presentation" style="width:100%;border-collapse:collapse"><tr><td align="center" style="padding:24px 12px">
-<table role="presentation" style="width:100%;max-width:560px;border-collapse:collapse;background:#fff">
-<tr><td style="background:#151515;color:#fff;padding:18px 28px;font-weight:800;letter-spacing:.06em;font-size:14px">${esc(firma.name.toUpperCase())}</td></tr>
-<tr><td style="padding:28px">
+  // Ohne Viewport-Angabe rechnet iOS-Mail die Mail breiter und verkleinert sie, sie steht dann schmal und schief
+  // im Bildschirm. Auf dem Handy füllt die Karte die volle Breite (kein grauer Rand), am Rechner bleibt sie
+  // lesbar schmal. Die Regeln im <style> verstehen Apple Mail und Gmail; wer sie nicht kennt, zeigt die Karte wie bisher.
+  const html = `<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="x-apple-disable-message-reformatting">
+<style>@media (max-width:600px){body{background:#fff!important}.aussen{padding:0!important}.karte{max-width:100%!important}.kopf,.fuss{padding-left:20px!important;padding-right:20px!important}.inhalt{padding:24px 20px!important}}</style></head>
+<body style="margin:0;background:#ecebe7;font-family:Helvetica,Arial,sans-serif;color:#141414;font-size:15px;line-height:1.55;-webkit-text-size-adjust:100%">
+<table role="presentation" style="width:100%;border-collapse:collapse"><tr><td align="center" class="aussen" style="padding:24px 12px">
+<table role="presentation" class="karte" style="width:100%;max-width:560px;border-collapse:collapse;background:#fff">
+<tr><td class="kopf" style="background:#151515;color:#fff;padding:18px 28px;font-weight:800;letter-spacing:.06em;font-size:14px">${esc(firma.name.toUpperCase())}</td></tr>
+<tr><td class="inhalt" style="padding:28px">
 <h1 style="margin:0 0 16px;font-size:22px;line-height:1.25">${esc(ueberschrift)}</h1>
 ${teile.join("\n")}
 ${gruss ? `<p style="margin:0">Viele Grüße<br>${esc(firma.inhaber)} und Team</p>` : ""}
 </td></tr>
-<tr><td style="padding:16px 28px;border-top:1px solid #e3e0da;color:#6b6862;font-size:12px">${esc(fuss)}<br><a href="${esc(ENV.siteUrl)}" style="color:#6b6862">${esc(ENV.siteUrl.replace(/^https?:\/\//, ""))}</a></td></tr>
+<tr><td class="fuss" style="padding:16px 28px;border-top:1px solid #e3e0da;color:#6b6862;font-size:12px">${esc(fuss)}<br><a href="${esc(ENV.siteUrl)}" style="color:#6b6862">${esc(ENV.siteUrl.replace(/^https?:\/\//, ""))}</a></td></tr>
 </table></td></tr></table></body></html>`;
 
   const text = [
