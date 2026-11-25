@@ -18,6 +18,20 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-25 · Postfach: HTML-Mails unten abgeschnitten oder mit Leerraum
+
+- **Stand:** behoben
+- **Wo:** `src/components/mail/html-inhalt.tsx` (Rahmen für HTML-Mails)
+- **Was man sah:** (beim Prüfen mit Beispielmails bemerkt) Die letzte Zeile einer HTML-Mail war halb abgeschnitten;
+  nach einem ersten Versuch mit `documentElement.scrollHeight` stand stattdessen viel Leerraum darunter.
+- **Ursache:** Die Höhe kam aus `body.scrollHeight`. Der obere und untere Rand des ersten und letzten Absatzes ragt
+  aus dem `body` heraus (Randverschmelzung) und zählt dort nicht mit. `documentElement.scrollHeight` ist dagegen nie
+  kleiner als der Rahmen selbst und schrumpft deshalb nicht.
+- **Behebung:** `body` im Rahmen als eigener Block (`display: flow-root`), dann enthält `body.scrollHeight` die Ränder.
+- **Muster:** Höhe eines Rahmens oder Containers aus `scrollHeight` messen, dessen Inhalt mit Rändern (`p`, `h1`)
+  beginnt oder endet, ohne eigenen Blockkontext.
+- **Weitere Stellen:** Im übrigen Code misst niemand `scrollHeight`; nichts weiter gefunden.
+
 ### 2026-11-24 · Menü: „Kunden“ wäre auf „Kundenbildschirm“ mit markiert gewesen
 
 - **Stand:** behoben

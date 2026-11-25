@@ -2,6 +2,7 @@ import Link from "next/link";
 import { abmelden } from "@/app/login/actions";
 import { MobilKopf } from "@/components/mobil/teile";
 import { PushSchalter } from "@/components/mobil/push-schalter";
+import { MailPushSchalter } from "@/components/mail/push-mail";
 import { Formular, Senden } from "@/components/admin/formular";
 import { pushTest } from "@/lib/aktionen/push";
 import { benutzerMitRecht } from "@/lib/auth";
@@ -16,10 +17,11 @@ export default async function TeamMehr() {
   const b = await benutzerMitRecht("werkstatt");
   // Was die Werkstatt für mich eingetragen hat: nur lesen, ändern geht im Büro
   const [{ data: p }, { data: l }, { data: sperren }] = await Promise.all([
-    db().from("profile").select("nimmt_auftraege").eq("id", b.id).maybeSingle(),
+    db().from("profile").select("nimmt_auftraege, mail_push").eq("id", b.id).maybeSingle(),
     db().from("leistungen").select("id, name, kategorie, art, aktiv, sortierung").order("sortierung"),
     db().from("leistung_sperren").select("leistung_id").eq("profil_id", b.id),
   ]);
+  const mailPush = (p?.mail_push as boolean | undefined) ?? true;
   const gesperrt = new Set((sperren ?? []).map((s) => s.leistung_id as string));
   const darf = ((l ?? []) as Leistung[]).filter((x) => istTerminLeistung(x) && !gesperrt.has(x.id));
   const kategorien = [...new Set(darf.map((x) => x.kategorie))];
@@ -36,6 +38,7 @@ export default async function TeamMehr() {
           <h2 className="font-semibold">Benachrichtigungen</h2>
           <p className="text-sm text-grau">Push, wenn dein Urlaub genehmigt ist, sich etwas an deinen Aufträgen ändert oder eine Erinnerung fällig ist.</p>
           <PushSchalter />
+          <MailPushSchalter an={mailPush} />
           <Formular aktion={pushTest}>
             <Senden art="rahmen" className="w-full" vorab="Gesendet">Test-Push an mich</Senden>
           </Formular>

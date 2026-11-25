@@ -20,12 +20,16 @@ import { TERMIN_TON } from "@/lib/status";
 import { db } from "@/lib/supabase/admin";
 import { STATUS_TEXT, type Termin } from "@/lib/termine";
 import { fahrzeugTypen, markeUndModell } from "@/lib/kunden";
+import { mailsZuKunde } from "@/lib/mail/kunde";
+import { zugang } from "@/lib/mail/postfach";
 
 export default async function KundeDetail({ params }: { params: Promise<{ id: string }> }) {
   const b = await benutzerMitRecht("kunden");
   const { id } = await params;
   const { data: k } = await db().from("kunden").select("*").eq("id", id).maybeSingle();
   if (!k) notFound();
+  // Mails mit diesem Kunden (nur aus Postfächern, die man sieht), über seine E-Mail-Adresse
+  const mails = k.email ? await mailsZuKunde(await zugang(b), k.email as string) : [];
   const [fz, tm, re, ei, kv, typen, alt, laufend, notizen] = await Promise.all([
     db().from("fahrzeuge").select("*").eq("kunde_id", id).order("erstellt_am"),
     db().from("termine").select("id, beginn, leistung_name, status, km_stand, fahrzeug:fahrzeuge(kennzeichen)").eq("kunde_id", id).order("beginn", { ascending: false }).limit(50),
@@ -182,6 +186,24 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
 
         <div>
           {darf(b.rolle, "notizen") ? <NotizenAbschnitt b={b} kundeId={k.id} /> : null}
+          {k.email ? (
+            <Abschnitt titel="Mails" aktion={<Link href={`/admin/mail/neu?an=${encodeURIComponent(k.email)}`} className="knopf knopf-rahmen knopf-klein">Mail schreiben</Link>}>
+              <ul className="divide-y divide-linie text-sm">
+                {mails.map((m) => (
+                  <li key={m.id}>
+                    <Link href={`/admin/mail?${m.postfach ? "p=ich&" : ""}${m.ordner === "eingang" ? "" : `o=${m.ordner}&`}g=${m.gespraech}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-2 hover:bg-papier">
+                      <span className="min-w-0">
+                        <span className="block truncate">{m.betreff || "(ohne Betreff)"}</span>
+                        <span className="text-grau">{m.richtung === "eingang" ? `Von ${m.von_name || m.von}` : `An ${m.an.join(", ")}`}</span>
+                      </span>
+                      <span className="zahlen whitespace-nowrap text-grau">{datumZeit(m.erstellt_am)}</span>
+                    </Link>
+                  </li>
+                ))}
+                {!mails.length ? <li className="py-2 text-grau">Noch keine Mails mit {k.email}.</li> : null}
+              </ul>
+            </Abschnitt>
+          ) : null}
           <Abschnitt titel="Termine">
             <ul className="divide-y divide-linie text-sm">
               {termine.map((t) => (
