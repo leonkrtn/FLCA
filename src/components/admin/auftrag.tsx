@@ -57,7 +57,7 @@ export function AuftragBereich({ t, ort, kal }: { t: AuftragTermin; ort: Ort; ka
         <p className={`text-sm ${warnung ? "font-semibold text-rot" : "text-grau"}`}>{warnung || `Kostengrenze ${euro(t.auftrag_kostengrenze_cent)}`}</p>
       ) : null}
       {t.auftrag_positionen?.length ? <PositionenUebersicht positionen={t.auftrag_positionen} /> : <p className="text-sm text-grau">Noch keine Positionen.</p>}
-      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+      <div className="knopfreihe knopfreihe-frei">
         <Link href={mitKal(`/${ort}/termine/${t.id}/auftrag`, kal ?? null)} className="knopf knopf-rahmen">Positionen bearbeiten</Link>
         <DateiKnopf art="datei" href={`/admin/termine/${t.id}/auftrag/pdf`} className="knopf knopf-rahmen">PDF</DateiKnopf>
       </div>

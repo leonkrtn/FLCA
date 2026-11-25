@@ -23,7 +23,7 @@ export function KvAnsicht({ k, ort, termin, termine }: { k: Kostenvoranschlag; o
   const wartet = termin?.status === "ungeplant";
   return (
     <div className="grid gap-6">
-      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+      <div className="knopfreihe knopfreihe-frei">
         {auftrag ? (
           <Link href={`/${ort}/termine/${auftrag.id}`} className="knopf knopf-dunkel">Zum Auftrag {auftrag.auftrag_nummer}</Link>
         ) : null}
@@ -38,7 +38,7 @@ export function KvAnsicht({ k, ort, termin, termine }: { k: Kostenvoranschlag; o
           <p className="text-sm text-grau">
             {abgelaufen ? `Abgelaufen am ${datum(k.gueltig_bis)}. ` : "Der Kunde kann über seinen Link annehmen. "}Hat er angerufen oder in der Werkstatt zugesagt?
           </p>
-          <div className="grid grid-cols-2 gap-2 sm:flex">
+          <div className="knopfreihe knopfreihe-frei">
             <Formular aktion={kvZumAuftragAktion.bind(null, k.id, ort)} className="grid">
               <Senden art="dunkel" vorab="Wird zum Auftrag">Zugesagt: zum Auftrag machen</Senden>
             </Formular>
@@ -65,7 +65,7 @@ export function KvAnsicht({ k, ort, termin, termine }: { k: Kostenvoranschlag; o
         {termin && wartet ? (
           <div className="grid gap-2">
             <p>Der Auftrag {termin.auftrag_nummer} wartet auf seinen Termin.</p>
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            <div className="knopfreihe knopfreihe-frei">
               <Link href={`/${ort}/termine/${termin.id}`} className="knopf knopf-rahmen">Einplanen</Link>
             </div>
           </div>
@@ -88,7 +88,7 @@ export function KvAnsicht({ k, ort, termin, termine }: { k: Kostenvoranschlag; o
                 ? "Angenommen, aber noch ohne Termin. Trag einen ein, oder mach ihn oben zum Auftrag ohne Termin."
                 : "Noch ohne Termin. Gehört er zu einer Anfrage oder einem Termin, hier verknüpfen: Bei der Zusage entsteht der Auftrag dann dort."}
             </p>
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            <div className="knopfreihe knopfreihe-frei">
               <Link href={`${ort === "app" ? "/app/neu" : "/admin/termine/neu"}?kv=${k.id}`} className="knopf knopf-rahmen">
                 Termin eintragen
               </Link>

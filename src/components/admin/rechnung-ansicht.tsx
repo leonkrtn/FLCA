@@ -34,7 +34,7 @@ export function RechnungAnsicht({
   const korrekturEntwurf = bezuege.korrektur?.status === "entwurf" ? bezuege.korrektur : null;
   return (
     <div className="grid gap-6">
-      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+      <div className="knopfreihe knopfreihe-frei">
         <DateiKnopf art="datei" href={pdfHref} className="knopf knopf-dunkel">PDF öffnen</DateiKnopf>
         <DateiKnopf art="datei" href={`/admin/rechnungen/${r.id}/xml`} className="knopf knopf-rahmen">{xrechnung ? "XRechnung (XML)" : "E-Rechnung (XML)"}</DateiKnopf>
         {r.status === "gestellt" && r.storno_zu ? (

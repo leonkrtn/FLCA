@@ -133,13 +133,13 @@ export function TerminAktionen({
           </Formular>
         ) : null}
         {!offen ? (
-          <div className={`grid gap-2 ${aktionen.gegenvorschlag ? (gross ? "grid-cols-2" : "sm:grid-cols-2") : ""}`}>
+          <div className="knopfreihe">
             {aktionen.gegenvorschlag ? (
-              <button type="button" onClick={() => setOffen("vorschlag")} className={`knopf knopf-rahmen ${breit}`}>
+              <button type="button" onClick={() => setOffen("vorschlag")} className="knopf knopf-rahmen">
                 {vorschlagOffen ? "Neuer Vorschlag …" : "Andere Zeit vorschlagen …"}
               </button>
             ) : null}
-            <button type="button" onClick={() => setOffen("ablehnen")} className={`knopf knopf-rahmen ${breit}`}>
+            <button type="button" onClick={() => setOffen("ablehnen")} className="knopf knopf-rahmen">
               Nein, ablehnen …
             </button>
           </div>
@@ -151,9 +151,9 @@ export function TerminAktionen({
   if (status !== "bestaetigt") return null;
   return (
     <div className="grid gap-3">
-      <Formular aktion={aktionen.erledigt} className={`grid gap-2 ${gross ? "" : "sm:grid-cols-2"}`}>
-        <Senden art="dunkel" name="art" value="erledigt" className={breit} vorab="Erledigt">Erledigt</Senden>
-        <Senden art="rahmen" name="art" value="nicht_erschienen" className={breit} vorab="Vermerkt">Nicht erschienen</Senden>
+      <Formular aktion={aktionen.erledigt} className="knopfreihe">
+        <Senden art="dunkel" name="art" value="erledigt" vorab="Erledigt">Erledigt</Senden>
+        <Senden art="rahmen" name="art" value="nicht_erschienen" vorab="Vermerkt">Nicht erschienen</Senden>
       </Formular>
       {offen === "verschieben" ? (
         <Formular aktion={aktionen.verschieben} className="grid grid-cols-2 gap-2">
@@ -179,7 +179,7 @@ export function TerminAktionen({
         </Formular>
       ) : null}
       {!offen ? (
-        <div className={`grid gap-2 ${gross ? "grid-cols-2" : "sm:grid-cols-2"}`}>
+        <div className="knopfreihe">
           <button type="button" onClick={() => setOffen("verschieben")} className="knopf knopf-rahmen">Verschieben …</button>
           <button type="button" onClick={() => setOffen("absagen")} className="knopf knopf-rahmen">Absagen …</button>
         </div>

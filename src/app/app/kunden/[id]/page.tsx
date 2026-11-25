@@ -20,7 +20,7 @@ export default async function AppKunde({ params }: { params: Promise<{ id: strin
     <>
       <MobilKopf titel={k.name} unter={`Kunde Nr. ${k.nummer}${k.firma ? ` · ${k.firma}` : ""}`} zurueck="/app" />
       <div className="grid gap-6 p-4">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="knopfreihe">
           {k.telefon ? <a href={telHref(k.telefon)} className="knopf knopf-dunkel">Anrufen</a> : null}
           {k.email ? <a href={`mailto:${k.email}`} className="knopf knopf-rahmen">E-Mail</a> : null}
           <Link href={`/app/neu?kunde=${k.id}`} className="knopf knopf-rahmen">Termin eintragen</Link>
