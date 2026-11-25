@@ -11,6 +11,8 @@ export const ENV = {
   supabaseSecretKey: process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   mailFrom: process.env.MAIL_FROM ?? "",
+  // Signiergeheimnis des Resend-Webhooks für eingehende Mails (whsec_…)
+  resendWebhookSecret: process.env.RESEND_WEBHOOK_SECRET ?? "",
   vapidPublicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "",
   vapidPrivateKey: process.env.VAPID_PRIVATE_KEY ?? "",
   cronSecret: process.env.CRON_SECRET ?? "",
@@ -20,6 +22,7 @@ export const KONFIGURIERT = {
   supabase: Boolean(ENV.supabaseUrl && ENV.supabasePublishableKey),
   supabaseAdmin: Boolean(ENV.supabaseUrl && ENV.supabaseSecretKey),
   email: Boolean(ENV.resendApiKey && ENV.mailFrom),
+  mailEingang: Boolean(ENV.resendApiKey && ENV.mailFrom && ENV.resendWebhookSecret),
   push: Boolean(ENV.vapidPublicKey && ENV.vapidPrivateKey),
   cron: Boolean(ENV.cronSecret),
 };

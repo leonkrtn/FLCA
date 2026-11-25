@@ -11,7 +11,7 @@ let eingerichtet = false;
 
 function einrichten() {
   if (eingerichtet) return;
-  setVapidDetails(`mailto:${ENV.mailFrom.match(/<([^>]+)>/)?.[1] ?? "info@flc-automotive.de"}`, ENV.vapidPublicKey, ENV.vapidPrivateKey);
+  setVapidDetails(`mailto:${ENV.mailFrom.match(/<([^>]+)>/)?.[1] ?? "info@flcautomotive.de"}`, ENV.vapidPublicKey, ENV.vapidPrivateKey);
   eingerichtet = true;
 }
 

@@ -22,6 +22,8 @@ import { istPlanbar, urlaubKonten, zeitkonto } from "@/lib/mitarbeiter";
 import { abwesenheitText, kalenderwoche } from "@/lib/planung";
 import { darf, ROLLEN, rollenName } from "@/lib/rollen";
 import { db } from "@/lib/supabase/admin";
+import { mailNameAus } from "@/lib/mail/adressen";
+import { personenAdresse } from "@/lib/mail/postfach";
 import { istTerminLeistung, type Leistung } from "@/lib/termine";
 import { berlinDatum, istDatum, plusTage } from "@/lib/zeit";
 import { monatszeiten, nettoMinuten, saldo, stunden } from "@/lib/zeiterfassung";
@@ -67,7 +69,7 @@ export default async function Person({ params, searchParams }: { params: Promise
         titel={p.name || p.email}
         unter={
           <span className="flex flex-wrap items-center gap-2">
-            <span>{p.email} · {rollenName(p.rolle)}</span>
+            <span>{p.email} · {rollenName(p.rolle)}{personenAdresse(p) ? ` · Postfach ${personenAdresse(p)}` : ""}</span>
             {planbar ? <Marke ton="ok">eingeplant</Marke> : <Marke ton="hell">nicht eingeplant</Marke>}
             {!p.aktiv ? <Marke ton="hell">deaktiviert</Marke> : null}
             {urlaub?.anspruch ? <span className="zahlen">Resturlaub {String(urlaub.rest).replace(".", ",")} Tage</span> : null}
@@ -81,6 +83,14 @@ export default async function Person({ params, searchParams }: { params: Promise
           <Formular aktion={profilSpeichern.bind(null, id)} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Feld label="Name" name="name" wert={p.name} />
             <Feld label="Telefon" name="telefon" wert={p.telefon} typ="tel" />
+            <Feld
+              label="Mailadresse (vor dem @)"
+              name="mail_name"
+              wert={p.mail_name}
+              placeholder={mailNameAus(p.name) || "vorname.nachname"}
+              autoCapitalize="none"
+              hilfe="Leer lassen für vorname.nachname aus dem Namen"
+            />
             <Auswahl label="Rolle" name="rolle" wert={p.rolle} optionen={ROLLEN.map((r) => [r.wert, r.name])} />
             <Feld
               label="Urlaubstage pro Jahr"

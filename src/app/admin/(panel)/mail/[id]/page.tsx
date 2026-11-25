@@ -1,0 +1,7 @@
+import { GespraechSeite } from "@/components/mail/seiten";
+
+export const metadata = { title: "Mail" };
+
+export default async function Seite({ params }: { params: Promise<{ id: string }> }) {
+  return <GespraechSeite ort="admin" id={(await params).id} />;
+}

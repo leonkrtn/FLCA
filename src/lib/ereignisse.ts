@@ -56,6 +56,8 @@ export const EREIGNIS_TYPEN = {
   "zeit.pause": "Ein Mitarbeiter hat eine Pause begonnen oder beendet",
   "zeit.ausserhalb": "Einstempeln außerhalb der Werkstatt wurde gesperrt",
   "auftrag.meldung": "Die Werkstatt meldet am Auftrag einen Befund oder fordert ein Teil an",
+  "mail.eingegangen": "Eine Mail ist eingegangen (postfach = firma oder person; Inhalt und Absender nur beim Firmenpostfach)",
+  "mail.gesendet": "Eine Mail wurde aus der Anwendung gesendet (postfach = firma oder person)",
 } as const;
 
 export type EreignisTyp = keyof typeof EREIGNIS_TYPEN;

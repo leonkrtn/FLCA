@@ -33,6 +33,12 @@ export const Nachricht = (p: Props) => (
     <path d="M4 19.5 5.2 16A8 8 0 1 1 8 18.8Z" />
   </Icon>
 );
+export const Brief = (p: Props) => (
+  <Icon {...p}>
+    <rect x="3" y="5" width="18" height="14" rx="1.5" />
+    <path d="m3.5 6 8.5 7 8.5-7" />
+  </Icon>
+);
 export const Route = (p: Props) => (
   <Icon {...p}>
     <path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" />
