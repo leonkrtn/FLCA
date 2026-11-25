@@ -97,7 +97,7 @@ Domain `flcautomotive.de` anlegen, die DNS-Einträge (SPF, DKIM, optional DMARC)
 
 1. Migrationen `20261201100000_mail.sql` und `20261202100000_mail_ausbau.sql` im SQL-Editor ausführen (Tabellen `mails` und `mail_kategorien`, Speicher `mail`, Spalten an `profile`).
 2. Resend → *Domains → flcautomotive.de* → Empfangen (Receiving) einschalten und den angezeigten **MX-Eintrag** beim Domain-Anbieter setzen. Danach nimmt Resend alle Mails an `…@flcautomotive.de` an; ein anderes Postfach für die Domain (z. B. beim Domain-Anbieter) bekommt dann nichts mehr.
-3. Resend → *Webhooks → Add Endpoint*: `https://<website>/api/mail/eingang`, Ereignisse `email.received`, `email.sent` (Kennung gesendeter Mails, damit Antworten in der richtigen Unterhaltung landen), `email.delivered`, `email.delivery_delayed`, `email.bounced` und `email.complained` (Zustellstatus in *Gesendet*).
+3. Resend → *Webhooks → Add Endpoint*: `https://<website>/api/mail/eingang` (genau die ausliefernde Adresse, also `https://www.flcautomotive.de/…`; eine Weiterleitung zeigt Resend als „308“ und legt nichts ab), Ereignisse `email.received`, `email.sent` (Kennung gesendeter Mails, damit Antworten in der richtigen Unterhaltung landen), `email.delivered`, `email.delivery_delayed`, `email.bounced` und `email.complained` (Zustellstatus in *Gesendet*).
 4. Das *Signing Secret* des Webhooks (`whsec_…`) in Vercel als `RESEND_WEBHOOK_SECRET` eintragen, neu deployen.
 5. *Einstellungen → E-Mail*: Standardadresse und Adressen des Firmenpostfachs prüfen, dann unter *Einrichtung* „Testmail senden“. Sie steht nach wenigen Sekunden unter *Mail → Firma → Posteingang*. Dort zeigt die Seite auch, ob Schlüssel, Webhook und MX-Eintrag stimmen. Fehler beim Empfang stehen unter *Einstellungen → Fehler*.
 
@@ -124,9 +124,9 @@ Der kostenlose Hobby-Tarif ist laut Vercel nur für nicht-kommerzielle Nutzung. 
 
 Die Website läuft derzeit unter `https://flca.vercel.app`. Beim Wechsel auf `https://flcautomotive.de`:
 
-1. Vercel: Domain hinzufügen, `NEXT_PUBLIC_SITE_URL` auf `https://flcautomotive.de` setzen, neu deployen.
+1. Vercel: Domain hinzufügen, `NEXT_PUBLIC_SITE_URL` auf `https://www.flcautomotive.de` setzen, neu deployen. Immer die Adresse **mit www**: `flcautomotive.de` leitet bei Vercel mit 308 auf `www.` weiter, und Dienste, die die Website von sich aus aufrufen (Resend-Webhook, Supabase-Zeitsteuerung), folgen keiner Weiterleitung.
 2. Supabase: *Authentication → URL Configuration* → Site URL ändern.
-3. Supabase-SQL-Editor: in `supabase/zeitsteuerung-einrichten.sql` die Adresse ändern und ausführen. Das Geheimnis bleibt gleich, `CRON_SECRET` in Vercel muss nicht angefasst werden.
+3. Supabase-SQL-Editor: in `supabase/zeitsteuerung-einrichten.sql` die Adresse (mit www) ändern und ausführen. Das Geheimnis bleibt gleich, `CRON_SECRET` in Vercel muss nicht angefasst werden.
 4. Die Web-Apps auf den Handys einmal vom Home-Bildschirm löschen und unter der neuen Adresse neu hinzufügen (Push neu einschalten).
 
 ### 5. In der Verwaltung

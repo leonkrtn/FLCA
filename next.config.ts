@@ -2,6 +2,15 @@ import type { NextConfig } from "next";
 
 const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin : "";
 const entwicklung = process.env.NODE_ENV === "development";
+// Eigene Website-Adresse (NEXT_PUBLIC_SITE_URL). Das Logo der Mail-Signatur steht mit dieser Adresse in jeder Mail; zeigt
+// sie auf die Domain ohne www, die nur weiterleitet, ist das nicht 'self' und das Logo fehlte in Postfach und Editor.
+// Beide Schreibweisen (mit und ohne www), damit auch Mails von vor einem Wechsel der Adresse ihr Logo zeigen.
+const website = (() => {
+  const adresse = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+  if (!adresse.startsWith("https://")) return "";
+  const host = new URL(adresse).host.replace(/^www\./, "");
+  return `https://${host} https://www.${host}`;
+})();
 
 /**
  * Content-Security-Policy für alle Seiten. Supabase steht in connect-src, weil Uploads (Lebenslauf,
@@ -11,7 +20,7 @@ const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${entwicklung ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
-  `img-src 'self' data: blob: ${supabase}`.trim(),
+  `img-src 'self' data: blob: ${supabase} ${website}`.trim(),
   `media-src 'self' blob: ${supabase}`.trim(),
   "font-src 'self'",
   `connect-src 'self' ${supabase}`.trim(),

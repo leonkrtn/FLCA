@@ -128,3 +128,77 @@ export const Zahnrad = (p: Props) => (
     <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" />
   </Icon>
 );
+
+// Mail: Leiste über einer geöffneten Mail. Fahne und Nadel sind gefüllt, wenn sie gesetzt sind.
+export const Antworten = (p: Props) => (
+  <Icon {...p}>
+    <path d="M9 14 4 9l5-5" />
+    <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+  </Icon>
+);
+export const Weiterleiten = (p: Props) => (
+  <Icon {...p}>
+    <path d="m15 14 5-5-5-5" />
+    <path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />
+  </Icon>
+);
+export const Archiv = (p: Props) => (
+  <Icon {...p}>
+    <rect x="3" y="4" width="18" height="5" rx="1" />
+    <path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4" />
+  </Icon>
+);
+export const Posteingang = (p: Props) => (
+  <Icon {...p}>
+    <path d="M4 13 6.5 5h11l2.5 8v6H4Z" />
+    <path d="M4 13h4.5l1 2h5l1-2H20" />
+  </Icon>
+);
+export const Papierkorb = (p: Props) => (
+  <Icon {...p}>
+    <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5" />
+  </Icon>
+);
+export const Wiederherstellen = (p: Props) => (
+  <Icon {...p}>
+    <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+    <path d="M3 3v5h5" />
+  </Icon>
+);
+export const Fahne = ({ an, ...p }: Props & { an?: boolean }) => (
+  <Icon {...p}>
+    <path d="M5 21V4h11l-2 4 2 4H5" fill={an ? "currentColor" : "none"} />
+  </Icon>
+);
+export const Nadel = ({ an, ...p }: Props & { an?: boolean }) => (
+  <Icon {...p}>
+    <path d="M9 3h6l-1 6 3 3H7l3-3-1-6Z" fill={an ? "currentColor" : "none"} />
+    <path d="M12 12v9" />
+  </Icon>
+);
+export const Etikett = (p: Props) => (
+  <Icon {...p}>
+    <path d="M3.5 3.5H11l9.5 9.5-7.5 7.5-9.5-9.5Z" />
+    <circle cx="8" cy="8" r="1.25" />
+  </Icon>
+);
+export const Glocke = (p: Props) => (
+  <Icon {...p}>
+    <path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15Z" />
+    <path d="M10 20.5a2 2 0 0 0 4 0" />
+  </Icon>
+);
+export const Ungelesen = (p: Props) => (
+  <Icon {...p}>
+    <rect x="3" y="6" width="15" height="13" rx="1.5" />
+    <path d="m3.5 7 7 5.5 7-5.5" />
+    <circle cx="19.5" cy="5.5" r="2.5" fill="currentColor" stroke="none" />
+  </Icon>
+);
+export const Drucker = (p: Props) => (
+  <Icon {...p}>
+    <path d="M7 9V3h10v6" />
+    <path d="M6 17H4a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-2" />
+    <path d="M7 14h10v7H7Z" />
+  </Icon>
+);

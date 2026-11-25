@@ -35,8 +35,9 @@ select
   einstellung.geheimnis as cron_secret_fuer_vercel
 from (
   select
-    -- Adresse der Website, ohne Schrägstrich am Ende
-    'https://flcautomotive.de' as adresse,
+    -- Adresse der Website, ohne Schrägstrich am Ende. Genau die Adresse, unter der Vercel die Seite ausliefert
+    -- (mit www): Die Adresse ohne www leitet mit 308 weiter, und pg_net folgt keiner Weiterleitung.
+    'https://www.flcautomotive.de' as adresse,
     coalesce(
       -- Geheimnis aus dem bestehenden Job (64 Hex-Zeichen, wie dieses Skript sie erzeugt)
       (select substring(command from '[0-9a-f]{64}') from cron.job where jobname = 'flc-takt'),
