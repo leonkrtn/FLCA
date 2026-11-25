@@ -24,6 +24,10 @@ import { fehlerMelden } from "./fehler";
  * Ablauf: Anfrage oder Termin → Auftrag anlegen (von Hand am Termin, oder ein angenommener Kostenvoranschlag
  * am Termin) → erteilt per Unterschrift, online über den Terminlink oder durch den Kostenvoranschlag →
  * Werkstatt arbeitet (geht auch ohne Erteilung, mit Warnung) → „fertig“ legt den Rechnungsentwurf an.
+ *
+ * Ein angenommener Kostenvoranschlag ohne Termin wird sofort zum erteilten Auftrag, der ohne Termin wartet
+ * (Stand „ungeplant“, `ungeplantAnlegen` in termine.ts) und später eingeplant wird. Ab da ist der Auftrag das
+ * lebende Dokument (Mehrarbeit, Rechnung), der Kostenvoranschlag bleibt, wie der Kunde ihn bekommen hat.
  */
 
 /** Abgesagte oder abgelehnte Termine bekommen keinen Auftrag und können keinen erteilen. */
@@ -61,6 +65,9 @@ const ereignisDaten = (t: Termin) => ({
   kennzeichen: t.fahrzeug?.kennzeichen ?? null,
 });
 
+/** Wann der Auftrag dran ist, für Mail, PDF und Kundenseite. */
+export const terminText = (t: Pick<Termin, "beginn">) => (t.beginn ? `${datumLangText(t.beginn)}, ${zeit(t.beginn)} Uhr` : "wird noch vereinbart");
+
 /** Positionen aus den Leistungen des Termins (wie der Rechnungsentwurf ohne Auftrag). */
 async function positionenAusTermin(t: Termin): Promise<Position[]> {
   const ids = t.leistung_ids?.length ? t.leistung_ids : t.leistung_id ? [t.leistung_id] : [];
@@ -70,13 +77,14 @@ async function positionenAusTermin(t: Termin): Promise<Position[]> {
 
 type KvKurz = { id: string; nummer: string | null; positionen: Position[]; empfaenger: Empfaenger };
 
-async function angenommenerKv(terminId: string): Promise<KvKurz | null> {
+/** Kostenvoranschlag am Termin mit diesem Stand, der jüngste zuerst. */
+async function kvAmTermin(terminId: string, status: "angenommen" | "offen"): Promise<KvKurz | null> {
   const { data } = await db()
     .from("kostenvoranschlaege")
     .select("id, nummer, positionen, empfaenger")
     .eq("termin_id", terminId)
-    .eq("status", "angenommen")
-    .order("beantwortet_am", { ascending: false })
+    .eq("status", status)
+    .order(status === "angenommen" ? "beantwortet_am" : "erstellt_am", { ascending: false })
     .limit(1)
     .maybeSingle();
   return data as KvKurz | null;
@@ -84,7 +92,8 @@ async function angenommenerKv(terminId: string): Promise<KvKurz | null> {
 
 /**
  * Auftrag am Termin anlegen (Knopf am Termin, auch an Anfragen). Vorbefüllt mit den Positionen eines
- * angenommenen Kostenvoranschlags (dann ist er gleich erteilt), sonst mit den Leistungen des Termins.
+ * angenommenen Kostenvoranschlags (dann ist er gleich erteilt), sonst eines noch offenen (erteilt wird er mit
+ * der Annahme), sonst mit den Leistungen des Termins.
  * Ein zweiter Aufruf ändert nichts. Ohne Benutzer: angelegt am Kundenbildschirm, wo der Kunde ihn gleich unterschreibt.
  */
 export async function auftragAnlegen(terminId: string, vonBenutzer: string | null): Promise<string> {
@@ -92,17 +101,18 @@ export async function auftragAnlegen(terminId: string, vonBenutzer: string | nul
   if (!t) throw new TerminFehler("Termin nicht gefunden.");
   if (t.auftrag_nummer) return t.auftrag_nummer;
   if (BEENDET.includes(t.status)) throw new TerminFehler("Zu einem abgesagten oder abgelehnten Termin gibt es keinen Auftrag.");
-  const kv = await angenommenerKv(terminId);
+  const kv = await kvAmTermin(terminId, "angenommen");
   if (kv) return auftragAusKv(terminId, kv, vonBenutzer);
 
+  const offen = await kvAmTermin(terminId, "offen");
   const nummer = await nummerVergeben(terminId);
-  const positionen = await positionenAusTermin(t);
+  const positionen = offen?.positionen.length ? offen.positionen : await positionenAusTermin(t);
   await db()
     .from("termine")
     .update({ auftrag_positionen: positionen, auftrag_summe_brutto_cent: bruttoVon(positionen), auftrag_beschreibung: t.notiz_kunde ?? "" })
     .eq("id", terminId)
     .is("auftrag_erteilt_am", null);
-  await verlauf("termin", terminId, `Werkstattauftrag ${nummer} angelegt`, vonBenutzer);
+  await verlauf("termin", terminId, `Werkstattauftrag ${nummer} angelegt${offen?.positionen.length ? ` (Positionen aus Kostenvoranschlag ${offen.nummer})` : ""}`, vonBenutzer);
   const neu = (await terminLaden(terminId))!;
   after(() => melden("auftrag.angelegt", ereignisDaten(neu)));
   return nummer;
@@ -270,7 +280,7 @@ export async function auftragPdf(t: AuftragTermin, vorschau?: { positionen: Posi
     fusstext: e.auftrag.fusstext,
     bezahlt: false,
     auftrag: {
-      termin: `${datumZeit(t.beginn)} Uhr`,
+      termin: t.beginn ? `${datumZeit(t.beginn)} Uhr` : "wird noch vereinbart",
       telefon: k?.telefon ?? t.kunde?.telefon ?? "",
       beschreibung: t.auftrag_beschreibung ?? "",
       kostengrenze_cent: vorschau ? vorschau.kostengrenze_cent : (t.auftrag_kostengrenze_cent ?? null),
@@ -319,7 +329,7 @@ export async function auftragVersenden(terminId: string, an: string, vonBenutzer
 function auftragFakten(t: AuftragTermin): [string, string][] {
   return [
     ["Auftrag", t.auftrag_nummer ?? ""],
-    ["Termin", `${datumLangText(t.beginn)}, ${zeit(t.beginn)} Uhr`],
+    ["Termin", terminText(t)],
     ...(t.fahrzeug ? ([["Fahrzeug", [t.fahrzeug.kennzeichen, t.fahrzeug.marke_modell].filter(Boolean).join(", ")]] as [string, string][]) : []),
     ["Betrag (voraussichtlich)", euro(t.auftrag_summe_brutto_cent ?? 0)],
     ...(t.auftrag_kostengrenze_cent != null ? ([["Kostengrenze", euro(t.auftrag_kostengrenze_cent)]] as [string, string][]) : []),

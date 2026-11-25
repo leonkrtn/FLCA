@@ -26,8 +26,8 @@ export default async function TerminListe({ searchParams }: { searchParams: Prom
   let abfrage = db().from("termine").select(TERMIN_FELDER).limit(200);
   if (ansicht === "anfragen") abfrage = abfrage.eq("status", "angefragt").order("beginn");
   if (ansicht === "kommend") abfrage = abfrage.eq("status", "bestaetigt").gte("ende", jetzt).order("beginn");
-  // Offene Werkstattaufträge: angelegt, Termin noch nicht abgeschlossen
-  if (ansicht === "auftraege") abfrage = abfrage.not("auftrag_nummer", "is", null).in("status", ["angefragt", "bestaetigt"]).order("beginn");
+  // Offene Werkstattaufträge: angelegt, Termin noch nicht abgeschlossen oder noch gar nicht eingeplant (am Ende)
+  if (ansicht === "auftraege") abfrage = abfrage.not("auftrag_nummer", "is", null).or("status.in.(angefragt,bestaetigt),and(beginn.is.null,status.neq.storniert)").order("beginn");
   if (ansicht === "vergangen") abfrage = abfrage.lt("beginn", jetzt).order("beginn", { ascending: false });
   if (ansicht === "alle") abfrage = abfrage.order("beginn", { ascending: false });
   const { data } = await abfrage;
@@ -59,7 +59,7 @@ export default async function TerminListe({ searchParams }: { searchParams: Prom
               <tr key={t.id} className="hover:bg-papier">
                 <td className="zahlen whitespace-nowrap">
                   <Link href={`/admin/termine/${t.id}`} className="font-semibold hover:underline">
-                    {datumKurzText(t.beginn)} {zeit(t.beginn)}
+                    {t.beginn ? `${datumKurzText(t.beginn)} ${zeit(t.beginn)}` : <span className="font-sans">ohne Termin</span>}
                   </Link>
                 </td>
                 <td>{t.leistung_name}</td>

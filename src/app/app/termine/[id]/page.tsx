@@ -7,7 +7,7 @@ import { TerminLoeschen } from "@/components/admin/termin-loeschen";
 import { AusDerWerkstatt } from "@/components/admin/werkstatt-meldungen";
 import { Marke } from "@/components/admin/ui";
 import { Karte, MobilKopf } from "@/components/mobil/teile";
-import { ablehnenAktion, absagenAktion, bestaetigenAktion, erledigtAktion, gegenvorschlagAktion, rechnungAusTermin, verschiebenAktion } from "@/lib/aktionen/termine";
+import { ablehnenAktion, absagenAktion, bestaetigenAktion, einplanenAktion, erledigtAktion, gegenvorschlagAktion, rechnungAusTermin, verschiebenAktion } from "@/lib/aktionen/termine";
 import { auftragLaden } from "@/lib/auftrag";
 import { AUFTRAG_STAND_TEXT, auftragStand } from "@/lib/auftrag-regeln";
 import { benutzerMitRecht } from "@/lib/auth";
@@ -19,7 +19,7 @@ import { whatsappVermerken } from "@/lib/aktionen/whatsapp";
 import { terminWhatsapp } from "@/lib/whatsapp-daten";
 import { TERMIN_TON } from "@/lib/status";
 import { db } from "@/lib/supabase/admin";
-import { anfrageLage, STATUS_TEXT } from "@/lib/termine";
+import { anfrageLage, einplanenVorgabe, STATUS_TEXT } from "@/lib/termine";
 import { berlinDatum, berlinUhrzeit } from "@/lib/zeit";
 
 export default async function AppTermin({ params }: { params: Promise<{ id: string }> }) {
@@ -28,18 +28,24 @@ export default async function AppTermin({ params }: { params: Promise<{ id: stri
   const t = await auftragLaden(id);
   if (!t) notFound();
   const mitRechnungen = darf(b.rolle, "rechnungen");
-  const [{ data: rechnungen }, lage, z, kvs, wa] = await Promise.all([
+  const [{ data: rechnungen }, lage, z, kvs, wa, vorgabe] = await Promise.all([
     db().from("rechnungen").select("id, nummer, status, summe_brutto_cent, storno_zu").eq("termin_id", id),
     t.status === "angefragt" ? anfrageLage(t) : Promise.resolve(undefined),
     terminZusatz(id),
     mitRechnungen ? kvsZumTermin(id, t.kunde?.id ?? null) : Promise.resolve(null),
     terminWhatsapp(t),
+    t.beginn ? Promise.resolve(null) : einplanenVorgabe(t),
   ]);
   const stand = auftragStand(t);
   const offene = (rechnungen ?? []).find((r) => r.status !== "storniert" && !r.storno_zu);
   return (
     <>
-      <MobilKopf titel={t.leistung_name} unter={`${datumLangText(t.beginn)}, ${zeit(t.beginn)}–${zeit(t.ende)} Uhr`} zurueck="/app" aktion={<Marke ton={TERMIN_TON[t.status]}>{STATUS_TEXT[t.status]}</Marke>} />
+      <MobilKopf
+        titel={t.leistung_name}
+        unter={t.beginn && t.ende ? `${datumLangText(t.beginn)}, ${zeit(t.beginn)}–${zeit(t.ende)} Uhr` : "noch ohne Termin"}
+        zurueck="/app"
+        aktion={<Marke ton={TERMIN_TON[t.status]}>{STATUS_TEXT[t.status]}</Marke>}
+      />
       <div className="grid gap-2 p-2">
         <Karte>
           <p className="text-lg font-semibold">{t.kunde?.name}</p>
@@ -62,8 +68,8 @@ export default async function AppTermin({ params }: { params: Promise<{ id: stri
           <TerminAktionen
             gross
             status={t.status}
-            datum={berlinDatum(new Date(t.beginn))}
-            uhrzeit={berlinUhrzeit(new Date(t.beginn))}
+            datum={t.beginn ? berlinDatum(new Date(t.beginn)) : (vorgabe?.datum ?? "")}
+            uhrzeit={t.beginn ? berlinUhrzeit(new Date(t.beginn)) : (vorgabe?.uhrzeit ?? "")}
             aktionen={{
               bestaetigen: bestaetigenAktion.bind(null, t.id),
               ablehnen: ablehnenAktion.bind(null, t.id),
@@ -71,11 +77,16 @@ export default async function AppTermin({ params }: { params: Promise<{ id: stri
               verschieben: verschiebenAktion.bind(null, t.id),
               erledigt: erledigtAktion.bind(null, t.id),
               gegenvorschlag: gegenvorschlagAktion.bind(null, t.id),
+              einplanen: einplanenAktion.bind(null, t.id),
             }}
             lage={lage}
             vorschlagOffen={t.status === "angefragt" && t.vorschlag_am ? "Vorschlag ist beim Kunden, er sagt über seinen Link zu oder ab." : undefined}
+            team={z.team}
+            person={t.zugewiesen_an}
+            dauer={vorgabe?.dauer}
+            auftragBleibt={Boolean(t.auftrag_nummer) && t.auftrag_status === "offen"}
           />
-          {!["angefragt", "bestaetigt"].includes(t.status) ? <p className="text-grau">Keine offene Entscheidung.</p> : null}
+          {!["ungeplant", "angefragt", "bestaetigt"].includes(t.status) ? <p className="text-grau">Keine offene Entscheidung.</p> : null}
         </Karte>
         <Karte>
           <h2 className="mb-3 flex items-center justify-between gap-2 font-semibold">
@@ -99,7 +110,7 @@ export default async function AppTermin({ params }: { params: Promise<{ id: stri
         {kvs ? (
           <Karte>
             <h2 className="mb-3 font-semibold">Kostenvoranschlag</h2>
-            <KvAmTerminBereich terminId={t.id} ort="app" kvs={kvs} />
+            <KvAmTerminBereich terminId={t.id} ort="app" kvs={kvs} ohneZeit={t.status === "ungeplant"} />
           </Karte>
         ) : null}
         <Karte>

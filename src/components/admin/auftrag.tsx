@@ -23,7 +23,7 @@ import { datum, datumZeit, euro } from "@/lib/format";
 import { KV_STATUS } from "@/lib/rechnung/kostenvoranschlaege";
 import type { KvAmTermin } from "@/lib/termin-daten";
 
-const OFFEN = ["angefragt", "bestaetigt", "erledigt"];
+const OFFEN = ["ungeplant", "angefragt", "bestaetigt", "erledigt"];
 
 /**
  * Werkstattauftrag am Termin (Verwaltung und Handy-App): anlegen, Positionen, PDF, Erteilung per Unterschrift
@@ -154,7 +154,8 @@ export function AnnahmeFormular({ t, fotos, kompakt = false }: { t: AuftragTermi
 }
 
 /** Kostenvoranschläge am Termin: verknüpfte anzeigen, neuen aus dem Termin anlegen, vorhandenen des Kunden verknüpfen. */
-export function KvAmTerminBereich({ terminId, ort, kvs }: { terminId: string; ort: Ort; kvs: { verknuepft: KvAmTermin[]; frei: KvAmTermin[] } }) {
+/** `ohneZeit`: Die Terminzeile trägt nur den Auftrag aus dem Kostenvoranschlag, lösen ginge an seiner Herkunft vorbei. */
+export function KvAmTerminBereich({ terminId, ort, kvs, ohneZeit = false }: { terminId: string; ort: Ort; kvs: { verknuepft: KvAmTermin[]; frei: KvAmTermin[] }; ohneZeit?: boolean }) {
   return (
     <div className="grid gap-3">
       {kvs.verknuepft.length ? (
@@ -167,11 +168,13 @@ export function KvAmTerminBereich({ terminId, ort, kvs }: { terminId: string; or
                 </span>
                 <span className="zahlen">{euro(k.summe_brutto_cent)}</span>
               </Link>
-              <form action={kvTerminLoesenAktion.bind(null, k.id, terminId)}>
-                <Absenden className="text-xs text-grau underline hover:text-tinte" title="Verknüpfung lösen, der Kostenvoranschlag bleibt">
-                  lösen
-                </Absenden>
-              </form>
+              {ohneZeit ? null : (
+                <form action={kvTerminLoesenAktion.bind(null, k.id, terminId)}>
+                  <Absenden className="text-xs text-grau underline hover:text-tinte" title="Verknüpfung lösen, der Kostenvoranschlag bleibt">
+                    lösen
+                  </Absenden>
+                </form>
+              )}
             </li>
           ))}
         </ul>

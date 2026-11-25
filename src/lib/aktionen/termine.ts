@@ -12,7 +12,21 @@ import { entwurfAusTermin } from "../rechnung/rechnungen";
 import { db, DbFehler } from "../supabase/admin";
 import { datum } from "../format";
 import { kalenderHref, kalLesen, mitKal } from "../kalender-ansicht";
-import { ablehnen, bestaetigen, erledigen, gegenvorschlag, loeschen, PlanungsWarnung, stornieren, terminEintragen, TerminFehler, umplanen, verschieben } from "../termine";
+import {
+  ablehnen,
+  bestaetigen,
+  einplanen,
+  erledigen,
+  gegenvorschlag,
+  loeschen,
+  PlanungsWarnung,
+  stornieren,
+  terminEintragen,
+  TerminFehler,
+  umplanen,
+  verschieben,
+  zeitAufheben,
+} from "../termine";
 import { istDatum } from "../zeit";
 
 /** Termin-Aktionen. Admin am Rechner und Handy-App teilen sich diese Funktionen. */
@@ -59,18 +73,48 @@ export async function bestaetigenAktion(id: string, _v: Ergebnis, fd: FormData):
 export async function ablehnenAktion(id: string, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
   return mitFehlertext(fd, async () => {
     const b = await benutzerMitRecht("termine");
+    const { data: t } = await db().from("termine").select("auftrag_erteilt_am").eq("id", id).maybeSingle();
     await ablehnen(id, text(fd, "grund", 500), b.id);
     neuLaden(id);
-    return { status: "ok", meldung: "Abgelehnt. Der Kunde wurde informiert." };
+    return {
+      status: "ok",
+      meldung: t?.auftrag_erteilt_am ? "Abgelehnt. Der Auftrag bleibt und wartet ohne Termin, der Kunde wurde informiert." : "Abgelehnt. Der Kunde wurde informiert.",
+    };
   });
 }
 
+/** Absagen. Mit `nur_zeit` entfällt nur der Termin, der Werkstattauftrag daran bleibt und wartet ohne Termin. */
 export async function absagenAktion(id: string, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
   return mitFehlertext(fd, async () => {
     const b = await benutzerMitRecht("termine");
+    if (fd.get("nur_zeit") === "1") {
+      await zeitAufheben(id, { benutzer: b.id }, text(fd, "grund", 500));
+      neuLaden(id);
+      return { status: "ok", meldung: "Termin abgesagt. Der Auftrag wartet jetzt ohne Termin." };
+    }
     await stornieren(id, { benutzer: b.id }, text(fd, "grund", 500));
     neuLaden(id);
     return { status: "ok", meldung: "Abgesagt." };
+  });
+}
+
+/**
+ * Auftrag ohne Termin einplanen. Mitarbeiter: „auto“ (wer frei ist und passt), leer (niemand) oder eine Person.
+ * Dauer leer = aus den Leistungen des Auftrags.
+ */
+export async function einplanenAktion(id: string, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
+  return mitFehlertext(fd, async () => {
+    const b = await benutzerMitRecht("termine");
+    const datum = text(fd, "datum", 10);
+    const uhrzeit = text(fd, "uhrzeit", 5);
+    if (!istDatum(datum) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(uhrzeit)) return { status: "fehler", meldung: "Bitte Datum und Uhrzeit angeben." };
+    const dauer = zahl(fd, "dauer");
+    if (dauer !== null && (Math.round(dauer) < 1 || dauer > 24 * 60)) return { status: "fehler", meldung: "Bitte die Dauer prüfen (in Minuten)." };
+    const wahl = fd.get("mitarbeiter");
+    const mitarbeiter = wahl === "auto" ? "auto" : uuidOderNull(wahl);
+    const t = await einplanen(id, { datum, uhrzeit, dauerMin: dauer === null ? null : Math.round(dauer), mitarbeiter }, b.id, ja(fd, "ueberbuchen"));
+    neuLaden(id);
+    return { status: "ok", meldung: `Eingeplant${t.mitarbeiter ? ` für ${t.mitarbeiter.name}` : ""}. Der Kunde bekommt die Bestätigung per Mail.` };
   });
 }
 
@@ -275,7 +319,7 @@ export async function rechnungVerknuepfen(id: string, _v: Ergebnis, fd: FormData
     if (error) throw new DbFehler(error);
     const name = r.nummer ?? "Rechnungsentwurf";
     await verlauf("termin", id, `${name} verknüpft`, b.id);
-    await verlauf("rechnung", r.id, `Mit Termin vom ${datum(t.beginn)} (${t.leistung_name}) verknüpft`, b.id);
+    await verlauf("rechnung", r.id, `Mit ${t.beginn ? `Termin vom ${datum(t.beginn)}` : "Auftrag ohne Termin"} (${t.leistung_name}) verknüpft`, b.id);
     await melden("rechnung.termin_verknuepft", { rechnung_id: r.id, nummer: r.nummer, termin_id: id, verknuepft: true });
     neuLaden(id);
     revalidatePath("/admin/rechnungen", "layout");
@@ -293,7 +337,7 @@ export async function rechnungLoesen(id: string, rechnungId: string): Promise<vo
   if (error) throw new DbFehler(error);
   const { data: t } = await db().from("termine").select("beginn, leistung_name").eq("id", id).maybeSingle();
   await verlauf("termin", id, `${r.nummer ?? "Rechnungsentwurf"} gelöst`, b.id);
-  await verlauf("rechnung", r.id, `Vom Termin${t ? ` vom ${datum(t.beginn)} (${t.leistung_name})` : ""} gelöst`, b.id);
+  await verlauf("rechnung", r.id, `Vom Termin${t ? `${t.beginn ? ` vom ${datum(t.beginn)}` : ""} (${t.leistung_name})` : ""} gelöst`, b.id);
   await melden("rechnung.termin_verknuepft", { rechnung_id: r.id, nummer: r.nummer, termin_id: id, verknuepft: false });
   neuLaden(id);
   revalidatePath("/admin/rechnungen", "layout");

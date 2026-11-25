@@ -30,7 +30,7 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
   if (!k) notFound();
   // Mails mit diesem Kunden (nur aus Postfächern, die man sieht), über seine E-Mail-Adresse
   const mails = k.email ? await mailsZuKunde(await zugang(b), k.email as string) : [];
-  const [fz, tm, re, ei, kv, typen, alt, laufend, notizen] = await Promise.all([
+  const [fz, tm, re, ei, kv, typen, alt, laufend, wartend, notizen] = await Promise.all([
     db().from("fahrzeuge").select("*").eq("kunde_id", id).order("erstellt_am"),
     db().from("termine").select("id, beginn, leistung_name, status, km_stand, fahrzeug:fahrzeuge(kennzeichen)").eq("kunde_id", id).order("beginn", { ascending: false }).limit(50),
     // „*“: korrektur_zu und korrektur_grund gibt es erst nach der Migration „rechnung_korrigieren“.
@@ -41,6 +41,8 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
     fruehereRechnungen(id),
     // Was das Löschen verhindert, genau wie in kunde_loeschen geprüft
     db().from("termine").select("id, beginn, leistung_name").eq("kunde_id", id).in("status", ["angefragt", "bestaetigt"]).or(`belegt_bis.gte.${new Date().toISOString()},auftrag_status.eq.in_arbeit`),
+    // Aufträge ohne Termin (nach der leeren Zeit gefragt, das geht auch vor der Migration „auftrag_ohne_termin“)
+    db().from("termine").select("id, auftrag_nummer, leistung_name").eq("kunde_id", id).is("beginn", null).neq("status", "storniert"),
     db().from("notizen").select("id", { count: "exact", head: true }).eq("kunde_id", id),
   ]);
   const eingelagert = (ei.data ?? []).filter((e) => !e.ausgelagert_am);
@@ -48,10 +50,11 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
     fahrzeuge: fz.data?.length ?? 0,
     fruehere: alt.reduce((n, r) => n + 1 + r.aeltere.length, 0),
     rechnungen: (re.data?.length ?? 0) + (kv.data?.length ?? 0),
-    termine: (tm.data?.length ?? 0) - (laufend.data?.length ?? 0),
+    termine: (tm.data?.length ?? 0) - (laufend.data?.length ?? 0) - (wartend.data?.length ?? 0),
     notizen: notizen.count ?? 0,
     hindernisse: [
       ...(laufend.data ?? []).map((t) => `Termin ${datumZeit(t.beginn)} (${t.leistung_name}) läuft noch: erst absagen oder abschließen.`),
+      ...(wartend.data ?? []).map((t) => `${t.auftrag_nummer ? `Auftrag ${t.auftrag_nummer}` : "Auftrag"} (${t.leistung_name}) wartet noch auf seinen Termin: erst absagen oder abschließen.`),
       ...(eingelagert.length ? [`${eingelagert.length === 1 ? "Ein Satz Räder ist" : `${eingelagert.length} Sätze Räder sind`} noch eingelagert: erst auslagern.`] : []),
     ],
   };
@@ -61,7 +64,9 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
 
   // Kennzahlen oben: was beim Öffnen der Akte zuerst interessiert, ohne durch die Listen zu scrollen.
   const jetzt = jetztMs();
-  const naechster = [...termine].reverse().find((t) => (t.status === "angefragt" || t.status === "bestaetigt") && new Date(t.beginn).getTime() >= jetzt);
+  const naechster = [...termine]
+    .reverse()
+    .find((t): t is typeof t & { beginn: string } => (t.status === "angefragt" || t.status === "bestaetigt") && t.beginn !== null && new Date(t.beginn).getTime() >= jetzt);
   // Offen nur aus gestellten Rechnungen und über offenerBetrag (Fehlerbuch: Zahlungsfrage positiv aus dem Status).
   const offen = (re.data ?? []).filter((r) => r.status === "gestellt").reduce((s, r) => s + offenerBetrag(r), 0);
   const anschrift = [k.strasse, [k.plz, k.ort].filter(Boolean).join(" ")].filter(Boolean).join(", ");
@@ -211,7 +216,7 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
                   <Link href={`/admin/termine/${t.id}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-2 hover:bg-papier">
                     <span className="min-w-0">
                       <span className="block truncate">{t.leistung_name}</span>
-                      <span className="text-grau"><span className="zahlen">{datumZeit(t.beginn)}</span>{t.fahrzeug?.kennzeichen ? ` · ${t.fahrzeug.kennzeichen}` : ""}</span>
+                      <span className="text-grau">{t.beginn ? <span className="zahlen">{datumZeit(t.beginn)}</span> : "ohne Termin"}{t.fahrzeug?.kennzeichen ? ` · ${t.fahrzeug.kennzeichen}` : ""}</span>
                     </span>
                     <Marke ton={TERMIN_TON[t.status]}>{STATUS_TEXT[t.status]}</Marke>
                   </Link>

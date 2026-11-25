@@ -51,10 +51,12 @@ export const istTerminLeistung = (l: Pick<Leistung, "art" | "aktiv">) => (l.art 
 export type Termin = {
   id: string;
   nummer: number;
-  status: "angefragt" | "bestaetigt" | "abgelehnt" | "storniert" | "erledigt" | "nicht_erschienen";
-  beginn: string;
-  ende: string;
-  belegt_bis: string;
+  /** „ungeplant“: Werkstattauftrag, der noch auf seinen Termin wartet (seit der Migration „auftrag_ohne_termin“). */
+  status: "ungeplant" | "angefragt" | "bestaetigt" | "abgelehnt" | "storniert" | "erledigt" | "nicht_erschienen";
+  /** Leer nur bei einem Auftrag ohne Termin (Stand „ungeplant“ oder als solcher abgesagt). */
+  beginn: string | null;
+  ende: string | null;
+  belegt_bis: string | null;
   leistung_id: string | null;
   /** Alle Leistungen des Termins (seit der Migration „mehrere_leistungen“, vorher fehlt das Feld). */
   leistung_ids?: string[];
@@ -87,7 +89,20 @@ export type Termin = {
 export const TERMIN_FELDER =
   "*, kunde:kunden(id, name, email, telefon, firma), fahrzeug:fahrzeuge(id, kennzeichen, marke_modell), mitarbeiter:profile!termine_zugewiesen_an_fkey(id, name)";
 
+/** Termin mit Uhrzeit. Kalender, Mails und Planung kennen nur solche; wer nach Zeiträumen fragt, bekommt nur solche. */
+export type GeplanterTermin = Termin & { beginn: string; ende: string; belegt_bis: string };
+
+export const istGeplant = <T extends Pick<Termin, "beginn" | "ende" | "belegt_bis">>(t: T): t is T & { beginn: string; ende: string; belegt_bis: string } =>
+  t.beginn !== null && t.ende !== null && t.belegt_bis !== null;
+
+/** Für Abläufe, die eine Uhrzeit brauchen (bestätigen, verschieben, Mails): ohne Zeit eine Meldung statt eines Absturzes. */
+export function geplant(t: Termin): GeplanterTermin {
+  if (!istGeplant(t)) throw new TerminFehler("Dieser Auftrag hat noch keinen Termin. Bitte zuerst einplanen.");
+  return t;
+}
+
 export const STATUS_TEXT: Record<Termin["status"], string> = {
+  ungeplant: "Ohne Termin",
   angefragt: "Angefragt",
   bestaetigt: "Bestätigt",
   abgelehnt: "Abgelehnt",
@@ -146,6 +161,20 @@ export const gesamtDauer = (l: Pick<Leistung, "dauer_min">[]) => l.reduce((s, x)
 export async function terminLaden(id: string): Promise<Termin | null> {
   // Fehler weiterreichen statt null: Sonst sieht eine kaputte Abfrage aus wie „Termin nicht gefunden“.
   return pruefe<Termin | null>(await db().from("termine").select(TERMIN_FELDER).eq("id", id).maybeSingle());
+}
+
+// Ohne Termin heißt: keine Zeit und nicht abgesagt. Gefragt wird nach der leeren Zeit statt nach dem Stand
+// „ungeplant“, damit Listen und Zähler auch vor der Migration „auftrag_ohne_termin“ laufen (dann: keine).
+
+/** Werkstattaufträge, die auf ihren Termin warten, die ältesten zuerst. */
+export async function auftraegeOhneTermin(): Promise<Termin[]> {
+  const q = db().from("termine").select(TERMIN_FELDER).is("beginn", null).neq("status", "storniert");
+  return pruefe<Termin[]>(await q.order("auftrag_angelegt_am", { ascending: true }).limit(200));
+}
+
+export async function auftraegeOhneTerminAnzahl(): Promise<number> {
+  const { count } = await db().from("termine").select("id", { count: "exact", head: true }).is("beginn", null).neq("status", "storniert");
+  return count ?? 0;
 }
 
 export async function terminPerToken(token: string): Promise<Termin | null> {
@@ -338,7 +367,7 @@ export function terminLink(t: Pick<Termin, "token">) {
   return `${ENV.siteUrl}/t/${t.token}`;
 }
 
-function terminFakten(t: Termin, firma: Einstellungen["firma"]): [string, string][] {
+function terminFakten(t: GeplanterTermin, firma: Einstellungen["firma"]): [string, string][] {
   return [
     [(t.leistung_ids?.length ?? 0) > 1 ? "Leistungen" : "Leistung", t.leistung_name],
     ["Wann", `${datumLangText(t.beginn)}, ${zeit(t.beginn)} Uhr`],
@@ -347,7 +376,10 @@ function terminFakten(t: Termin, firma: Einstellungen["firma"]): [string, string
   ];
 }
 
-async function kundenMail(t: Termin, art: "eingang" | "eingang_eng" | "gegenvorschlag" | "bestaetigt" | "abgelehnt" | "storniert" | "verschoben" | "erinnerung") {
+async function kundenMail(
+  t: GeplanterTermin,
+  art: "eingang" | "eingang_eng" | "gegenvorschlag" | "bestaetigt" | "abgelehnt" | "zeit_abgelehnt" | "storniert" | "zeit_abgesagt" | "verschoben" | "erinnerung",
+) {
   if (!t.kunde?.email) return;
   const { firma, buchung } = await einstellungen();
   const fakten = terminFakten(t, firma);
@@ -420,6 +452,27 @@ async function kundenMail(t: Termin, art: "eingang" | "eingang_eng" | "gegenvors
         { art: "absatz" as const, text: `Oder rufen Sie uns an: ${firma.telefon}` },
       ],
     },
+    // Die Zeit klappt nicht, der erteilte Auftrag bleibt: kein Link zu einer neuen Anfrage, das Büro meldet sich.
+    zeit_abgelehnt: {
+      betreff: `Ihr Termin: ${t.leistung_name}`,
+      ueberschrift: "Zu dieser Zeit klappt es leider nicht.",
+      bausteine: [
+        {
+          art: "absatz" as const,
+          text: `Hallo ${t.kunde.name},\nden Termin am ${datumLangText(t.beginn)} um ${zeit(t.beginn)} Uhr können wir leider nicht einrichten. Ihr Auftrag bleibt bestehen, wir melden uns mit einem neuen Termin.${t.absage_grund ? `\n\n${t.absage_grund}` : ""}`,
+        },
+        { art: "absatz" as const, text: `Oder rufen Sie uns an: ${firma.telefon}` },
+      ],
+    },
+    zeit_abgesagt: {
+      betreff: `Termin abgesagt: ${datumLangText(t.beginn)}`,
+      ueberschrift: "Ihr Termin ist abgesagt.",
+      bausteine: [
+        { art: "absatz" as const, text: `Hallo ${t.kunde.name},\nder folgende Termin ist abgesagt. Ihr Auftrag bleibt bestehen, wir melden uns mit einem neuen Termin.` },
+        { art: "fakten" as const, zeilen: fakten },
+        { art: "absatz" as const, text: `Fragen? Rufen Sie uns an: ${firma.telefon}` },
+      ],
+    },
     storniert: {
       betreff: `Termin abgesagt: ${datumLangText(t.beginn)}`,
       ueberschrift: "Ihr Termin ist abgesagt.",
@@ -442,7 +495,7 @@ async function kundenMail(t: Termin, art: "eingang" | "eingang_eng" | "gegenvors
   }[art];
 
   const { html, text } = mail(firma, { ueberschrift: inhalte.ueberschrift, bausteine: inhalte.bausteine });
-  const mitKalender = art === "bestaetigt" || art === "verschoben" || art === "storniert";
+  const mitKalender = art === "bestaetigt" || art === "verschoben" || art === "storniert" || art === "zeit_abgesagt";
   const ergebnis = await mailer().senden({
     an: t.kunde.email,
     betreff: inhalte.betreff,
@@ -462,7 +515,7 @@ async function kundenMail(t: Termin, art: "eingang" | "eingang_eng" | "gegenvors
                 titel: `${t.leistung_name} bei ${firma.name}`,
                 ort: `${firma.name}, ${firma.strasse}, ${firma.plz} ${firma.ort}`,
                 beschreibung: `${firma.hinweisAnfahrt}\nTermin ansehen: ${link}\nTelefon: ${firma.telefon}`,
-                storniert: art === "storniert",
+                storniert: art === "storniert" || art === "zeit_abgesagt",
               }),
             ),
           },
@@ -472,7 +525,7 @@ async function kundenMail(t: Termin, art: "eingang" | "eingang_eng" | "gegenvors
   if (!ergebnis.ok) console.warn(`Mail „${art}“ zu Termin ${t.id} nicht versendet: ${ergebnis.fehler}`);
 }
 
-async function betriebBenachrichtigen(t: Termin, art: "neu" | "storniert" | "vorschlag_ja" | "vorschlag_nein") {
+async function betriebBenachrichtigen(t: GeplanterTermin, art: "neu" | "storniert" | "vorschlag_ja" | "vorschlag_nein") {
   const { firma, benachrichtigung } = await einstellungen();
   const titel = {
     neu: `Neue Anfrage${t.wunschzeit_frei === false ? " (Wunschzeit belegt)" : ""}: ${t.leistung_name}`,
@@ -524,7 +577,7 @@ const ereignisDaten = (t: Termin) => ({
  * Mitarbeiter über ihre Aufträge informieren (Push in der Team-App). Bescheid bekommt nur, wer einen
  * bestätigten Termin hat: Anfragen sind noch nicht sicher und erscheinen dort auch nicht.
  */
-async function personBenachrichtigen(profil: string | null | undefined, t: Termin, art: "neu" | "geaendert" | "entfaellt") {
+async function personBenachrichtigen(profil: string | null | undefined, t: GeplanterTermin, art: "neu" | "geaendert" | "entfaellt") {
   if (!profil) return;
   const titel = { neu: "Neuer Auftrag für dich", geaendert: "Auftrag geändert", entfaellt: "Auftrag entfällt" }[art];
   const text = `${datumLangText(t.beginn)}, ${zeit(t.beginn)} Uhr · ${t.leistung_name}${t.fahrzeug ? ` · ${t.fahrzeug.kennzeichen}` : ""}`;
@@ -548,7 +601,7 @@ export type AnfrageEingabe = {
 };
 
 /** Anfrage von der Website: hält den Slot, bis der Betrieb bestätigt (Standard 48 Stunden). */
-export async function anfrageStellen(e: AnfrageEingabe): Promise<Termin> {
+export async function anfrageStellen(e: AnfrageEingabe): Promise<GeplanterTermin> {
   const einst = await einstellungen();
   if (!einst.buchung.aktiv) throw new TerminFehler("Online-Anfragen sind gerade pausiert. Bitte rufen Sie uns an.");
   const gewaehlt = await terminLeistungen(e.leistungIds, true);
@@ -584,16 +637,64 @@ export async function bedarfAusPositionen(artikelIds: (string | null | undefined
   return { bedarf: { dauer_min: leistungen.length ? gesamtDauer(leistungen) : 60, ids: leistungen.map((l) => l.id) }, leistungen };
 }
 
+/** Was ein Termin aus einem Kostenvoranschlag braucht: Kunde, Fahrzeug, Positionen. */
+export type KvFuerTermin = {
+  nummer: string | null;
+  kunde_id: string | null;
+  empfaenger: { name: string; email?: string };
+  fahrzeug: { kennzeichen?: string; marke?: string; modell?: string } | null;
+  positionen: { artikel_id?: string | null }[];
+};
+
+/** Kunde und Fahrzeug des Kostenvoranschlags in der Kartei (wie bei einer Anfrage von der Website). */
+async function kvKontakt(kv: KvFuerTermin): Promise<{ kundeId: string; fahrzeugId: string | null }> {
+  const kundeId = kv.kunde_id ?? (await kundeFindenOderAnlegen({ name: kv.empfaenger.name, email: kv.empfaenger.email ?? "", telefon: "" }));
+  const markeModell = [kv.fahrzeug?.marke, kv.fahrzeug?.modell].filter(Boolean).join(" ");
+  return { kundeId, fahrzeugId: await fahrzeugFindenOderAnlegen(kv.fahrzeug?.kennzeichen ?? "", kundeId, markeModell) };
+}
+
+const kvArbeiten = (kv: Pick<KvFuerTermin, "nummer">, leistungen: Leistung[]) =>
+  leistungen.map((l) => l.name).join(", ") || `Arbeiten laut Kostenvoranschlag ${kv.nummer ?? ""}`.trim();
+
 /**
- * Der Kunde hat einen Kostenvoranschlag angenommen und wählt über seinen Link gleich einen Termin: eine Anfrage
- * wie von der Website, mit Kunde und Fahrzeug aus dem Kostenvoranschlag. Verknüpft (und damit zum erteilten
- * Auftrag) wird sie vom Aufrufer über kvMitTerminVerknuepfen.
+ * Werkstattauftrag, der noch auf seinen Termin wartet (aus einem angenommenen Kostenvoranschlag ohne Termin):
+ * eine Terminzeile ohne Zeit im Stand „ungeplant“. Sie belegt keinen Arbeitsplatz und steht in keinem Kalender,
+ * bis sie über `einplanen` (Büro) oder `anfrageAusKv` (Kunde über seinen Link) eine Zeit bekommt. Den Auftrag
+ * darauf legt der Aufrufer an (`auftragAusKv`).
  */
-export async function anfrageAusKv(
-  kv: { nummer: string | null; kunde_id: string | null; empfaenger: { name: string; email?: string }; fahrzeug: { kennzeichen?: string; marke?: string; modell?: string }; positionen: { artikel_id?: string | null }[] },
-  datum: string,
-  uhrzeit: string,
-): Promise<Termin> {
+export async function ungeplantAnlegen(kv: KvFuerTermin, quelle: "admin" | "website"): Promise<string> {
+  const { leistungen: gewaehlt } = await bedarfAusPositionen(kv.positionen.map((p) => p.artikel_id));
+  const { kundeId, fahrzeugId } = await kvKontakt(kv);
+  const ids = gewaehlt.map((l) => l.id);
+  const neu = pruefe(
+    await db()
+      .from("termine")
+      .insert({
+        status: "ungeplant",
+        beginn: null,
+        ende: null,
+        belegt_bis: null,
+        leistung_id: ids[0] ?? null,
+        leistung_ids: ids,
+        leistung_name: kvArbeiten(kv, gewaehlt),
+        kunde_id: kundeId,
+        fahrzeug_id: fahrzeugId,
+        notiz_intern: `Zum Kostenvoranschlag ${kv.nummer ?? ""}`.trim(),
+        quelle,
+      })
+      .select("id")
+      .single(),
+  );
+  return neu.id as string;
+}
+
+/**
+ * Der Kunde hat einen Kostenvoranschlag angenommen und wählt über seinen Link einen Termin: eine Anfrage wie von
+ * der Website. Wartet der Auftrag schon ohne Termin (`ungeplantId`), bekommt genau diese Zeile die Zeit, es
+ * entsteht kein zweiter Termin. Sonst (Annahme vor der Migration „auftrag_ohne_termin“) eine neue Anfrage, die
+ * der Aufrufer über kvMitTerminVerknuepfen zum erteilten Auftrag macht.
+ */
+export async function anfrageAusKv(kv: KvFuerTermin, datum: string, uhrzeit: string, ungeplantId?: string): Promise<GeplanterTermin> {
   const einst = await einstellungen();
   if (!einst.buchung.aktiv) throw new TerminFehler("Online-Termine sind gerade pausiert. Bitte rufen Sie uns an.");
   const { bedarf, leistungen: gewaehlt } = await bedarfAusPositionen(kv.positionen.map((p) => p.artikel_id));
@@ -601,18 +702,16 @@ export async function anfrageAusKv(
     {
       bedarf,
       leistungen: [],
-      leistungName: gewaehlt.map((l) => l.name).join(", ") || `Arbeiten laut Kostenvoranschlag ${kv.nummer ?? ""}`.trim(),
+      leistungName: kvArbeiten(kv, gewaehlt),
       datum,
       uhrzeit,
       notiz: `Zum Kostenvoranschlag ${kv.nummer ?? ""}`.trim(),
-      kontakt: async () => {
-        const kundeId = kv.kunde_id ?? (await kundeFindenOderAnlegen({ name: kv.empfaenger.name, email: kv.empfaenger.email ?? "", telefon: "" }));
-        const markeModell = [kv.fahrzeug?.marke, kv.fahrzeug?.modell].filter(Boolean).join(" ");
-        return { kundeId, fahrzeugId: await fahrzeugFindenOderAnlegen(kv.fahrzeug?.kennzeichen ?? "", kundeId, markeModell) };
-      },
+      kontakt: () => kvKontakt(kv),
+      ungeplantId,
     },
     einst,
   );
+  if (ungeplantId) await verlauf("termin", termin.id, `Termin vom Kunden angefragt: ${datumLangText(termin.beginn)}, ${zeit(termin.beginn)} Uhr`, null);
   after(async () => {
     await Promise.all([kundenMail(termin, eng ? "eingang_eng" : "eingang"), betriebBenachrichtigen(termin, "neu"), melden("termin.angefragt", { ...ereignisDaten(termin), wunschzeit_frei: !eng })]);
   });
@@ -634,16 +733,19 @@ async function anfrageSpeichern(
     uhrzeit: string;
     notiz: string;
     kontakt: () => Promise<{ kundeId: string; fahrzeugId: string | null }>;
+    /** Wartender Auftrag ohne Termin: Er bekommt die Zeit, statt dass eine neue Zeile entsteht. */
+    ungeplantId?: string;
   },
   einst: Einstellungen,
-): Promise<{ termin: Termin; eng: boolean }> {
+): Promise<{ termin: GeplanterTermin; eng: boolean }> {
   const { bedarf } = a;
   if (a.datum > plusTage(berlinDatum(), einst.buchung.maxTage)) throw new TerminFehler("So weit im Voraus können wir noch keine Termine vergeben.");
   const frei = (await slotsImBereich(bedarf, a.datum, plusTage(a.datum, 1), einst)).get(a.datum)?.find((s) => zeit(s.beginn) === a.uhrzeit);
   const eng = frei ? null : zeitraumInOeffnung(bedarf, a.datum, a.uhrzeit, einst);
   if (!frei && !eng) throw new TerminFehler("Zu dieser Uhrzeit können wir den Termin nicht annehmen. Bitte wählen Sie eine andere Uhrzeit.");
   const slot = frei ?? { ...eng!, kandidaten: [] };
-  const { kundeId, fahrzeugId } = await a.kontakt();
+  // Der wartende Auftrag hat Kunde und Fahrzeug schon.
+  const { kundeId, fahrzeugId } = a.ungeplantId ? { kundeId: null, fahrzeugId: null } : await a.kontakt();
   const ids = bedarf.ids ?? [];
 
   // Der am wenigsten Ausgelastete zuerst. Hat ihn gerade jemand anders bekommen (gleichzeitige Anfrage), der Nächste.
@@ -653,6 +755,29 @@ async function anfrageSpeichern(
   let id: string | null = null;
   let warEng = false;
   for (const k of versuche) {
+    // Eine Anfrage zur belegten Zeit hält nichts frei, sonst sperrte sie anderen Kunden die Zeit.
+    const halten = new Date(Date.now() + (k.eng ? 0 : einst.buchung.haltenStd * 3600000)).toISOString();
+    if (a.ungeplantId) {
+      const { error } = await dbRoh().rpc("termin_einplanen", {
+        p_id: a.ungeplantId,
+        p_beginn: slot.beginn.toISOString(),
+        p_ende: k.ende.toISOString(),
+        p_bis: k.bis.toISOString(),
+        p_person: k.profil,
+        p_status: "angefragt",
+        p_halten_bis: halten,
+        p_kapazitaet: einst.buchung.kapazitaet,
+        p_ueberbuchen: Boolean(k.eng),
+      });
+      if (!error) {
+        id = a.ungeplantId;
+        warEng = Boolean(k.eng);
+        break;
+      }
+      if (error.message.includes("FALSCHER_STATUS")) throw new TerminFehler("Zu diesem Auftrag gibt es schon einen Termin.");
+      if (!error.message.includes("PERSON_BELEGT") && !error.message.includes("SLOT_BELEGT")) dbFehler(error);
+      continue;
+    }
     const { data, error } = await dbRoh().rpc("termin_anlegen", {
       p: {
         beginn: slot.beginn.toISOString(),
@@ -665,8 +790,7 @@ async function anfrageSpeichern(
         fahrzeug_id: fahrzeugId,
         notiz_kunde: a.notiz,
         quelle: "website",
-        // Eine Anfrage zur belegten Zeit hält nichts frei, sonst sperrte sie anderen Kunden die Zeit.
-        halten_bis: new Date(Date.now() + (k.eng ? 0 : einst.buchung.haltenStd * 3600000)).toISOString(),
+        halten_bis: halten,
         zugewiesen_an: k.profil,
       },
       p_kapazitaet: einst.buchung.kapazitaet,
@@ -682,7 +806,7 @@ async function anfrageSpeichern(
   if (!id) throw new TerminFehler("Die Anfrage konnte gerade nicht gespeichert werden. Bitte noch einmal versuchen.");
   if (warEng) await db().from("termine").update({ wunschzeit_frei: false }).eq("id", id);
   await angebotsPreiseFesthalten(id, a.leistungen);
-  return { termin: (await terminLaden(id))!, eng: warEng };
+  return { termin: geplant((await terminLaden(id))!), eng: warEng };
 }
 
 /** Planungsdaten rund um einen Zeitraum: wer kommt in Frage, was ist schon belegt. */
@@ -729,7 +853,7 @@ export async function terminEintragen(
     fahrzeugId?: string | null;
   },
   vonBenutzer: string,
-): Promise<Termin> {
+): Promise<GeplanterTermin> {
   const einst = await einstellungen();
   const gewaehlt = await terminLeistungen(e.leistungIds);
   const frei = e.leistungName?.trim() ?? "";
@@ -763,7 +887,7 @@ export async function terminEintragen(
   });
   if (error) dbFehler(error);
   await angebotsPreiseFesthalten(id as string, gewaehlt);
-  const termin = (await terminLaden(id as string))!;
+  const termin = geplant((await terminLaden(id as string))!);
   await verlauf("termin", termin.id, `Termin eingetragen${termin.mitarbeiter ? ` für ${termin.mitarbeiter.name}` : ""}`, vonBenutzer);
   after(async () => {
     await Promise.all([
@@ -781,7 +905,7 @@ export async function bestaetigen(id: string, vonBenutzer: string | null, ueberb
   const { buchung } = await einstellungen();
   // Anfragen ohne Person (Planung war aus, Person fiel aus) bekommen beim Bestätigen jemanden, wenn möglich.
   const vorher = await terminLaden(id);
-  if (vorher && vorher.status === "angefragt" && !vorher.zugewiesen_an) {
+  if (vorher && vorher.status === "angefragt" && !vorher.zugewiesen_an && istGeplant(vorher)) {
     const zr = { beginn: new Date(vorher.beginn), ende: new Date(vorher.ende), bis: new Date(vorher.belegt_bis), leistungIds: leistungIdsVon(vorher), id };
     const person = await automatischePerson(zr);
     // Klappt das nicht (gerade vergeben), wird trotzdem bestätigt, nur eben ohne Person.
@@ -789,7 +913,7 @@ export async function bestaetigen(id: string, vonBenutzer: string | null, ueberb
   }
   const { error } = await dbRoh().rpc("termin_bestaetigen", { p_id: id, p_kapazitaet: buchung.kapazitaet, p_ueberbuchen: ueberbuchen });
   if (error) dbFehler(error, vonBenutzer !== null);
-  const termin = (await terminLaden(id))!;
+  const termin = geplant((await terminLaden(id))!);
   await verlauf("termin", id, verlaufText ?? (ueberbuchen ? "Bestätigt (trotz Warnung)" : "Bestätigt"), vonBenutzer);
   after(async () => {
     await Promise.all([
@@ -800,7 +924,16 @@ export async function bestaetigen(id: string, vonBenutzer: string | null, ueberb
   });
 }
 
+/**
+ * Anfrage ablehnen. Hängt an ihr ein erteilter Werkstattauftrag (Kostenvoranschlag angenommen), passt nur die
+ * Zeit nicht: Der Auftrag wartet dann wieder ohne Termin, statt mit der Anfrage zu verschwinden.
+ */
 export async function ablehnen(id: string, grund: string, vonBenutzer: string): Promise<void> {
+  const vorher = await terminLaden(id);
+  if (vorher?.auftrag_erteilt_am && vorher.status === "angefragt") {
+    await zeitAufheben(id, { benutzer: vonBenutzer }, grund, "abgelehnt");
+    return;
+  }
   const { data, error } = await db()
     .from("termine")
     .update({ status: "abgelehnt", absage_grund: grund, halten_bis: null })
@@ -809,21 +942,31 @@ export async function ablehnen(id: string, grund: string, vonBenutzer: string): 
     .select("id");
   if (error) throw new DbFehler(error);
   if (!data?.length) throw new TerminFehler("Die Anfrage wurde in der Zwischenzeit schon bearbeitet.");
-  const termin = (await terminLaden(id))!;
+  const termin = geplant((await terminLaden(id))!);
   await verlauf("termin", id, `Abgelehnt${grund ? `: ${grund}` : ""}`, vonBenutzer);
   after(async () => {
     await Promise.all([kundenMail(termin, "abgelehnt"), melden("termin.abgelehnt", ereignisDaten(termin))]);
   });
 }
 
-/** Absage durch den Betrieb oder (über den Link, mit Frist) durch den Kunden. */
+/**
+ * Absage durch den Betrieb oder (über den Link, mit Frist) durch den Kunden. Ein Auftrag ohne Termin lässt sich
+ * nur in der Verwaltung absagen; der Kunde bekommt dafür keine Mail (es gab keinen Termin, das Büro sagt es ihm).
+ * Sagt der Kunde einen Termin ab, an dem ein erteilter Auftrag hängt, entfällt nur die Zeit: Der Auftrag wartet
+ * wieder ohne Termin und das Büro klärt den Rest (einen erteilten Auftrag zieht man nicht mit einem Klick zurück).
+ */
 export async function stornieren(id: string, durch: { kunde: true } | { benutzer: string }, grund = ""): Promise<void> {
   const termin = await terminLaden(id);
-  if (!termin || !["angefragt", "bestaetigt"].includes(termin.status)) throw new TerminFehler("Dieser Termin kann nicht mehr abgesagt werden.");
+  const erlaubt = "kunde" in durch ? ["angefragt", "bestaetigt"] : ["ungeplant", "angefragt", "bestaetigt"];
+  if (!termin || !erlaubt.includes(termin.status)) throw new TerminFehler("Dieser Termin kann nicht mehr abgesagt werden.");
   if ("kunde" in durch) {
     const { buchung } = await einstellungen();
-    if (termin.status === "bestaetigt" && new Date(termin.beginn).getTime() - Date.now() < buchung.stornoFristStd * 3600000) {
+    if (termin.status === "bestaetigt" && termin.beginn && new Date(termin.beginn).getTime() - Date.now() < buchung.stornoFristStd * 3600000) {
       throw new TerminFehler(`Absagen ist online nur bis ${buchung.stornoFristStd} Stunden vorher möglich. Bitte rufen Sie uns an.`);
+    }
+    if (termin.auftrag_erteilt_am) {
+      await zeitAufheben(id, durch, grund, "abgesagt");
+      return;
     }
   }
   // Die Bedingung steht im Update selbst: Hat jemand den Termin inzwischen erledigt oder abgelehnt, bleibt er so.
@@ -831,18 +974,80 @@ export async function stornieren(id: string, durch: { kunde: true } | { benutzer
     .from("termine")
     .update({ status: "storniert", halten_bis: null, absage_grund: grund })
     .eq("id", id)
-    .in("status", ["angefragt", "bestaetigt"])
+    .in("status", erlaubt)
     .select("id");
   if (error) throw new DbFehler(error);
   if (!data?.length) throw new TerminFehler("Dieser Termin kann nicht mehr abgesagt werden.");
   const neu = (await terminLaden(id))!;
-  await verlauf("termin", id, "kunde" in durch ? "Vom Kunden abgesagt" : `Abgesagt${grund ? `: ${grund}` : ""}`, "kunde" in durch ? null : durch.benutzer);
+  const ohneZeit = termin.status === "ungeplant";
+  await verlauf(
+    "termin",
+    id,
+    "kunde" in durch ? "Vom Kunden abgesagt" : `${ohneZeit ? "Auftrag abgesagt" : "Abgesagt"}${grund ? `: ${grund}` : ""}`,
+    "kunde" in durch ? null : durch.benutzer,
+  );
   after(async () => {
     await Promise.all([
-      kundenMail(neu, "storniert"),
-      "kunde" in durch ? betriebBenachrichtigen(neu, "storniert") : Promise.resolve(),
-      termin.status === "bestaetigt" ? personBenachrichtigen(termin.zugewiesen_an, termin, "entfaellt") : Promise.resolve(),
+      istGeplant(neu) ? kundenMail(neu, "storniert") : Promise.resolve(),
+      "kunde" in durch && istGeplant(neu) ? betriebBenachrichtigen(neu, "storniert") : Promise.resolve(),
+      termin.status === "bestaetigt" && istGeplant(termin) ? personBenachrichtigen(termin.zugewiesen_an, termin, "entfaellt") : Promise.resolve(),
       melden("termin.storniert", { ...ereignisDaten(neu), durch_kunde: "kunde" in durch }),
+    ]);
+  });
+}
+
+/**
+ * Nur die Zeit fällt weg, der Werkstattauftrag bleibt und wartet wieder ohne Termin (Stand „ungeplant“):
+ * Anfrage zu einem erteilten Auftrag abgelehnt, Gegenvorschlag nicht angenommen, vom Kunden abgesagt oder in der
+ * Verwaltung „Termin absagen, Auftrag behalten“. Hat die Werkstatt schon angefangen, geht das nicht mehr.
+ */
+export async function zeitAufheben(
+  id: string,
+  durch: { kunde: true } | { benutzer: string },
+  grund = "",
+  anlass: "abgelehnt" | "abgesagt" | "vorschlag_nein" = "abgesagt",
+): Promise<void> {
+  const termin = await terminLaden(id);
+  if (!termin || !["angefragt", "bestaetigt"].includes(termin.status) || !istGeplant(termin)) throw new TerminFehler("Dieser Termin kann nicht mehr abgesagt werden.");
+  if (!termin.auftrag_nummer) throw new TerminFehler("Ohne Werkstattauftrag gibt es nichts zu behalten. Bitte den Termin absagen.");
+  if (termin.auftrag_status !== "offen") throw new TerminFehler("Die Werkstatt hat an diesem Auftrag schon angefangen. Bitte stattdessen verschieben.");
+  const { data, error } = await db()
+    .from("termine")
+    .update({
+      status: "ungeplant",
+      beginn: null,
+      ende: null,
+      belegt_bis: null,
+      halten_bis: null,
+      zugewiesen_an: null,
+      vorschlag_am: null,
+      wunsch_beginn: null,
+      wunschzeit_frei: true,
+      absage_grund: grund,
+    })
+    .eq("id", id)
+    .in("status", ["angefragt", "bestaetigt"])
+    .eq("auftrag_status", "offen")
+    .select("id");
+  if (error) throw new DbFehler(error);
+  if (!data?.length) throw new TerminFehler("Der Termin wurde in der Zwischenzeit schon bearbeitet.");
+  const kunde = "kunde" in durch;
+  const text = {
+    abgelehnt: "Angefragte Zeit abgelehnt, der Auftrag wartet wieder auf einen Termin",
+    vorschlag_nein: "Gegenvorschlag vom Kunden abgelehnt, der Auftrag wartet wieder auf einen Termin",
+    abgesagt: kunde ? "Termin vom Kunden abgesagt, der Auftrag wartet wieder auf einen Termin" : "Termin abgesagt, der Auftrag wartet wieder auf einen Termin",
+  }[anlass];
+  await verlauf("termin", id, `${text}${grund ? `: ${grund}` : ""}`, kunde ? null : durch.benutzer);
+  const neu = (await terminLaden(id))!;
+  // Mails und Push beschreiben die Zeit, die wegfällt: deshalb mit dem Stand von vorher.
+  const vorher = { ...termin, absage_grund: grund };
+  after(async () => {
+    await Promise.all([
+      anlass === "vorschlag_nein" ? Promise.resolve() : kundenMail(vorher, anlass === "abgelehnt" ? "zeit_abgelehnt" : "zeit_abgesagt"),
+      // Beim abgelehnten Gegenvorschlag schreibt vorschlagAntworten dem Büro selbst.
+      kunde && anlass !== "vorschlag_nein" ? betriebBenachrichtigen(vorher, "storniert") : Promise.resolve(),
+      termin.status === "bestaetigt" ? personBenachrichtigen(termin.zugewiesen_an, termin, "entfaellt") : Promise.resolve(),
+      melden("termin.zeit_aufgehoben", { ...ereignisDaten(neu), vorher_beginn: termin.beginn, anlass, durch_kunde: kunde }),
     ]);
   });
 }
@@ -873,9 +1078,11 @@ export async function umplanen(
   vonBenutzer: string,
   trotzdem = false,
 ): Promise<Termin> {
-  const termin = await terminLaden(id);
-  if (!termin) throw new TerminFehler("Termin nicht gefunden.");
-  if (!["angefragt", "bestaetigt"].includes(termin.status)) throw new TerminFehler("Nur offene Termine lassen sich umplanen.");
+  const geladen = await terminLaden(id);
+  if (!geladen) throw new TerminFehler("Termin nicht gefunden.");
+  if (geladen.status === "ungeplant") throw new TerminFehler("Dieser Auftrag hat noch keinen Termin. Bitte einplanen.");
+  if (!["angefragt", "bestaetigt"].includes(geladen.status)) throw new TerminFehler("Nur offene Termine lassen sich umplanen.");
+  const termin = geplant(geladen);
   const { buchung } = await einstellungen();
   const alt = new Date(termin.beginn);
   const datum = ziel.datum ?? berlinDatum(alt);
@@ -889,7 +1096,7 @@ export async function umplanen(
 
   await personPruefen(person, { ...z, leistungIds: leistungIdsVon(termin), id }, trotzdem);
   await umplanenRpc(id, z, person, buchung.kapazitaet, trotzdem);
-  const neu = (await terminLaden(id))!;
+  const neu = geplant((await terminLaden(id))!);
 
   const schritte = [
     zeitGeaendert ? `Verschoben auf ${datumLangText(z.beginn)}, ${zeit(z.beginn)} Uhr` : "",
@@ -909,6 +1116,68 @@ export async function umplanen(
   return neu;
 }
 
+/** Vorgaben fürs Einplanen: nächste volle Stunde und die Dauer aus den Leistungen des Auftrags (sonst eine Stunde). */
+export async function einplanenVorgabe(t: Pick<Termin, "leistung_ids" | "leistung_id">): Promise<{ datum: string; uhrzeit: string; dauer: number }> {
+  const naechste = new Date(Math.ceil((Date.now() + 1) / 3600000) * 3600000);
+  const leistungen = await terminLeistungen(leistungIdsVon(t));
+  return { datum: berlinDatum(naechste), uhrzeit: berlinUhrzeit(naechste), dauer: leistungen.length ? gesamtDauer(leistungen) : 60 };
+}
+
+/**
+ * Auftrag ohne Termin einplanen (Verwaltung und Werkstatt-App): bekommt Zeit und Person und ist damit ein
+ * bestätigter Termin, der Kunde bekommt die Bestätigung mit Kalenderdatei. Dauer aus den Leistungen des
+ * Auftrags (sonst eine Stunde) oder von Hand. `mitarbeiter`: eine Person, null = niemand, „auto“ = wer frei ist
+ * und passt. Prüfung der Arbeitsplätze und der Person wie beim Eintragen, mit `trotzdem` als Warnung übergehbar.
+ */
+export async function einplanen(
+  id: string,
+  ziel: { datum: string; uhrzeit: string; dauerMin?: number | null; mitarbeiter?: string | null | "auto" },
+  vonBenutzer: string,
+  trotzdem = false,
+): Promise<GeplanterTermin> {
+  const termin = await terminLaden(id);
+  if (!termin) throw new TerminFehler("Termin nicht gefunden.");
+  if (termin.status !== "ungeplant") throw new TerminFehler("Dieser Auftrag hat schon einen Termin.");
+  const { buchung } = await einstellungen();
+  const leistungen = await terminLeistungen(leistungIdsVon(termin));
+  const dauer = ziel.dauerMin ?? (leistungen.length ? gesamtDauer(leistungen) : 60);
+  const slot = zeitraum(ziel.datum, ziel.uhrzeit, dauer, buchung.pufferMin);
+  const plan = { ...slot, leistungIds: leistungIdsVon(termin), id };
+  const automatisch = ziel.mitarbeiter === "auto" || ziel.mitarbeiter === undefined;
+  const person = automatisch ? await automatischePerson(plan) : (ziel.mitarbeiter ?? null);
+  if (!automatisch) await personPruefen(person, plan, trotzdem);
+  const { error } = await dbRoh().rpc("termin_einplanen", {
+    p_id: id,
+    p_beginn: slot.beginn.toISOString(),
+    p_ende: slot.ende.toISOString(),
+    p_bis: slot.bis.toISOString(),
+    p_person: person,
+    p_status: "bestaetigt",
+    p_halten_bis: null,
+    p_kapazitaet: buchung.kapazitaet,
+    p_ueberbuchen: trotzdem,
+  });
+  if (error) {
+    if (error.message.includes("FALSCHER_STATUS")) throw new TerminFehler("Dieser Auftrag hat inzwischen schon einen Termin.");
+    dbFehler(error, true);
+  }
+  const neu = geplant((await terminLaden(id))!);
+  await verlauf(
+    "termin",
+    id,
+    `Eingeplant: ${datumLangText(neu.beginn)}, ${zeit(neu.beginn)} Uhr${neu.mitarbeiter ? ` für ${neu.mitarbeiter.name}` : ""}${trotzdem ? " (trotz Warnung)" : ""}`,
+    vonBenutzer,
+  );
+  after(async () => {
+    await Promise.all([
+      kundenMail(neu, "bestaetigt"),
+      personBenachrichtigen(neu.zugewiesen_an, neu, "neu"),
+      melden("termin.bestaetigt", { ...ereignisDaten(neu), eingeplant: true }),
+    ]);
+  });
+  return neu;
+}
+
 /**
  * Freien Auftrag selbst übernehmen (Team-App): dieselbe Prüfung wie beim Zuteilen (arbeitet, darf, ist frei),
  * ohne „trotzdem“. Die Datenbank (`termin_uebernehmen`) nimmt ihn nur, solange er noch niemandem gehört.
@@ -917,7 +1186,8 @@ export async function uebernehmen(id: string, person: string): Promise<Termin> {
   const termin = await terminLaden(id);
   if (!termin) throw new TerminFehler("Termin nicht gefunden.");
   if (termin.zugewiesen_an) throw new TerminFehler(termin.zugewiesen_an === person ? "Der Auftrag gehört schon dir." : "Den hat gerade jemand anderes genommen.");
-  await personPruefen(person, { beginn: new Date(termin.beginn), ende: new Date(termin.ende), bis: new Date(termin.belegt_bis), leistungIds: leistungIdsVon(termin), id }, false);
+  const g = geplant(termin);
+  await personPruefen(person, { beginn: new Date(g.beginn), ende: new Date(g.ende), bis: new Date(g.belegt_bis), leistungIds: leistungIdsVon(g), id }, false);
   const { error } = await dbRoh().rpc("termin_uebernehmen", { p_id: id, p_person: person });
   if (error) dbFehler(error, true);
   const neu = (await terminLaden(id))!;
@@ -938,7 +1208,8 @@ export async function verschieben(id: string, datum: string, uhrzeit: string, vo
  * Lage einer Anfrage für die Entscheidung: Ist die Wunschzeit (noch) frei, und welche freien Zeiten liegen nah
  * dran (für einen Gegenvorschlag mit einem Klick)?
  */
-export async function anfrageLage(t: Termin): Promise<{ frei: boolean; text: string; vorschlaege: { datum: string; uhrzeit: string }[] }> {
+export async function anfrageLage(termin: Termin): Promise<{ frei: boolean; text: string; vorschlaege: { datum: string; uhrzeit: string }[] }> {
+  const t = geplant(termin);
   const e = await einstellungen();
   const leistungen = await terminLeistungen(leistungIdsVon(t));
   const dauer = Math.round((new Date(t.ende).getTime() - new Date(t.beginn).getTime()) / 60000);
@@ -969,9 +1240,10 @@ export async function anfrageLage(t: Termin): Promise<{ frei: boolean; text: str
  * Ist die neue Zeit nicht frei, gibt es eine Warnung, die sich mit `trotzdem` übergehen lässt.
  */
 export async function gegenvorschlag(id: string, datum: string, uhr: string, nachricht: string, vonBenutzer: string, trotzdem = false): Promise<void> {
-  const termin = await terminLaden(id);
-  if (!termin) throw new TerminFehler("Termin nicht gefunden.");
-  if (termin.status !== "angefragt") throw new TerminFehler("Einen Gegenvorschlag gibt es nur für offene Anfragen.");
+  const geladen = await terminLaden(id);
+  if (!geladen) throw new TerminFehler("Termin nicht gefunden.");
+  if (geladen.status !== "angefragt") throw new TerminFehler("Einen Gegenvorschlag gibt es nur für offene Anfragen.");
+  const termin = geplant(geladen);
   const e = await einstellungen();
   const leistungen = await terminLeistungen(leistungIdsVon(termin));
   const dauer = Math.round((new Date(termin.ende).getTime() - new Date(termin.beginn).getTime()) / 60000);
@@ -992,7 +1264,7 @@ export async function gegenvorschlag(id: string, datum: string, uhr: string, nac
     })
     .eq("id", id)
     .eq("status", "angefragt");
-  const neu = (await terminLaden(id))!;
+  const neu = geplant((await terminLaden(id))!);
   await verlauf("termin", id, `Gegenvorschlag: ${datumLangText(z.beginn)}, ${zeit(z.beginn)} Uhr${trotzdem && !slot ? " (trotz Warnung)" : ""}`, vonBenutzer);
   after(async () => {
     await Promise.all([kundenMail(neu, "gegenvorschlag"), melden("termin.gegenvorschlag", { ...ereignisDaten(neu), wunsch_beginn: neu.wunsch_beginn })]);
@@ -1010,6 +1282,9 @@ export async function vorschlagAntworten(token: string, annehmen: boolean): Prom
       if (error instanceof TerminFehler) throw new TerminFehler("Der vorgeschlagene Termin ist inzwischen leider vergeben. Bitte rufen Sie uns an oder wählen Sie einen neuen Termin.");
       throw error;
     }
+  } else if (termin.auftrag_erteilt_am) {
+    // Der Auftrag ist erteilt, nur die Zeit passt nicht: Er wartet wieder ohne Termin, das Büro meldet sich.
+    await zeitAufheben(termin.id, { kunde: true }, "Gegenvorschlag passt dem Kunden nicht", "vorschlag_nein");
   } else {
     const { data } = await db()
       .from("termine")
@@ -1021,10 +1296,12 @@ export async function vorschlagAntworten(token: string, annehmen: boolean): Prom
     await verlauf("termin", termin.id, "Gegenvorschlag vom Kunden abgelehnt", null);
   }
   const neu = (await terminLaden(termin.id))!;
+  const auftragBleibt = !annehmen && Boolean(termin.auftrag_erteilt_am);
   after(async () => {
     await Promise.all([
-      betriebBenachrichtigen(neu, annehmen ? "vorschlag_ja" : "vorschlag_nein"),
-      annehmen ? Promise.resolve() : melden("termin.storniert", { ...ereignisDaten(neu), durch_kunde: true, grund: "gegenvorschlag" }),
+      // Die Mail ans Büro nennt die vorgeschlagene Zeit, auch wenn sie jetzt weggefallen ist.
+      betriebBenachrichtigen(istGeplant(neu) ? neu : geplant(termin), annehmen ? "vorschlag_ja" : "vorschlag_nein"),
+      annehmen || auftragBleibt ? Promise.resolve() : melden("termin.storniert", { ...ereignisDaten(neu), durch_kunde: true, grund: "gegenvorschlag" }),
     ]);
   });
   return neu;
@@ -1056,7 +1333,8 @@ export async function nachAbwesenheitUmverteilen(
   const { buchung } = await einstellungen();
   let umverteilt = 0;
   let offen = 0;
-  for (const t of (data ?? []) as Termin[]) {
+  // Nach Zeitraum gefragt: Jeder Treffer hat eine Zeit.
+  for (const t of (data ?? []) as GeplanterTermin[]) {
     const z = { beginn: new Date(t.beginn), ende: new Date(t.ende), bis: new Date(t.belegt_bis), leistungIds: leistungIdsVon(t), id: t.id };
     const neuePerson = await automatischePerson(z, [profil]);
     try {
@@ -1066,7 +1344,7 @@ export async function nachAbwesenheitUmverteilen(
       if (!(e instanceof TerminFehler)) throw e;
       await umplanenRpc(t.id, z, null, buchung.kapazitaet, true);
     }
-    const neu = (await terminLaden(t.id))!;
+    const neu = geplant((await terminLaden(t.id))!);
     if (neu.zugewiesen_an) umverteilt++;
     else offen++;
     await verlauf("termin", t.id, neu.mitarbeiter ? `Wegen Abwesenheit an ${neu.mitarbeiter.name} gegeben` : "Wegen Abwesenheit ohne Mitarbeiter", vonBenutzer);
@@ -1116,14 +1394,14 @@ export async function loeschen(id: string, vonBenutzer: string): Promise<void> {
   if (error) dbFehler(error);
   await db().from("verlauf").delete().eq("bezug_typ", "termin").eq("bezug_id", id);
   after(async () => {
-    if (termin.status === "bestaetigt" && new Date(termin.beginn).getTime() > Date.now()) await personBenachrichtigen(termin.zugewiesen_an, termin, "entfaellt");
+    if (termin.status === "bestaetigt" && istGeplant(termin) && new Date(termin.beginn).getTime() > Date.now()) await personBenachrichtigen(termin.zugewiesen_an, termin, "entfaellt");
     if (fotos?.length) await db().storage.from("auftragsfotos").remove(fotos.map((f) => f.pfad as string));
     await melden("termin.geloescht", { ...ereignisDaten(termin), geloescht_von: vonBenutzer });
   });
 }
 
 /** Erinnerung 24 Stunden vorher (aus dem Takt aufgerufen). */
-export async function erinnerungSenden(t: Termin): Promise<void> {
+export async function erinnerungSenden(t: GeplanterTermin): Promise<void> {
   await kundenMail(t, "erinnerung");
   await db().from("termine").update({ erinnerung_am: new Date().toISOString() }).eq("id", t.id);
 }

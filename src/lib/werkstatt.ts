@@ -2,7 +2,7 @@ import "server-only";
 import { belegungenMitPerson, planPersonen } from "./mitarbeiter";
 import { konflikte } from "./planung";
 import { db, dbRoh, DbFehler } from "./supabase/admin";
-import { leistungIdsVon, TERMIN_FELDER, type Termin } from "./termine";
+import { type GeplanterTermin, leistungIdsVon, TERMIN_FELDER } from "./termine";
 import { berlin, berlinDatum, plusTage } from "./zeit";
 
 /**
@@ -24,7 +24,7 @@ export type Meldung = {
   erstellt_am: string;
   erledigt_am: string | null;
   profil?: { name: string } | null;
-  termin?: { id: string; beginn: string; leistung_name: string; fahrzeug: { kennzeichen: string } | null } | null;
+  termin?: { id: string; beginn: string | null; leistung_name: string; fahrzeug: { kennzeichen: string } | null } | null;
 };
 
 export const MELDUNG_TEXT: Record<Meldung["art"], string> = { befund: "Befund", teil: "Teil" };
@@ -82,7 +82,7 @@ export async function offeneMeldungen(): Promise<Meldung[]> {
  * einschließlich `tage` Tage voraus, und die Person darf alle Leistungen, arbeitet zu der Zeit und hat keinen
  * anderen Termin (dieselbe Prüfung wie beim Zuteilen in der Verwaltung).
  */
-export async function freieAuftraege(profil: string, tage = 2): Promise<Termin[]> {
+export async function freieAuftraege(profil: string, tage = 2): Promise<GeplanterTermin[]> {
   const heute = berlinDatum();
   const bis = plusTage(heute, tage);
   const [{ data }, [person], belegungen] = await Promise.all([
@@ -91,7 +91,8 @@ export async function freieAuftraege(profil: string, tage = 2): Promise<Termin[]
     belegungenMitPerson(berlin(heute), berlin(plusTage(bis, 1))),
   ]);
   if (!person) return [];
-  return ((data ?? []) as Termin[]).filter((t) => !konflikte(person, { beginn: new Date(t.beginn), ende: new Date(t.ende), bis: new Date(t.belegt_bis), leistungIds: leistungIdsVon(t), id: t.id }, belegungen).length);
+  // Nach Zeitraum gefragt: Jeder Treffer hat eine Zeit.
+  return ((data ?? []) as GeplanterTermin[]).filter((t) => !konflikte(person, { beginn: new Date(t.beginn), ende: new Date(t.ende), bis: new Date(t.belegt_bis), leistungIds: leistungIdsVon(t), id: t.id }, belegungen).length);
 }
 
 export type FahrzeugAkte = {

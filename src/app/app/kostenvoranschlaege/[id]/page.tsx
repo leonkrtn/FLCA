@@ -24,7 +24,7 @@ export default async function AppKostenvoranschlag({ params }: { params: Promise
     entwurf ? editorDaten(k.fahrzeug) : null,
     entwurf ? kundenSuchen("", 6) : [],
     entwurf || k.termin_id ? [] : termineFuerKv(k.kunde_id),
-    k.termin_id ? db().from("termine").select("id, nummer, beginn, leistung_name, status").eq("id", k.termin_id).maybeSingle() : Promise.resolve({ data: null }),    kvWhatsapp(k),
+    k.termin_id ? db().from("termine").select("id, nummer, beginn, leistung_name, status, auftrag_nummer").eq("id", k.termin_id).maybeSingle() : Promise.resolve({ data: null }),    kvWhatsapp(k),
   ]);
   return (
     <>

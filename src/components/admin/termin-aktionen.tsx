@@ -12,7 +12,9 @@ const tagText = (d: string) => kurz.format(new Date(`${d}T12:00:00Z`));
 /**
  * Die Entscheidungen zu einem Termin. Admin und Handy-App nutzen dieselbe Komponente. Eine Anfrage wird
  * angenommen (ja), abgelehnt (nein) oder mit einem Gegenvorschlag beantwortet; `lage` sagt, ob die Wunschzeit
- * frei ist, `vorschlaege` sind freie Zeiten in der Nähe für einen Vorschlag mit einem Klick.
+ * frei ist, `vorschlaege` sind freie Zeiten in der Nähe für einen Vorschlag mit einem Klick. Ein Auftrag ohne
+ * Termin wird eingeplant (`einplanen`, Mitarbeiter aus `team`) oder abgesagt. `auftragBleibt`: Am Termin hängt
+ * ein Auftrag, an dem noch nicht gearbeitet wird; beim Absagen lässt er sich behalten.
  */
 export function TerminAktionen({
   status,
@@ -22,18 +24,69 @@ export function TerminAktionen({
   gross = false,
   lage,
   vorschlagOffen,
+  team = [],
+  person = null,
+  dauer,
+  auftragBleibt = false,
 }: {
   status: string;
   datum: string;
   uhrzeit: string;
-  aktionen: { bestaetigen: A; ablehnen: A; absagen: A; verschieben: A; erledigt: A; gegenvorschlag?: A };
+  aktionen: { bestaetigen: A; ablehnen: A; absagen: A; verschieben: A; erledigt: A; gegenvorschlag?: A; einplanen?: A };
   gross?: boolean;
+  /** Mitarbeiter fürs Einplanen; `person` ist die schon zugeteilte (sonst „automatisch“). */
+  team?: { id: string; name: string }[];
+  person?: string | null;
+  /** Dauer aus den Leistungen, als Vorgabe beim Einplanen */
+  dauer?: number;
+  auftragBleibt?: boolean;
   lage?: { frei: boolean; text: string; vorschlaege: { datum: string; uhrzeit: string }[] };
   /** Text, wenn schon ein Vorschlag beim Kunden liegt */
   vorschlagOffen?: string;
 }) {
   const [offen, setOffen] = useState<"" | "ablehnen" | "absagen" | "verschieben" | "vorschlag">("");
   const breit = gross ? "w-full" : "";
+
+  if (status === "ungeplant") {
+    return (
+      <div className="grid gap-3">
+        <p className="border-l-4 border-kreide bg-papier px-3 py-2 text-sm">Der Auftrag wartet auf seinen Termin. Er belegt noch keinen Arbeitsplatz und steht in keinem Kalender.</p>
+        {aktionen.einplanen ? (
+          <Formular aktion={aktionen.einplanen} className="grid grid-cols-2 gap-2">
+            <input type="date" name="datum" defaultValue={datum} className="feld" aria-label="Datum" required />
+            <input type="time" name="uhrzeit" defaultValue={uhrzeit} className="feld" aria-label="Uhrzeit" required />
+            <label className="grid gap-1 text-sm">
+              <span className="label">Dauer (Minuten)</span>
+              <input type="number" name="dauer" min={1} max={1440} step={5} defaultValue={dauer} className="feld zahlen" />
+            </label>
+            <label className="grid gap-1 text-sm">
+              <span className="label">Mitarbeiter</span>
+              <select name="mitarbeiter" defaultValue={person ?? "auto"} className="feld">
+                <option value="auto">wer frei ist</option>
+                <option value="">niemand</option>
+                {team.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name || "ohne Namen"}</option>
+                ))}
+              </select>
+            </label>
+            <label className="col-span-2 flex items-center gap-2 text-sm text-grau">
+              <input type="checkbox" name="ueberbuchen" className="size-4 accent-tinte" /> auch wenn die Werkstatt voll ist oder die Person nicht passt
+            </label>
+            <Senden art="dunkel" className="col-span-2" vorab="Eingeplant">Einplanen, Kunde bekommt Mail</Senden>
+          </Formular>
+        ) : null}
+        {offen === "absagen" ? (
+          <Formular aktion={aktionen.absagen} className="grid gap-2" bestaetigen="Auftrag wirklich absagen? Der Kunde bekommt keine Mail, sag es ihm bitte selbst.">
+            <textarea name="grund" rows={2} className="feld" placeholder="Grund (nur intern)" aria-label="Grund" />
+            <Senden art="rahmen" vorab="Abgesagt">Auftrag absagen</Senden>
+            <button type="button" onClick={() => setOffen("")} className="justify-self-start text-sm text-grau underline">abbrechen</button>
+          </Formular>
+        ) : (
+          <button type="button" onClick={() => setOffen("absagen")} className={`knopf knopf-rahmen ${breit}`}>Auftrag absagen …</button>
+        )}
+      </div>
+    );
+  }
 
   if (status === "angefragt") {
     return (
@@ -115,7 +168,14 @@ export function TerminAktionen({
       {offen === "absagen" ? (
         <Formular aktion={aktionen.absagen} className="grid gap-2" bestaetigen="Termin wirklich absagen? Der Kunde bekommt eine Mail.">
           <textarea name="grund" rows={2} className="feld" placeholder="Grund (nur intern)" aria-label="Grund" />
-          <Senden art="rahmen" vorab="Abgesagt">Termin absagen</Senden>
+          {auftragBleibt ? (
+            <>
+              <Senden art="rahmen" name="nur_zeit" value="1" vorab="Abgesagt">Nur den Termin absagen, Auftrag behalten</Senden>
+              <Senden art="rahmen" vorab="Abgesagt">Termin und Auftrag absagen</Senden>
+            </>
+          ) : (
+            <Senden art="rahmen" vorab="Abgesagt">Termin absagen</Senden>
+          )}
         </Formular>
       ) : null}
       {!offen ? (

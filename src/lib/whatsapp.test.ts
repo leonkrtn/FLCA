@@ -33,6 +33,12 @@ describe("Vorlage am Termin", () => {
     expect(terminVorlage({ ...basis, status: "erledigt", beginn: "2026-11-23T07:00:00Z" }, jetzt)).toBe("bewertung");
   });
 
+  it("Auftrag ohne Termin: Termin vereinbaren, solange er nicht zur Freigabe beim Kunden liegt", () => {
+    const ohne = { ...basis, status: "ungeplant" as const, beginn: null, auftrag_nummer: "WA-1", auftrag_erteilt_am: "2026-11-24T08:00:00Z" };
+    expect(terminVorlage(ohne, jetzt)).toBe("einplanen");
+    expect(terminVorlage({ ...ohne, auftrag_erteilt_am: null, auftrag_gesendet_am: "2026-11-24T08:30:00Z" }, jetzt)).toBe("freigabe");
+  });
+
   it.each(["abgelehnt", "storniert", "nicht_erschienen"] as const)("%s: neuer Termin", (status) => {
     expect(terminVorlage({ ...basis, status }, jetzt)).toBe("neuer_termin");
   });

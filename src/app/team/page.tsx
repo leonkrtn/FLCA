@@ -14,7 +14,7 @@ import { planPersonen } from "@/lib/mitarbeiter";
 import { faelligeAnzahl } from "@/lib/notizen";
 import { abwesenheitAm, abwesenheitText, arbeitsfenster } from "@/lib/planung";
 import { db } from "@/lib/supabase/admin";
-import { TERMIN_FELDER, type Termin } from "@/lib/termine";
+import { type GeplanterTermin, TERMIN_FELDER } from "@/lib/termine";
 import { auftragZeiten, freieAuftraege } from "@/lib/werkstatt";
 import { berlin, berlinDatum, plusTage } from "@/lib/zeit";
 import { monatszeiten, stunden, type Zeiteintrag } from "@/lib/zeiterfassung";
@@ -37,7 +37,8 @@ export default async function TeamHeute() {
     db().from("zeiteintraege").select("*").eq("profil_id", b.id).is("ende", null).maybeSingle(),
     faelligeAnzahl(b),
   ]);
-  const liste = (auftraege ?? []) as Termin[];
+  // Nach Zeitraum gefragt: Jeder Treffer hat eine Zeit.
+  const liste = (auftraege ?? []) as GeplanterTermin[];
   const [zeiten, frei] = await Promise.all([
     weich(auftragZeiten(liste.map((t) => t.id)), [], "Auftragszeiten in der Team-App"),
     weich(freieAuftraege(b.id), [], "Freie Aufträge in der Team-App"),
@@ -132,7 +133,7 @@ export default async function TeamHeute() {
   );
 }
 
-function Kopfzeile({ t }: { t: Termin }) {
+function Kopfzeile({ t }: { t: GeplanterTermin }) {
   return (
     <div className="flex items-start justify-between gap-3">
       <Link href={`/team/auftrag/${t.id}`} className="min-w-0">
@@ -149,7 +150,7 @@ function Kopfzeile({ t }: { t: Termin }) {
   );
 }
 
-function NaechsterAuftrag({ t, seit, bisher }: { t: Termin; seit: string | null; bisher: number }) {
+function NaechsterAuftrag({ t, seit, bisher }: { t: GeplanterTermin; seit: string | null; bisher: number }) {
   return (
     <Karte className="border-l-4 border-tinte">
       <p className="text-sm font-semibold text-grau">{seit ? "Du arbeitest an" : "Als Nächstes"}</p>
@@ -163,7 +164,7 @@ function NaechsterAuftrag({ t, seit, bisher }: { t: Termin; seit: string | null;
   );
 }
 
-function AuftragKarte({ t, seit, bisher }: { t: Termin; seit: string | null; bisher: number }) {
+function AuftragKarte({ t, seit, bisher }: { t: GeplanterTermin; seit: string | null; bisher: number }) {
   return (
     <Karte>
       <Kopfzeile t={t} />

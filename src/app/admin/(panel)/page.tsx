@@ -7,7 +7,8 @@ import { datumKurzText, datumLangText, euro, zeit } from "@/lib/format";
 import { darf } from "@/lib/rollen";
 import { TERMIN_TON } from "@/lib/status";
 import { db } from "@/lib/supabase/admin";
-import { STATUS_TEXT, TERMIN_FELDER, type Termin } from "@/lib/termine";
+import { weich } from "@/lib/fehler";
+import { auftraegeOhneTerminAnzahl, type GeplanterTermin, STATUS_TEXT, TERMIN_FELDER } from "@/lib/termine";
 import { berlin, berlinDatum, plusTage } from "@/lib/zeit";
 
 export const metadata = { title: "Übersicht" };
@@ -15,16 +16,18 @@ export const metadata = { title: "Übersicht" };
 export default async function Uebersicht() {
   const b = await benutzerMitRecht("termine");
   const heute = berlinDatum();
-  const [heuteRes, anfragenRes, offenRes, abwRes, fehler] = await Promise.all([
+  const [heuteRes, anfragenRes, offenRes, abwRes, fehler, wartend] = await Promise.all([
     db().from("termine").select(TERMIN_FELDER).in("status", ["bestaetigt", "erledigt", "angefragt"]).gte("beginn", berlin(heute).toISOString()).lt("beginn", berlin(plusTage(heute, 1)).toISOString()).order("beginn"),
     db().from("termine").select(TERMIN_FELDER).eq("status", "angefragt").order("beginn").limit(8),
     // „*“: bereits_bezahlt_cent (Korrektur) gibt es erst nach der Migration „rechnung_korrigieren“.
     db().from("rechnungen").select("*").eq("status", "gestellt"),
     db().from("abwesenheiten").select("id, art, von, bis, status, profil:profile!abwesenheiten_profil_id_fkey(name)").lte("von", heute).gte("bis", heute).neq("status", "abgelehnt"),
     darf(b.rolle, "einstellungen") ? offeneFehlerAnzahl() : 0,
+    weich(auftraegeOhneTerminAnzahl(), 0, "Übersicht: Aufträge ohne Termin zählen"),
   ]);
-  const heuteTermine = (heuteRes.data ?? []) as Termin[];
-  const anfragen = (anfragenRes.data ?? []) as Termin[];
+  // Heute (nach Zeitraum gefragt) und Anfragen haben immer eine Zeit.
+  const heuteTermine = (heuteRes.data ?? []) as GeplanterTermin[];
+  const anfragen = (anfragenRes.data ?? []) as GeplanterTermin[];
   const offen = offenRes.data ?? [];
   const ueberfaellig = offen.filter((r) => r.faellig_am && r.faellig_am < heute);
   const abwesend = (abwRes.data ?? []) as unknown as { id: string; art: string; profil: { name: string } | null }[];
@@ -84,6 +87,14 @@ export default async function Uebersicht() {
                 {fehler === 1 ? "Ein Fehler ist" : `${fehler} Fehler sind`} aufgetreten und noch nicht erledigt. Im Protokoll steht, wo und warum.
               </p>
               <Link href="/admin/einstellungen?bereich=fehler" className="mt-3 inline-block text-sm underline">Fehlerprotokoll ansehen</Link>
+            </Abschnitt>
+          ) : null}
+          {wartend ? (
+            <Abschnitt titel="Warten auf einen Termin" className="border-l-4 border-kreide">
+              <p className="text-sm">
+                {wartend === 1 ? "Ein Werkstattauftrag ist" : `${wartend} Werkstattaufträge sind`} erteilt, aber noch nicht eingeplant.
+              </p>
+              <Link href="/admin/auftraege?ansicht=ohne" className="mt-3 inline-block text-sm underline">einplanen</Link>
             </Abschnitt>
           ) : null}
           <Abschnitt titel="Offene Rechnungen">

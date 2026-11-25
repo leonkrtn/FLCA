@@ -13,6 +13,7 @@ import {
   absagenAktion,
   bestaetigenAktion,
   detailsSpeichern,
+  einplanenAktion,
   erledigtAktion,
   gegenvorschlagAktion,
   kundeVerknuepfen,
@@ -32,7 +33,7 @@ import { darf } from "@/lib/rollen";
 import { db } from "@/lib/supabase/admin";
 import { TERMIN_TON } from "@/lib/status";
 import { freieRechnungen, kvsZumTermin, terminZusatz } from "@/lib/termin-daten";
-import { anfrageLage, STATUS_TEXT } from "@/lib/termine";
+import { anfrageLage, einplanenVorgabe, STATUS_TEXT } from "@/lib/termine";
 import { berlinDatum, berlinUhrzeit } from "@/lib/zeit";
 
 export default async function TerminDetail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ kal?: string }> }) {
@@ -43,12 +44,13 @@ export default async function TerminDetail({ params, searchParams }: { params: P
   const t = await auftragLaden(id);
   if (!t) notFound();
   const mitRechnungen = darf(b.rolle, "rechnungen");
-  const [z, zuletzt, frei, lage, kvs] = await Promise.all([
+  const [z, zuletzt, frei, lage, kvs, vorgabe] = await Promise.all([
     terminZusatz(id),
     darf(b.rolle, "kunden") ? kundenSuchen("", 8) : Promise.resolve([]),
     mitRechnungen ? freieRechnungen(t.kunde?.id ?? null) : Promise.resolve([]),
     t.status === "angefragt" ? anfrageLage(t) : Promise.resolve(undefined),
     mitRechnungen ? kvsZumTermin(id, t.kunde?.id ?? null) : Promise.resolve(null),
+    t.beginn ? Promise.resolve(null) : einplanenVorgabe(t),
   ]);
   const stand = auftragStand(t);
   const entwurf = z.rechnungen.find((r) => r.status === "entwurf" && !r.storno_zu);
@@ -59,7 +61,7 @@ export default async function TerminDetail({ params, searchParams }: { params: P
   // Anfragen zu einer belegten Zeit halten von Anfang an nichts; dort ist der Hinweis überflüssig.
   const haltAbgelaufen = t.status === "angefragt" && t.wunschzeit_frei !== false && t.halten_bis && new Date(t.halten_bis) < new Date();
   const vorschlagOffen =
-    t.status === "angefragt" && t.vorschlag_am
+    t.status === "angefragt" && t.vorschlag_am && t.beginn
       ? `Vorschlag ${datumLangText(t.beginn)}, ${zeit(t.beginn)} Uhr ist beim Kunden (gesendet ${datumZeit(t.vorschlag_am)}${t.wunsch_beginn ? `, Wunsch war ${datumLangText(t.wunsch_beginn)}, ${zeit(t.wunsch_beginn)} Uhr` : ""}). Er sagt über seinen Link zu oder ab.`
       : undefined;
 
@@ -73,7 +75,8 @@ export default async function TerminDetail({ params, searchParams }: { params: P
             <Marke ton={TERMIN_TON[t.status]}>{STATUS_TEXT[t.status]}</Marke>
             {stand !== "kein" ? <Marke ton={AUFTRAG_STAND_TON[stand]}>{`Auftrag ${AUFTRAG_STAND_TEXT[stand].toLowerCase()}`}</Marke> : null}
             <span>
-              {datumLangText(t.beginn)}, {zeit(t.beginn)} bis {zeit(t.ende)} Uhr · {t.quelle === "website" ? "über die Website" : "eingetragen"}
+              {t.beginn && t.ende ? `${datumLangText(t.beginn)}, ${zeit(t.beginn)} bis ${zeit(t.ende)} Uhr` : "noch ohne Termin"} ·{" "}
+              {t.quelle === "website" ? "über die Website" : "eingetragen"}
             </span>
           </span>
         }
@@ -182,12 +185,12 @@ export default async function TerminDetail({ params, searchParams }: { params: P
         </div>
 
         <div>
-          <Abschnitt titel="Entscheidung">
+          <Abschnitt titel={t.status === "ungeplant" ? "Termin" : "Entscheidung"}>
             {haltAbgelaufen ? <p className="mb-3 text-sm text-warnung">Die Haltezeit ist abgelaufen. Der Slot ist eventuell schon an jemand anderen vergeben.</p> : null}
             <TerminAktionen
               status={t.status}
-              datum={berlinDatum(new Date(t.beginn))}
-              uhrzeit={berlinUhrzeit(new Date(t.beginn))}
+              datum={t.beginn ? berlinDatum(new Date(t.beginn)) : (vorgabe?.datum ?? "")}
+              uhrzeit={t.beginn ? berlinUhrzeit(new Date(t.beginn)) : (vorgabe?.uhrzeit ?? "")}
               aktionen={{
                 bestaetigen: bestaetigenAktion.bind(null, t.id),
                 ablehnen: ablehnenAktion.bind(null, t.id),
@@ -195,15 +198,20 @@ export default async function TerminDetail({ params, searchParams }: { params: P
                 verschieben: verschiebenAktion.bind(null, t.id),
                 erledigt: erledigtAktion.bind(null, t.id),
                 gegenvorschlag: gegenvorschlagAktion.bind(null, t.id),
+                einplanen: einplanenAktion.bind(null, t.id),
               }}
               lage={lage}
               vorschlagOffen={vorschlagOffen}
+              team={z.team}
+              person={t.zugewiesen_an}
+              dauer={vorgabe?.dauer}
+              auftragBleibt={Boolean(t.auftrag_nummer) && t.auftrag_status === "offen"}
             />
-            {!["angefragt", "bestaetigt"].includes(t.status) ? <p className="text-grau">Keine offene Entscheidung.</p> : null}
+            {!["ungeplant", "angefragt", "bestaetigt"].includes(t.status) ? <p className="text-grau">Keine offene Entscheidung.</p> : null}
           </Abschnitt>
           {kvs ? (
             <Abschnitt titel="Kostenvoranschlag">
-              <KvAmTerminBereich terminId={t.id} ort="admin" kvs={kvs} />
+              <KvAmTerminBereich terminId={t.id} ort="admin" kvs={kvs} ohneZeit={t.status === "ungeplant"} />
             </Abschnitt>
           ) : null}
           <Abschnitt titel="Rechnung">

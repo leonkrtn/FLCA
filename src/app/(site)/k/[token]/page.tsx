@@ -21,15 +21,18 @@ export default async function KundenKostenvoranschlag({ params }: { params: Prom
     einstellungen(),
     k.termin_id ? db().from("termine").select("token, status").eq("id", k.termin_id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
-  // Nach der Annahme ohne Termin: gleich einen wählen (wenn Online-Termine laufen)
-  const terminWaehlen = k.status === "angenommen" && !k.termin_id && buchung.aktiv;
+  // Der Auftrag wartet ohne Termin (oder wurde vor dieser Möglichkeit angenommen): gleich einen wählen, wenn
+  // Online-Termine laufen. Eine abgesagte Terminzeile zählt nicht als Termin.
+  const ohneTermin = !termin || termin.status === "ungeplant";
+  const terminWaehlen = k.status === "angenommen" && ohneTermin && buchung.aktiv;
+  const hatTermin = Boolean(termin) && !["ungeplant", "storniert", "abgelehnt"].includes(termin!.status);
   const s = berechne(k.positionen);
   const abgelaufen = kvAbgelaufen(k);
   const [status, erklaerung] =
     k.status === "angenommen"
       ? [
           "Angenommen",
-          `Danke! Sie haben am ${datumZeit(k.beantwortet_am)} zugesagt. ${termin ? "Damit ist der Auftrag für Ihren Termin erteilt." : terminWaehlen ? "Wählen Sie unten einen Termin, oder wir melden uns bei Ihnen." : "Wir melden uns für den Termin."}`,
+          `Danke! Sie haben am ${datumZeit(k.beantwortet_am)} zugesagt. ${hatTermin ? "Damit ist der Auftrag für Ihren Termin erteilt." : terminWaehlen ? "Ihr Auftrag ist erteilt. Wählen Sie unten einen Termin, oder wir melden uns bei Ihnen." : ohneTermin ? "Ihr Auftrag ist erteilt, wir melden uns für den Termin." : "Wir melden uns bei Ihnen."}`,
         ]
       : k.status === "abgelehnt"
         ? ["Abgelehnt", "Sie haben diesen Kostenvoranschlag abgelehnt. Möchten Sie es sich anders überlegen, rufen Sie uns einfach an."]
@@ -99,7 +102,7 @@ export default async function KundenKostenvoranschlag({ params }: { params: Prom
         </section>
       ) : null}
       <div className="mt-6 flex flex-wrap gap-3">
-        {termin ? <a href={`/t/${termin.token}`} className="knopf knopf-dunkel">Termin ansehen</a> : null}
+        {hatTermin ? <a href={`/t/${termin!.token}`} className="knopf knopf-dunkel">Termin ansehen</a> : null}
         <a href={`/k/${token}/pdf`} className="knopf knopf-rahmen">Als PDF</a>
         <a href={telHref(firma.telefon)} className="knopf knopf-rahmen">Anrufen</a>
       </div>

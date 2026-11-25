@@ -4,7 +4,7 @@ import { bestaetigenAktion } from "@/lib/aktionen/termine";
 import { benutzerMitRecht } from "@/lib/auth";
 import { datumKurzText, telHref, zeit } from "@/lib/format";
 import { db } from "@/lib/supabase/admin";
-import { TERMIN_FELDER, type Termin } from "@/lib/termine";
+import { type GeplanterTermin, TERMIN_FELDER } from "@/lib/termine";
 import Link from "next/link";
 
 export const metadata = { title: "Anfragen" };
@@ -13,7 +13,8 @@ export const metadata = { title: "Anfragen" };
 export default async function Anfragen() {
   await benutzerMitRecht("termine");
   const { data } = await db().from("termine").select(TERMIN_FELDER).eq("status", "angefragt").order("beginn");
-  const liste = (data ?? []) as Termin[];
+  // Anfragen haben immer eine Zeit.
+  const liste = (data ?? []) as GeplanterTermin[];
   return (
     <>
       <MobilKopf titel="Anfragen" unter={liste.length ? `${liste.length} offen` : "Alles beantwortet"} />

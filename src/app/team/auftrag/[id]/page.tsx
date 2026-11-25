@@ -11,7 +11,7 @@ import { db } from "@/lib/supabase/admin";
 import { terminZusatz } from "@/lib/termin-daten";
 import { lektionenZuLeistungen } from "@/lib/schulung/daten";
 import { dauerText } from "@/lib/schulung/inhalt";
-import { leistungIdsVon, TERMIN_FELDER, type Termin } from "@/lib/termine";
+import { istGeplant, leistungIdsVon, TERMIN_FELDER, type Termin } from "@/lib/termine";
 import { auftragZeiten, fahrzeugAkte, MELDUNG_STATUS, MELDUNG_TEXT, meldungenZumTermin } from "@/lib/werkstatt";
 import { stunden } from "@/lib/zeiterfassung";
 
@@ -27,7 +27,8 @@ export default async function TeamAuftrag({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const { data } = await db().from("termine").select(TERMIN_FELDER).eq("id", id).maybeSingle();
   const t = data as Termin | null;
-  if (!t || !["bestaetigt", "erledigt"].includes(t.status)) notFound();
+  // Die Team-App kennt nur eingeplante Aufträge; einer ohne Termin erscheint hier erst mit seiner Zeit.
+  if (!t || !["bestaetigt", "erledigt"].includes(t.status) || !istGeplant(t)) notFound();
   const frei = !t.zugewiesen_an;
   if (b.rolle === "mitarbeiter" && t.zugewiesen_an !== b.id && !frei) notFound();
   const eigen = t.zugewiesen_an === b.id || b.rolle !== "mitarbeiter";

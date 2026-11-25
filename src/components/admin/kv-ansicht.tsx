@@ -5,66 +5,91 @@ import { PositionenUebersicht } from "./positionen-uebersicht";
 import { Auswahl, Feld } from "./ui";
 import type { Ort } from "@/lib/aktionen/belege";
 import { kvTerminLoesenAktion, terminAmKvVerknuepfen } from "@/lib/aktionen/auftrag";
-import { kvAntwortAktion, kvInRechnungAktion, kvKopierenAktion, kvVersendenAktion } from "@/lib/aktionen/kostenvoranschlaege";
+import { kvAntwortAktion, kvKopierenAktion, kvVersendenAktion, kvZumAuftragAktion } from "@/lib/aktionen/kostenvoranschlaege";
 import { datum, datumKurzText, datumZeit, zeit } from "@/lib/format";
 import { kvAbgelaufen, type Kostenvoranschlag } from "@/lib/rechnung/kostenvoranschlaege";
 import { fahrzeugText } from "@/lib/rechnung/aehnlich";
 
-type TerminKurz = { id: string; nummer: number; beginn: string; leistung_name: string; status: string };
+type TerminKurz = { id: string; nummer: number; beginn: string | null; leistung_name: string; status: string; auftrag_nummer?: string | null };
 
 /**
- * Abgeschlossener Kostenvoranschlag: ansehen, senden, Antwort vermerken, mit einem Termin verknüpfen (dann wird
- * er bei Annahme zum erteilten Werkstattauftrag) und in eine Rechnung übernehmen.
+ * Abgeschlossener Kostenvoranschlag: ansehen, senden, Zusage oder Absage vermerken, mit einem Termin verknüpfen.
+ * Sagt der Kunde zu, wird er zum erteilten Werkstattauftrag (am Termin oder ohne Termin), und ab da läuft alles
+ * über den Auftrag: Mehrarbeit, Einplanen, Rechnung. Der Kostenvoranschlag bleibt, wie der Kunde ihn bekommen hat.
  */
 export function KvAnsicht({ k, ort, termin, termine }: { k: Kostenvoranschlag; ort: Ort; termin: TerminKurz | null; termine: TerminKurz[] }) {
   const abgelaufen = kvAbgelaufen(k);
-  const umwandelbar = k.status === "offen" || k.status === "angenommen";
+  const auftrag = termin?.auftrag_nummer ? termin : null;
+  const wartet = termin?.status === "ungeplant";
   return (
     <div className="grid gap-6">
       <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-        <DateiKnopf art="datei" href={`/admin/kostenvoranschlaege/${k.id}/pdf`} className="knopf knopf-dunkel">PDF öffnen</DateiKnopf>
-        {k.rechnung_id ? (
-          <Link href={`/${ort}/rechnungen/${k.rechnung_id}`} className="knopf knopf-rahmen">Zur Rechnung</Link>
-        ) : umwandelbar ? (
-          <form action={kvInRechnungAktion.bind(null, k.id, ort)} className="contents">
-            <Senden art={k.status === "angenommen" ? "dunkel" : "rahmen"}>In Rechnung übernehmen</Senden>
-          </form>
+        {auftrag ? (
+          <Link href={`/${ort}/termine/${auftrag.id}`} className="knopf knopf-dunkel">Zum Auftrag {auftrag.auftrag_nummer}</Link>
         ) : null}
+        <DateiKnopf art="datei" href={`/admin/kostenvoranschlaege/${k.id}/pdf`} className={`knopf ${auftrag ? "knopf-rahmen" : "knopf-dunkel"}`}>PDF öffnen</DateiKnopf>
+        {/* Rechnungen aus der Zeit, als ein KV direkt zur Rechnung wurde */}
+        {k.rechnung_id ? <Link href={`/${ort}/rechnungen/${k.rechnung_id}`} className="knopf knopf-rahmen">Zur Rechnung</Link> : null}
         <DateiKnopf art="link" href={`/k/${k.token}`} className="knopf knopf-rahmen">{ort === "app" ? "Kundenlink teilen" : "Kundenansicht"}</DateiKnopf>
       </div>
 
       {k.status === "offen" ? (
-        <Formular aktion={kvAntwortAktion.bind(null, k.id)} className="grid gap-2">
+        <div className="grid gap-2">
           <p className="text-sm text-grau">
             {abgelaufen ? `Abgelaufen am ${datum(k.gueltig_bis)}. ` : "Der Kunde kann über seinen Link annehmen. "}Hat er angerufen oder in der Werkstatt zugesagt?
           </p>
           <div className="grid grid-cols-2 gap-2 sm:flex">
-            <Senden art="rahmen" name="antwort" value="angenommen" vorab="Angenommen">Kunde hat zugesagt</Senden>
-            <Senden art="rahmen" name="antwort" value="abgelehnt" vorab="Abgelehnt">Kunde hat abgesagt</Senden>
+            <Formular aktion={kvZumAuftragAktion.bind(null, k.id, ort)} className="grid">
+              <Senden art="dunkel" vorab="Wird zum Auftrag">Zugesagt: zum Auftrag machen</Senden>
+            </Formular>
+            <Formular aktion={kvAntwortAktion.bind(null, k.id)} className="grid">
+              <Senden art="rahmen" name="antwort" value="abgelehnt" vorab="Abgelehnt">Kunde hat abgesagt</Senden>
+            </Formular>
           </div>
+          <p className="text-sm text-grau">
+            {termin ? "Der Auftrag entsteht am verknüpften Termin." : "Ohne Termin wartet der Auftrag, bis ihr ihn einplant oder der Kunde über seinen Link eine Zeit wählt."}
+          </p>
+        </div>
+      ) : null}
+
+      {k.status === "angenommen" && !auftrag ? (
+        // Vor der Umstellung angenommen, oder der Auftrag ließ sich gerade nicht anlegen (steht im Fehlerprotokoll)
+        <Formular aktion={kvZumAuftragAktion.bind(null, k.id, ort)} className="grid gap-2">
+          <p className="text-sm font-semibold text-warnung">Angenommen, aber noch ohne Werkstattauftrag.</p>
+          <Senden art="dunkel" vorab="Wird zum Auftrag">Zum Auftrag machen</Senden>
         </Formular>
       ) : null}
 
       <section className="grid gap-2">
         <h2 className="font-semibold">Termin</h2>
-        {termin ? (
+        {termin && wartet ? (
+          <div className="grid gap-2">
+            <p>Der Auftrag {termin.auftrag_nummer} wartet auf seinen Termin.</p>
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+              <Link href={`/${ort}/termine/${termin.id}`} className="knopf knopf-rahmen">Einplanen</Link>
+            </div>
+          </div>
+        ) : termin ? (
           <div className="flex flex-wrap items-center gap-3">
             <Link href={`/${ort}/termine/${termin.id}`} className="font-semibold hover:underline">
-              {datumKurzText(termin.beginn)} {zeit(termin.beginn)} · {termin.leistung_name}
+              {termin.beginn ? `${datumKurzText(termin.beginn)} ${zeit(termin.beginn)}` : "Abgesagt"} · {termin.leistung_name}
             </Link>
-            <form action={kvTerminLoesenAktion.bind(null, k.id, termin.id)}>
-              <Absenden className="text-xs text-grau underline hover:text-tinte">lösen</Absenden>
-            </form>
+            {/* Mit Auftrag aus diesem KV bleibt die Verknüpfung: Sie ist seine Herkunft. */}
+            {auftrag && k.status === "angenommen" ? null : (
+              <form action={kvTerminLoesenAktion.bind(null, k.id, termin.id)}>
+                <Absenden className="text-xs text-grau underline hover:text-tinte">lösen</Absenden>
+              </form>
+            )}
           </div>
         ) : (
           <>
             <p className="text-sm text-grau">
               {k.status === "angenommen"
-                ? "Angenommen, aber noch ohne Termin. Der Kunde kann über seinen Link einen wählen, oder du trägst ihn ein."
-                : "Noch ohne Termin. Mit Termin wird der Kostenvoranschlag bei Annahme zum erteilten Werkstattauftrag."}
+                ? "Angenommen, aber noch ohne Termin. Trag einen ein, oder mach ihn oben zum Auftrag ohne Termin."
+                : "Noch ohne Termin. Gehört er zu einer Anfrage oder einem Termin, hier verknüpfen: Bei der Zusage entsteht der Auftrag dann dort."}
             </p>
             <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-              <Link href={`${ort === "app" ? "/app/neu" : "/admin/termine/neu"}?kv=${k.id}`} className={`knopf ${k.status === "angenommen" ? "knopf-dunkel" : "knopf-rahmen"}`}>
+              <Link href={`${ort === "app" ? "/app/neu" : "/admin/termine/neu"}?kv=${k.id}`} className="knopf knopf-rahmen">
                 Termin eintragen
               </Link>
             </div>
@@ -74,7 +99,7 @@ export function KvAnsicht({ k, ort, termin, termine }: { k: Kostenvoranschlag; o
                   label="Oder vorhandenen Termin verknüpfen"
                   name="termin"
                   leer="bitte wählen"
-                  optionen={termine.map((t) => [t.id, `${datumKurzText(t.beginn)} ${zeit(t.beginn)} · ${t.leistung_name}${t.status === "angefragt" ? " (Anfrage)" : ""}`])}
+                  optionen={termine.filter((t) => t.beginn).map((t) => [t.id, `${datumKurzText(t.beginn!)} ${zeit(t.beginn!)} · ${t.leistung_name}${t.status === "angefragt" ? " (Anfrage)" : ""}`])}
                 />
                 <Senden art="rahmen" klein vorab="Verknüpft">Verknüpfen</Senden>
               </Formular>
