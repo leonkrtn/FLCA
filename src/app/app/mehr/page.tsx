@@ -8,7 +8,7 @@ import { pushTest } from "@/lib/aktionen/push";
 import { benutzerMitRecht } from "@/lib/auth";
 import { rollenName } from "@/lib/rollen";
 import { db } from "@/lib/supabase/admin";
-import { ungelesen } from "@/lib/mail/postfach";
+import { ungelesen, zugang } from "@/lib/mail/postfach";
 
 export const metadata = { title: "Mehr" };
 
@@ -17,9 +17,9 @@ export default async function MehrSeite() {
   // Was der Server kennt, nicht was das Handy glaubt: Nur an diese Geräte gehen Nachrichten.
   const [{ count: geraete }, post] = await Promise.all([
     db().from("push_abos").select("id", { count: "exact", head: true }).eq("profil_id", b.id),
-    ungelesen(b),
+    zugang(b).then(ungelesen),
   ]);
-  const neueMails = post.eigene + post.firma;
+  const neueMails = post.gesamt;
   return (
     <>
       <MobilKopf titel="Mehr" unter={`${b.name || b.email} · ${rollenName(b.rolle)}`} />

@@ -1,5 +1,6 @@
-import { MobilFormularSkelett } from "@/components/skelett";
+import { MobilSkelett } from "@/components/skelett";
 
+/** Kopf, Ordnerwahl und Liste. */
 export default function Laden() {
-  return <MobilFormularSkelett felder={3} />;
+  return <MobilSkelett reiter karten={8} />;
 }

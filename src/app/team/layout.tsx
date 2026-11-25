@@ -9,7 +9,7 @@ import { benutzerMitRecht } from "@/lib/auth";
 import { erinnerungenNachholen } from "@/lib/automatik";
 import { einstellungen } from "@/lib/einstellungen";
 import { weich } from "@/lib/fehler";
-import { ungelesen } from "@/lib/mail/postfach";
+import { ungelesen, zugang } from "@/lib/mail/postfach";
 
 export const metadata: Metadata = {
   title: { default: "Team", template: "%s · FLC Team" },
@@ -28,8 +28,8 @@ export default async function TeamLayout({ children }: { children: React.ReactNo
   after(() => weich(erinnerungenNachholen(), undefined, "Erinnerungen nachholen"));
   const { module } = await einstellungen();
   const zeiten = module.zeiterfassung && b.zeiterfassung;
-  // Nur das eigene Postfach: Das Firmenpostfach gibt es in der Team-App nicht
-  const post = await weich(ungelesen({ id: b.id, rolle: "mitarbeiter" }), { eigene: 0, firma: 0 }, "Zähler Mail (Team)");
+  // Eigenes Postfach, mir Zugewiesenes und (wenn in den Einstellungen freigegeben) das Firmenpostfach
+  const post = await weich(zugang(b).then(ungelesen), { eigene: 0, firma: 0, zugewiesen: 0, gesamt: 0 }, "Zähler Mail (Team)");
   return (
     <div className="handy-app grund-weiss min-h-dvh bg-grund pb-[calc(4.5rem+env(safe-area-inset-bottom))]" data-leiste="hell">
       <div className="mx-auto max-w-xl">{children}</div>
@@ -42,7 +42,7 @@ export default async function TeamLayout({ children }: { children: React.ReactNo
           { href: "/team/woche", text: "Woche", icon: <Kalender /> },
           { href: "/team/abwesenheit", text: "Urlaub", icon: <Person /> },
           ...(zeiten ? [{ href: "/team/zeiten", text: "Zeiten", icon: <Uhr /> }] : []),
-          { href: "/team/mail", text: "Mail", icon: <Brief />, anzahl: post.eigene },
+          { href: "/team/mail", text: "Mail", icon: <Brief />, anzahl: post.gesamt },
           // Schulung und Erinnerungen öffnet man aus „Mehr“, dort bleibt der Tab markiert
           { href: "/team/mehr", text: "Mehr", icon: <Mehr />, auch: ["/team/schulung", "/team/notizen"] },
         ]}

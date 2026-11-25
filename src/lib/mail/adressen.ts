@@ -60,23 +60,36 @@ export function istAdresse(wert: string): boolean {
 
 type Person = { id: string; name: string; mail_name?: string | null; aktiv: boolean };
 
+/** Wohin eine eingehende Mail kommt: Postfach (null = Firma), Ordner und die Adresse, an die sie ging. */
+export type Ablage = { postfach: string | null; ordner: "eingang" | "sonstige"; ziel: string };
+
 /**
- * In welche Postfächer eine eingehende Mail gehört: je Person, deren Adresse unter den Empfängern ist,
- * sonst ins Firmenpostfach (null). Unbekannte Adressen der eigenen Domain (info@, termine@, Tippfehler)
- * und Mails an deaktivierte Personen landen im Firmenpostfach, damit nichts verloren geht.
+ * In welche Postfächer eine eingehende Mail gehört. Je Person, deren Adresse unter den Empfängern ist, eine
+ * Ablage. Adressen aus den Einstellungen (`firmenAdressen`, Teil vor dem @) kommen in den Posteingang des
+ * Firmenpostfachs, ebenso Mails an deaktivierte Personen (deren Kunden schreiben weiter). Alle anderen
+ * Adressen der Domain landen im Firmenpostfach unter „Sonstige“. Ohne eigene Adresse im Kopf (BCC,
+ * Weiterleitung) in den Posteingang, damit nichts verloren geht.
  */
-export function postfaecherFuer(empfaenger: string[], domain: string, personen: Person[]): (string | null)[] {
+export function zuordnen(empfaenger: string[], domain: string, personen: Person[], firmenAdressen: string[]): Ablage[] {
   const d = `@${domain.toLowerCase()}`;
-  const eigene = empfaenger.map((e) => adresseZerlegen(e).adresse).filter((a) => a.endsWith(d));
-  const ziele = new Set<string | null>();
+  const firma = new Set(firmenAdressen.map((a) => a.trim().toLowerCase()).filter(Boolean));
+  const eigene = [...new Set(empfaenger.map((e) => adresseZerlegen(e).adresse).filter((a) => a.endsWith(d)))];
+  const ablagen: Ablage[] = [];
+  let firmaZiel: string | null = null;
+  let sonstigeZiel: string | null = null;
   for (const a of eigene) {
     const lokal = a.slice(0, -d.length);
     const p = personen.find((x) => mailNameVon(x) === lokal);
-    ziele.add(p?.aktiv ? p.id : null);
+    if (p?.aktiv) {
+      if (!ablagen.some((x) => x.postfach === p.id)) ablagen.push({ postfach: p.id, ordner: "eingang", ziel: a });
+    } else if (p || firma.has(lokal)) firmaZiel ??= a;
+    else sonstigeZiel ??= a;
   }
-  // Kam die Mail über eine Weiterleitung oder BCC ohne eigene Adresse im Kopf an, trotzdem ablegen
-  if (!ziele.size) ziele.add(null);
-  return [...ziele];
+  // Eine Mail an service@ und an eine unbekannte Adresse zugleich gehört in den Posteingang, nicht doppelt
+  if (firmaZiel) ablagen.unshift({ postfach: null, ordner: "eingang", ziel: firmaZiel });
+  else if (sonstigeZiel) ablagen.unshift({ postfach: null, ordner: "sonstige", ziel: sonstigeZiel });
+  else if (!ablagen.length) ablagen.push({ postfach: null, ordner: "eingang", ziel: "" });
+  return ablagen;
 }
 
 /** Betreff ohne „Re:“, „AW:“, „Fwd:“ usw. davor, zum Zuordnen von Antworten. */
@@ -93,6 +106,12 @@ export function betreffKern(betreff: string): string {
 export function antwortBetreff(betreff: string): string {
   const kern = betreff.trim().replace(/^((re|aw|antw)\s*(\[\d+\])?\s*:\s*)+/i, "");
   return `AW: ${kern || "(ohne Betreff)"}`;
+}
+
+/** Betreff einer Weiterleitung: genau ein „WG:“ davor. */
+export function weiterleitenBetreff(betreff: string): string {
+  const kern = betreff.trim().replace(/^((fw|fwd|wg)\s*:\s*)+/i, "");
+  return `WG: ${kern || "(ohne Betreff)"}`;
 }
 
 /** Message-IDs aus „In-Reply-To“ und „References“ (je „<…>“). */

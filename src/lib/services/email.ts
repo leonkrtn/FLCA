@@ -1,7 +1,9 @@
 import "server-only";
 import { Resend } from "resend";
+import { einstellungen } from "../einstellungen";
 import { ENV, KONFIGURIERT } from "../env";
 import { fehlerMelden } from "../fehler";
+import { absender, adresseZerlegen, MAIL_NAME_MUSTER } from "../mail/adressen";
 
 export type Mail = {
   an: string | string[];
@@ -13,6 +15,7 @@ export type Mail = {
   /** Absender, sonst MAIL_FROM (Postfach in der Anwendung: Person oder Firmenadresse) */
   von?: string;
   cc?: string[];
+  bcc?: string[];
   /** Zusätzliche Kopfzeilen (Message-ID, In-Reply-To, References für den Verlauf beim Empfänger) */
   kopfzeilen?: Record<string, string>;
 };
@@ -28,9 +31,10 @@ const resend: Mailer = {
   async senden(mail) {
     try {
       const { data, error } = await new Resend(ENV.resendApiKey).emails.send({
-        from: mail.von ?? ENV.mailFrom,
+        from: mail.von ?? (await standardAbsenderText()),
         to: mail.an,
         cc: mail.cc?.length ? mail.cc : undefined,
+        bcc: mail.bcc?.length ? mail.bcc : undefined,
         headers: mail.kopfzeilen,
         subject: mail.betreff,
         html: mail.html,
@@ -49,6 +53,26 @@ const resend: Mailer = {
     }
   },
 };
+
+/**
+ * Absender für Systemmails und neue Mails aus dem Firmenpostfach: Name und Adresse aus Einstellungen → E-Mail,
+ * sonst aus MAIL_FROM. Die Adresse liegt immer auf der Domain von MAIL_FROM (nur die ist bei Resend verifiziert).
+ */
+export async function standardAbsender(): Promise<{ name: string; adresse: string }> {
+  const { mail, firma } = await einstellungen();
+  const von = adresseZerlegen(ENV.mailFrom);
+  const domain = von.adresse.split("@")[1] ?? "";
+  const lokal = mail.standardAdresse.trim().toLowerCase();
+  return {
+    name: mail.absenderName.trim() || firma.name || von.name,
+    adresse: lokal && MAIL_NAME_MUSTER.test(lokal) && domain ? `${lokal}@${domain}` : von.adresse,
+  };
+}
+
+async function standardAbsenderText(): Promise<string> {
+  const a = await standardAbsender();
+  return absender(a.name, a.adresse);
+}
 
 /** Ohne Resend-Schlüssel: Mail ins Server-Log, damit sich alle Abläufe lokal durchspielen lassen. */
 const konsole: Mailer = {
@@ -85,7 +109,11 @@ export type EingangsMail = {
   anhaenge: { id: string; name: string; typ: string; groesse: number; inline: boolean }[];
 };
 
-export type WebhookMeldung = { art: "eingang"; id: string } | { art: "gesendet"; id: string; messageId: string } | null;
+export type WebhookMeldung =
+  | { art: "eingang"; id: string }
+  | { art: "gesendet"; id: string; messageId: string }
+  | { art: "zustellung"; id: string; stand: "zugestellt" | "verzoegert" | "abgewiesen" | "beschwerde"; grund?: string }
+  | null;
 
 /**
  * Prüft die Signatur des Webhooks (Svix) und sagt, was er meldet: eine eingegangene Mail oder die
@@ -99,6 +127,11 @@ export function webhookPruefen(roh: string, kopf: Headers): WebhookMeldung {
   });
   if (ereignis.type === "email.received") return { art: "eingang", id: ereignis.data.email_id };
   if (ereignis.type === "email.sent" && ereignis.data.message_id) return { art: "gesendet", id: ereignis.data.email_id, messageId: ereignis.data.message_id };
+  // Zustellstatus für „Gesendet“: zugestellt, verzögert, abgewiesen (Adresse falsch, Postfach voll), als Spam gemeldet
+  if (ereignis.type === "email.delivered") return { art: "zustellung", id: ereignis.data.email_id, stand: "zugestellt" };
+  if (ereignis.type === "email.delivery_delayed") return { art: "zustellung", id: ereignis.data.email_id, stand: "verzoegert" };
+  if (ereignis.type === "email.bounced") return { art: "zustellung", id: ereignis.data.email_id, stand: "abgewiesen", grund: ereignis.data.bounce?.message };
+  if (ereignis.type === "email.complained") return { art: "zustellung", id: ereignis.data.email_id, stand: "beschwerde" };
   return null;
 }
 
