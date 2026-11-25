@@ -91,7 +91,7 @@ Website, Terminvergabe, Werkstatt-Verwaltung, Rechnungen, Team und Karriere für
 
 ### 2. Resend
 
-Domain `flcautomotive.de` anlegen, die DNS-Einträge (SPF, DKIM, optional DMARC) beim Domain-Anbieter setzen, warten bis „Verified“. Absender z. B. `FLC Automotive <termine@flcautomotive.de>`; die Domain aus `MAIL_FROM` ist auch die der Postfächer. Antworten der Kunden auf Systemmails gehen an die Firmen-E-Mail aus den Einstellungen (Reply-To): Steht dort `info@flcautomotive.de`, landen sie im Firmenpostfach der Anwendung.
+Domain `flcautomotive.de` anlegen, die DNS-Einträge (SPF, DKIM, optional DMARC) beim Domain-Anbieter setzen, warten bis „Verified“. Absender z. B. `FLC Automotive <info@flcautomotive.de>`; die Domain aus `MAIL_FROM` ist auch die der Postfächer. Antworten der Kunden auf Systemmails gehen an die Firmen-E-Mail aus den Einstellungen (Reply-To): Steht dort `info@flcautomotive.de`, landen sie im Firmenpostfach der Anwendung.
 
 **Empfangen** (Postfächer in der Anwendung):
 
