@@ -101,7 +101,6 @@ export type Einstellungen = {
   };
   module: {
     karriere: boolean;
-    galerie: boolean;
     einlagerung: boolean;
     zeiterfassung: boolean;
     bewertungen: boolean;
@@ -230,7 +229,7 @@ export const STANDARD: Einstellungen = {
       debitorSammel: "10000",
     },
   },
-  module: { karriere: true, galerie: true, einlagerung: true, zeiterfassung: true, bewertungen: true },
+  module: { karriere: true, einlagerung: true, zeiterfassung: true, bewertungen: true },
   texte: {
     ueberTitel: "Über die Werkstatt",
     ueberText:

@@ -192,7 +192,6 @@ export function einstellungenVerzeichnis({ e, whatsapp }: Quelle): SuchEintrag[]
   const modul = ["modul", "funktion", "anzeigen", "website", "menü"];
   add("module", [
     { titel: "Karriere", ziel: "karriere", schalter: true, hilfe: "Stellenanzeigen und Bewerbungen", woerter: [...modul, "jobs", "stellen", "stellenanzeigen", "bewerbung", "jobangebote"] },
-    { titel: "Vorher/Nachher-Galerie", ziel: "galerie", schalter: true, woerter: [...modul, "galerie", "bilder", "fotos"] },
     { titel: "Rädereinlagerung", ziel: "einlagerung", schalter: true, woerter: [...modul, "einlagerung", "reifen", "räder", "reifenhotel", "lager"] },
     { titel: "Zeiterfassung", ziel: "zeiterfassung", schalter: true, hilfe: "Stempeln in der Team-App", woerter: [...modul, "stempeln", "arbeitszeit", "stunden", "stechuhr"] },
     { titel: "Bewertungen auf der Startseite", ziel: "bewertungen", schalter: true, woerter: [...modul, "rezensionen", "kundenstimmen", "sterne", "google"] },

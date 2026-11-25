@@ -11,26 +11,6 @@ function websiteNeu() {
   revalidatePath("/", "layout");
 }
 
-export async function galerieSpeichern(id: string | null, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
-  return sicher(fd, async () => {
-    await benutzerMitRecht("website");
-    const daten = {
-      titel: text(fd, "titel", 120),
-      beschreibung: text(fd, "beschreibung", 400),
-      vorher_pfad: text(fd, "vorher_pfad", 200),
-      nachher_pfad: text(fd, "nachher_pfad", 200),
-      sichtbar: ja(fd, "sichtbar"),
-      sortierung: Math.round(zahl(fd, "sortierung") ?? 0),
-    };
-    if (!daten.vorher_pfad || !daten.nachher_pfad) return { status: "fehler", meldung: "Bitte beide Bilder hochladen." };
-    const { error } = id ? await db().from("galerie").update(daten).eq("id", id) : await db().from("galerie").insert(daten);
-    if (error) throw new DbFehler(error);
-    websiteNeu();
-    revalidatePath("/admin/website");
-    return { status: "ok", meldung: "Gespeichert." };
-  });
-}
-
 export async function bewertungSpeichern(id: string | null, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
   return sicher(fd, async () => {
     await benutzerMitRecht("website");
@@ -48,16 +28,6 @@ export async function bewertungSpeichern(id: string | null, _v: Ergebnis, fd: Fo
     websiteNeu();
     revalidatePath("/admin/website");
     return { status: "ok", meldung: "Gespeichert." };
-  });
-}
-
-export async function eintragLoeschen(tabelle: "galerie" | "bewertungen", id: string, _v: Ergebnis): Promise<Ergebnis> {
-  return sicher(null, async () => {
-    await benutzerMitRecht("website");
-    await db().from(tabelle).delete().eq("id", id);
-    websiteNeu();
-    revalidatePath("/admin/website");
-    return { status: "ok", meldung: "Gelöscht." };
   });
 }
 

@@ -6,7 +6,7 @@ Website, Terminvergabe, Werkstatt-Verwaltung, Rechnungen, Team und Karriere für
 
 | Bereich | Adresse | Für wen |
 | --- | --- | --- |
-| Website | `/`, `/leistungen`, `/galerie`, `/karriere`, `/impressum`, `/datenschutz`, `/agb` | Kunden |
+| Website | `/`, `/leistungen`, `/karriere`, `/impressum`, `/datenschutz`, `/agb` | Kunden |
 | Terminanfrage | `/termin` | Kunden: eine oder mehrere Leistungen → freie Zeit → Name, Telefon, E-Mail, Kennzeichen |
 | Kundenlink | `/t/<token>` (Termin ansehen, absagen, Werkstattauftrag erteilen), `/r/<token>` (Rechnungs-PDF), `/k/<token>` (Kostenvoranschlag ansehen, annehmen) | Kunden, ohne Login |
 | Verwaltung | `/admin` | Inhaber und Büro, am Rechner |

@@ -138,13 +138,8 @@ export default async function Startseite() {
 
       {/* Echte Fotos aus der Halle */}
       <section aria-labelledby="halle-titel" className="pb-20 md:pb-28">
-        <div className="rand mb-8 flex items-end justify-between gap-4">
+        <div className="rand mb-8">
           <h2 id="halle-titel" className="schmal text-3xl sm:text-4xl md:text-7xl">Aus der Halle</h2>
-          {e.module.galerie ? (
-            <Link href="/galerie" className="inline-flex shrink-0 items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold ring-1 ring-linie hover:bg-flaeche">
-              Vorher / nachher <Pfeil className="size-4" />
-            </Link>
-          ) : null}
         </div>
         <div className="rand flex snap-x snap-mandatory gap-4 quer-scrollen pb-2 [scrollbar-width:none] md:grid md:grid-cols-2 md:overflow-visible lg:grid-cols-4">
           {[

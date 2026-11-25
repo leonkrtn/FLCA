@@ -197,7 +197,6 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
         <Abschnitt titel="Module" aktion={<span className="text-sm text-grau">Ausgeschaltete Module verschwinden aus Website und Menü, die Daten bleiben.</span>}>
           <Formular aktion={moduleSpeichern} className="grid gap-4">
             <Schalter label="Karriere" name="karriere" an={e.module.karriere} hilfe="Stellenanzeigen und Bewerbungen" />
-            <Schalter label="Vorher/Nachher-Galerie" name="galerie" an={e.module.galerie} />
             <Schalter label="Rädereinlagerung" name="einlagerung" an={e.module.einlagerung} />
             <Schalter label="Zeiterfassung" name="zeiterfassung" an={e.module.zeiterfassung} hilfe="Stempeln in der Team-App (pro Person zusätzlich einschalten)" />
             <Schalter label="Bewertungen auf der Startseite" name="bewertungen" an={e.module.bewertungen} />

@@ -3,7 +3,7 @@ import { cache } from "react";
 import { laufendeAngebote } from "./angebote/daten";
 import { angeboteAnwenden } from "./angebote/preise";
 import { KONFIGURIERT } from "./env";
-import { db, DbFehler, dbRoh, websiteDatei } from "./supabase/admin";
+import { db, DbFehler, dbRoh } from "./supabase/admin";
 import type { Leistung } from "./termine";
 import { berlinDatum } from "./zeit";
 import { fehlerMelden, weich } from "./fehler";
@@ -76,22 +76,6 @@ export const bewertungen = cache(async (): Promise<Bewertung[]> => {
     const { data } = await db().from("bewertungen").select("id, name, text, sterne, quelle").eq("sichtbar", true).order("sortierung").limit(6);
     return (data ?? []) as Bewertung[];
   }, [], "Bewertungen für die Website laden");
-});
-
-export type GalerieEintrag = { id: string; titel: string; beschreibung: string; vorher: string; nachher: string };
-
-export const galerie = cache(async (): Promise<GalerieEintrag[]> => {
-  if (!KONFIGURIERT.supabaseAdmin) return [];
-  return weich(async () => {
-    const { data } = await db().from("galerie").select("*").eq("sichtbar", true).order("sortierung");
-    return (data ?? []).map((g) => ({
-      id: g.id,
-      titel: g.titel,
-      beschreibung: g.beschreibung,
-      vorher: websiteDatei(g.vorher_pfad)!,
-      nachher: websiteDatei(g.nachher_pfad)!,
-    }));
-  }, [], "Galerie für die Website laden");
 });
 
 export type Stelle = { id: string; titel: string; umfang: string; einleitung: string; aufgaben: string; profil: string; wir_bieten: string };
