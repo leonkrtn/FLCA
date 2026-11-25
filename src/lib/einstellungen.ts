@@ -118,6 +118,28 @@ export type Einstellungen = {
   };
   /** Vorausgefüllte WhatsApp-Nachrichten der Werkstatt-App, je Anlass ein Text mit Platzhaltern. */
   whatsapp: Record<WhatsappVorlage, string>;
+  /** Postfächer in der Anwendung (Einstellungen → E-Mail). Die Domain kommt aus MAIL_FROM (bei Resend verifiziert). */
+  mail: {
+    /** Name im Absender, leer = Firmenname */
+    absenderName: string;
+    /** Teil vor dem @ für Systemmails und neue Mails aus dem Firmenpostfach, leer = Adresse aus MAIL_FROM */
+    standardAdresse: string;
+    /** Adressen (Teil vor dem @), die im Posteingang des Firmenpostfachs ankommen; andere landen in „Sonstige“ */
+    firmenAdressen: string[];
+    /** Wer das Firmenpostfach sieht (Profil-ids); null = Inhaber und Büro. Der Inhaber sieht es immer. */
+    zugriff: string[] | null;
+    /** Wer bei neuen Mails im Firmenpostfach einen Push bekommt; null = alle mit Zugriff */
+    push: string[] | null;
+    signatur: {
+      gruss: string;
+      logo: boolean;
+      oeffnungszeiten: boolean;
+      website: boolean;
+      pflichtangaben: boolean;
+    };
+    /** Textbausteine für das Schreibfenster (HTML aus dem Editor) */
+    vorlagen: { id: string; name: string; html: string }[];
+  };
   rechtstexte: {
     datenschutzUrl: string;
     agbUrl: string;
@@ -217,6 +239,15 @@ export const STANDARD: Einstellungen = {
   },
   medien: { heroBild: "", heroVideo: "", ueberBild: "" },
   whatsapp: WHATSAPP_STANDARD,
+  mail: {
+    absenderName: "",
+    standardAdresse: "service",
+    firmenAdressen: ["service", "info"],
+    zugriff: null,
+    push: null,
+    signatur: { gruss: "Mit freundlichen Grüßen", logo: true, oeffnungszeiten: true, website: true, pflichtangaben: true },
+    vorlagen: [],
+  },
   rechtstexte: { datenschutzUrl: "", agbUrl: "", datenschutzText: "", agbText: "" },
 };
 

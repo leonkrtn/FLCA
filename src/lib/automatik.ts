@@ -1,4 +1,5 @@
 import "server-only";
+import { taktMail } from "./mail/postfach";
 import { einstellungen } from "./einstellungen";
 import { ENV } from "./env";
 import { zustellen } from "./ereignisse";
@@ -115,6 +116,9 @@ export async function takt(): Promise<Bericht> {
   });
 
   await schritt("webhooks", () => zustellen(50));
+
+  // Postfach: geplante Mails senden, „Später erinnern“ wecken, Papierkorb nach 30 Tagen leeren
+  await schritt("mail", taktMail);
 
   // Einmal am Tag, ab 6 Uhr Berliner Zeit
   const heute = berlinDatum();

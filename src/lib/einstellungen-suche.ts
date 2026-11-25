@@ -17,6 +17,7 @@ export const BEREICHE = [
   ["preise", "Gemerkte Preise"],
   ["automatik", "Automatik"],
   ["benachrichtigung", "Benachrichtigungen"],
+  ["mail", "E-Mail"],
   ["whatsapp", "WhatsApp-Texte"],
   ["module", "Module"],
   ["schnittstellen", "Schnittstellen"],
@@ -168,6 +169,19 @@ export function einstellungenVerzeichnis({ e, whatsapp }: Quelle): SuchEintrag[]
       wert: e.benachrichtigung.emails.join(", "),
       woerter: ["benachrichtigung", "empfänger", "mail", "hinweis", "nachricht", "anfrage", "terminanfrage", "bewerbung", "push", "informieren"],
     },
+  ]);
+
+  const mail = ["mail", "e-mail", "email", "postfach", "outlook"];
+  add("mail", [
+    { titel: "Einrichtung prüfen und Testmail", ziel: "#einrichtung", woerter: [...mail, "resend", "webhook", "mx", "dns", "empfang", "test", "funktioniert"] },
+    { titel: "Name im Absender", ziel: "absenderName", wert: e.mail.absenderName, woerter: [...mail, "absender", "von", "name"] },
+    { titel: "Standardadresse", ziel: "standardAdresse", wert: e.mail.standardAdresse, woerter: [...mail, "absender", "adresse", "service", "info", "von"] },
+    { titel: "Adressen des Firmenpostfachs", ziel: "firmenAdressen", wert: e.mail.firmenAdressen.join(", "), woerter: [...mail, "info", "service", "termine", "sonstige", "weiterleitung", "alias"] },
+    { titel: "Wer sieht das Firmenpostfach, Push bei neuer Mail", ziel: "#zugriff", woerter: [...mail, "zugriff", "rechte", "push", "benachrichtigung", "firmenpostfach"] },
+    { titel: "Signatur", ziel: "#signatur", wert: e.mail.signatur.gruss, woerter: [...mail, "signatur", "grußformel", "logo", "fußzeile", "unterschrift"] },
+    { titel: "Mailadressen, Jobbezeichnung und Telefon der Personen", ziel: "#personen", woerter: [...mail, "mitarbeiter", "adresse", "jobbezeichnung", "position", "signatur", "telefon"] },
+    { titel: "Kategorien", ziel: "#kategorien", woerter: [...mail, "kategorie", "farbe", "ordnen", "label"] },
+    { titel: "Textbausteine", ziel: "#vorlagen", wert: e.mail.vorlagen.map((v) => v.name).join(", "), woerter: [...mail, "vorlage", "textbaustein", "baustein", "schnellbaustein"] },
   ]);
 
   add(

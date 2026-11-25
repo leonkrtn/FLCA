@@ -15,7 +15,7 @@ import { darf, rollenName } from "@/lib/rollen";
 import { db } from "@/lib/supabase/admin";
 import { weich } from "@/lib/fehler";
 import { offeneFehlerAnzahl } from "@/lib/fehlerprotokoll";
-import { ungelesen } from "@/lib/mail/postfach";
+import { ungelesen, zugang } from "@/lib/mail/postfach";
 
 export const metadata: Metadata = { title: { default: "Verwaltung", template: "%s | Verwaltung FLC" }, robots: { index: false } };
 
@@ -46,7 +46,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         )
       : 0,
     // Ungelesen im eigenen und (mit Recht) im Firmenpostfach
-    weich(ungelesen(b), { eigene: 0, firma: 0 }, "Menü-Zähler Mail"),
+    weich(zugang(b).then(ungelesen), { eigene: 0, firma: 0, zugewiesen: 0, gesamt: 0 }, "Menü-Zähler Mail"),
   ]);
 
   const alle: (NavEintrag & { recht: Parameters<typeof darf>[1]; modul?: keyof typeof e.module })[] = [
@@ -55,7 +55,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: "/admin/termine", text: "Termine", recht: "termine", anzahl: anfragen },
     { href: "/admin/auftraege", text: "Werkstattaufträge", recht: "termine", anzahl: meldungen },
     { href: "/admin/notizen", text: "Notizen", recht: "notizen", anzahl: erinnerungen },
-    { href: "/admin/mail", text: "Mail", recht: "werkstatt", anzahl: post.eigene + post.firma },
+    { href: "/admin/mail", text: "Mail", recht: "werkstatt", anzahl: post.gesamt },
     { href: "/admin/kunden", text: "Kunden", recht: "kunden" },
     { href: "/admin/kundenbildschirm", text: "Kundenbildschirm", recht: "kunden", anzahl: kundenEingaben },
     { href: "/admin/einlagerung", text: "Einlagerung", recht: "einlagerung", modul: "einlagerung" },
@@ -99,7 +99,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </div>
       </aside>
       <main className="min-w-0 px-4 py-6 md:px-8 lg:px-10 lg:py-10">
-        <div className="mx-auto max-w-[1200px]">{children}</div>
+        <div className="mx-auto max-w-[1200px] has-[.vollbreite]:max-w-none">{children}</div>
         <Auffrischen />
       </main>
     </div>

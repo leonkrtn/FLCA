@@ -1,7 +1,8 @@
-import { NeueMailSeite } from "@/components/mail/seiten";
+import { PostfachSeite } from "@/components/mail/seiten";
 
 export const metadata = { title: "Neue Mail" };
 
-export default async function Seite({ searchParams }: { searchParams: Promise<{ postfach?: string; an?: string; betreff?: string }> }) {
-  return <NeueMailSeite ort="admin" suche={await searchParams} />;
+/** Postfach mit offenem Schreibfenster; `?an=…&betreff=…` füllt vor, `?p=ich` schreibt aus dem eigenen Postfach. */
+export default async function Seite({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  return <PostfachSeite ort="admin" sp={await searchParams} neu />;
 }

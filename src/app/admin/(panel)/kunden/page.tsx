@@ -8,9 +8,10 @@ import { db } from "@/lib/supabase/admin";
 
 export const metadata = { title: "Kunden" };
 
-export default async function KundenListe({ searchParams }: { searchParams: Promise<{ q?: string; neu?: string; geloescht?: string }> }) {
+export default async function KundenListe({ searchParams }: { searchParams: Promise<{ q?: string; neu?: string; geloescht?: string; name?: string; email?: string }> }) {
   await benutzerMitRecht("kunden");
-  const { q = "", neu, geloescht } = await searchParams;
+  // `name` und `email` füllen „Kunde anlegen“ vor (aus einer Mail heraus)
+  const { q = "", neu, geloescht, name: vorName, email: vorEmail } = await searchParams;
   let abfrage = db().from("kunden").select("id, nummer, name, firma, telefon, email, ort, erstellt_am, fahrzeuge(kennzeichen)").order("erstellt_am", { ascending: false }).limit(100);
   const such = q.replace(/[,()%]/g, " ").trim();
   if (such) {
@@ -31,9 +32,9 @@ export default async function KundenListe({ searchParams }: { searchParams: Prom
       {neu ? (
         <Abschnitt titel="Neuer Kunde">
           <Formular aktion={kundeSpeichern.bind(null, null)} className="grid gap-4 sm:grid-cols-3">
-            <Feld label="Name" name="name" required />
+            <Feld label="Name" name="name" wert={vorName?.slice(0, 120)} required />
             <Feld label="Telefon" name="telefon" typ="tel" />
-            <Feld label="E-Mail" name="email" typ="email" />
+            <Feld label="E-Mail" name="email" typ="email" wert={vorEmail?.slice(0, 200)} />
             <div className="sm:col-span-3"><Senden vorab="Angelegt">Anlegen</Senden></div>
           </Formular>
         </Abschnitt>

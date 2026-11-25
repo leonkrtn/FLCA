@@ -19,7 +19,8 @@ export function HtmlInhalt({ html }: { html: string }) {
     const messen = () => {
       const body = rahmen.contentDocument?.body;
       if (!body) return;
-      setHoehe(Math.min(Math.max(body.scrollHeight + 8, 60), 6000));
+      // body ist ein eigener Block (flow-root), so zählen die Ränder des ersten und letzten Absatzes mit
+      setHoehe(Math.min(body.scrollHeight + 4, 6000));
       if (!beobachter) {
         beobachter = new ResizeObserver(messen);
         beobachter.observe(body);
@@ -33,7 +34,7 @@ export function HtmlInhalt({ html }: { html: string }) {
     };
   }, [html]);
 
-  const dokument = `<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><meta name="color-scheme" content="light"><style>html,body{margin:0;padding:0;background:#fff;color:#222;font:14px/1.5 Arial,Helvetica,sans-serif;overflow-wrap:anywhere}img{max-width:100%;height:auto}table{max-width:100%}pre{white-space:pre-wrap}</style></head><body>${html}</body></html>`;
+  const dokument = `<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><meta name="color-scheme" content="light"><style>html,body{margin:0;padding:0}body{display:flow-root;background:#fff;color:#222;font:14px/1.5 Arial,Helvetica,sans-serif;overflow-wrap:anywhere}img{max-width:100%;height:auto}table{max-width:100%}pre{white-space:pre-wrap}</style></head><body>${html}</body></html>`;
 
   return (
     <iframe

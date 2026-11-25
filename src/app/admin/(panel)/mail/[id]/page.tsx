@@ -1,7 +1,7 @@
-import { GespraechSeite } from "@/components/mail/seiten";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Mail" };
-
+/** Frühere Links auf eine einzelne Unterhaltung: am Rechner steht sie im Lesebereich des Postfachs. */
 export default async function Seite({ params }: { params: Promise<{ id: string }> }) {
-  return <GespraechSeite ort="admin" id={(await params).id} />;
+  const { id } = await params;
+  redirect(`/admin/mail?g=${encodeURIComponent(id)}`);
 }

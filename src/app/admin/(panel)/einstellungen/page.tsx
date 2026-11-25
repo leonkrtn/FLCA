@@ -5,6 +5,7 @@ import { EinstellungenSuche } from "@/components/admin/einstellungen-suche";
 import { alleFrueherenRechnungen } from "@/lib/altbestand/daten";
 import { FruehereRechnungen, fruehereSumme } from "@/components/admin/fruehere-rechnungen";
 import { GemerktePreise } from "@/components/admin/gemerkte-preise";
+import { MailEinstellungen } from "@/components/admin/mail-einstellungen";
 import { NummernkreisFormular } from "@/components/admin/nummernkreis";
 import { TaktStatus } from "@/components/admin/takt-status";
 import { Abschnitt, Auswahl, Feld, Kopf, Leer, Marke, Reiter, Schalter, Tabelle, Textfeld } from "@/components/admin/ui";
@@ -167,6 +168,8 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
           </Formular>
         </Abschnitt>
       ) : null}
+
+      {bereich === "mail" ? <MailEinstellungen b={b} /> : null}
 
       {bereich === "whatsapp" ? (
         <Abschnitt titel="WhatsApp-Texte" aktion={<span className="text-sm text-grau">Werkstatt-App: Termin, Kostenvoranschlag, Rechnung.</span>}>

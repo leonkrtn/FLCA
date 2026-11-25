@@ -1,6 +1,6 @@
 import { MobilSkelett } from "@/components/skelett";
 
-/** Liste mit „zurück“ (kommt aus „Mehr“) und dem Umschalter Firma/Meine. */
+/** Kopf, Ordnerwahl und Liste. */
 export default function Laden() {
-  return <MobilSkelett zurueck reiter />;
+  return <MobilSkelett reiter karten={8} />;
 }
