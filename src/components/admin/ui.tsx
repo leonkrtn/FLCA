@@ -30,9 +30,9 @@ export function Kopf({ titel, unter, children, zurueck }: { titel: string; unter
  * Kasten mit Überschrift. Die Kopfzeile ist immer gleich hoch, auch mit einem kleinen Knopf rechts.
  * Passt ein Hinweis rechts nicht mehr daneben (Handy), rutscht er in eine zweite Zeile statt über den Rand.
  */
-export function Abschnitt({ titel, children, aktion, className = "" }: { titel?: string; children: React.ReactNode; aktion?: React.ReactNode; className?: string }) {
+export function Abschnitt({ titel, children, aktion, className = "", id }: { titel?: string; children: React.ReactNode; aktion?: React.ReactNode; className?: string; id?: string }) {
   return (
-    <section className={`mb-8 bg-weiss p-4 md:p-6 ${className}`}>
+    <section id={id} className={`mb-8 bg-weiss p-4 md:p-6 ${className}`}>
       {titel || aktion ? (
         <div className="mb-4 flex min-h-9 flex-wrap items-center justify-between gap-x-4 gap-y-1">
           {titel ? <h2 className="min-w-0 truncate text-lg font-semibold">{titel}</h2> : <span />}

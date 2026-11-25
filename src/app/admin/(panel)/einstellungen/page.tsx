@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Ausblenden, Formular, Senden } from "@/components/admin/formular";
 import { Datenuebernahme } from "@/components/admin/datenuebernahme";
+import { EinstellungenSuche } from "@/components/admin/einstellungen-suche";
 import { alleFrueherenRechnungen } from "@/lib/altbestand/daten";
 import { FruehereRechnungen, fruehereSumme } from "@/components/admin/fruehere-rechnungen";
 import { GemerktePreise } from "@/components/admin/gemerkte-preise";
@@ -26,6 +27,7 @@ import {
 } from "@/lib/aktionen/einstellungen";
 import { benutzerMitRecht } from "@/lib/auth";
 import { einstellungen, WOCHENTAGE } from "@/lib/einstellungen";
+import { BEREICHE, einstellungenVerzeichnis } from "@/lib/einstellungen-suche";
 import { ENV } from "@/lib/env";
 import { EREIGNIS_TYPEN } from "@/lib/ereignisse";
 import { offeneFehlerAnzahl, protokollLaden } from "@/lib/fehlerprotokoll";
@@ -37,23 +39,7 @@ import { WHATSAPP_PLATZHALTER, WHATSAPP_STANDARD, WHATSAPP_VORLAGEN } from "@/li
 
 export const metadata = { title: "Einstellungen" };
 
-const BEREICHE = [
-  ["firma", "Firma"],
-  ["zeiten", "Öffnungszeiten"],
-  ["buchung", "Terminvergabe"],
-  ["rechnung", "Rechnungen"],
-  ["preise", "Gemerkte Preise"],
-  ["automatik", "Automatik"],
-  ["benachrichtigung", "Benachrichtigungen"],
-  ["whatsapp", "WhatsApp-Texte"],
-  ["module", "Module"],
-  ["schnittstellen", "Schnittstellen"],
-  ["recht", "Rechtstexte"],
-  ["uebernahme", "Datenübernahme"],
-  ["fehler", "Fehler"],
-] as const;
-
-export default async function EinstellungenSeite({ searchParams }: { searchParams: Promise<{ bereich?: string; ansicht?: string; q?: string; code?: string }> }) {
+export default async function EinstellungenSeite({ searchParams }: { searchParams: Promise<{ bereich?: string; ansicht?: string; q?: string; code?: string; feld?: string }> }) {
   // Die gemerkten Preise pflegt auch das Büro (Recht „rechnungen“), alles andere hier nur, wer Einstellungen darf.
   const b = await benutzerMitRecht();
   const sp = await searchParams;
@@ -62,9 +48,15 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
   const bereich = alles ? (sp.bereich ?? "firma") : "preise";
   const sichtbar = BEREICHE.filter(([k]) => alles || k === "preise");
   const [e, offeneFehler] = await Promise.all([einstellungen(), alles ? offeneFehlerAnzahl() : 0]);
+  // Suchverzeichnis nur mit den Reitern, die diese Person sieht; so kommen auch keine fremden Werte in den Browser.
+  const verzeichnis = einstellungenVerzeichnis({
+    e,
+    whatsapp: WHATSAPP_VORLAGEN.map((v) => ({ ...v, text: e.whatsapp[v.schluessel] || WHATSAPP_STANDARD[v.schluessel] })),
+  }).filter((x) => sichtbar.some(([k]) => k === x.bereich));
   return (
     <>
       <Kopf titel="Einstellungen" />
+      <EinstellungenSuche verzeichnis={verzeichnis} bereich={bereich} feld={sp.feld} />
       <Reiter
         aktiv={`/admin/einstellungen?bereich=${bereich}`}
         eintraege={sichtbar.map(([k, t]) => ({ href: `/admin/einstellungen?bereich=${k}`, text: t, anzahl: k === "fehler" ? offeneFehler : undefined }))}
@@ -246,7 +238,7 @@ async function RechnungBereich() {
   const aktuell = { praefix: k?.praefix ?? "", mit_jahr: k?.mit_jahr ?? true, stellen: Number(k?.stellen ?? 4), naechste: Number(k?.naechste ?? 1) };
   return (
     <>
-    <Abschnitt titel="Nummernkreis" aktion={<span className="text-sm text-grau">Ändern nur mit Bestätigung</span>}>
+    <Abschnitt id="nummernkreis" titel="Nummernkreis" aktion={<span className="text-sm text-grau">Ändern nur mit Bestätigung</span>}>
       <NummernkreisFormular key={JSON.stringify(aktuell)} aktuell={aktuell} gestellt={count ?? 0} letzte={letzte?.nummer ?? null} frueher={frueher ? { nummer: frueher.nummer, datum: datum(frueher.rechnungsdatum) } : null} jahr={Number(berlinDatum().slice(0, 4))} />
     </Abschnitt>
     <Abschnitt titel="Rechnungen">
@@ -292,7 +284,7 @@ async function RechnungBereich() {
       </Formular>
     </Abschnitt>
     {fruehere.length ? (
-      <Abschnitt titel="Frühere Rechnungen" aktion={<span className="zahlen text-sm text-grau">{fruehere.length} Rechnungen · {euro(fruehereSumme(fruehere))}</span>}>
+      <Abschnitt id="fruehere-rechnungen" titel="Frühere Rechnungen" aktion={<span className="zahlen text-sm text-grau">{fruehere.length} Rechnungen · {euro(fruehereSumme(fruehere))}</span>}>
         <p className="mb-3 max-w-2xl text-sm text-grau">
           Aus den alten PDFs übernommen (Datenübernahme), je Rechnung die letzte Fassung mit Nummer und Datum. Nur zum Nachschlagen: keine
           Nummer aus dem Nummernkreis, nicht im DATEV-Export.
@@ -407,7 +399,7 @@ async function Schnittstellen() {
   ]);
   return (
     <>
-      <Abschnitt titel="Webhooks" aktion={<span className="text-sm text-grau">Für n8n, Make, Zapier oder eigene Dienste</span>}>
+      <Abschnitt id="webhooks" titel="Webhooks" aktion={<span className="text-sm text-grau">Für n8n, Make, Zapier oder eigene Dienste</span>}>
         <p className="mb-4 max-w-2xl text-sm">
           Bei jedem Ereignis schickt das System einen POST mit JSON an die Adresse. Der Kopf <code className="zahlen break-all">x-flc-signatur</code> enthält <code className="zahlen break-all">t=Zeit,v1=HMAC-SHA256(geheimnis, &quot;t.body&quot;)</code>. Fehlgeschlagene Zustellungen werden bis zu sechsmal wiederholt.
         </p>
@@ -453,7 +445,7 @@ async function Schnittstellen() {
           </details>
         ) : null}
       </Abschnitt>
-      <Abschnitt titel="API-Schlüssel">
+      <Abschnitt id="api-schluessel" titel="API-Schlüssel">
         <p className="mb-4 max-w-2xl text-sm">
           Lesender Zugriff über <code className="zahlen break-all">GET {ENV.siteUrl}/api/v1/…</code> mit dem Kopf <code className="zahlen break-all">Authorization: Bearer flc_…</code>. Endpunkte: <code className="zahlen break-all">termine</code>, <code className="zahlen break-all">kunden</code>, <code className="zahlen break-all">rechnungen</code>, <code className="zahlen break-all">ereignisse?nach=ID</code>, <code className="zahlen break-all">frei?leistung=radwechsel&amp;von=JJJJ-MM-TT</code>.
         </p>
