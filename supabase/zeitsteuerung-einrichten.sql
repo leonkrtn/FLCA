@@ -12,8 +12,8 @@
 --      und neu deployen. Erst danach nimmt die Website die Aufrufe an.
 --   3. Nach ein, zwei Minuten zeigt die Werkstatt-App unter „Mehr“: „Zeitsteuerung läuft“.
 --
--- Umzug auf die eigene Domain: unten die Adresse auf 'https://flcautomotive.de' ändern und erneut
--- ausführen. Das Geheimnis bleibt dasselbe, in Vercel ist dafür nichts zu ändern.
+-- Adresse ändern (z. B. nach einem Domainwechsel): unten die Adresse anpassen und erneut ausführen.
+-- Das Geheimnis bleibt dasselbe, in Vercel ist dafür nichts zu ändern.
 --
 -- Ganz neues Geheimnis erzwingen: vorher  select cron.unschedule('flc-takt');  ausführen.
 
@@ -35,8 +35,8 @@ select
   einstellung.geheimnis as cron_secret_fuer_vercel
 from (
   select
-    -- Adresse der Website, ohne Schrägstrich am Ende. Später: 'https://flcautomotive.de'
-    'https://flca.vercel.app' as adresse,
+    -- Adresse der Website, ohne Schrägstrich am Ende
+    'https://flcautomotive.de' as adresse,
     coalesce(
       -- Geheimnis aus dem bestehenden Job (64 Hex-Zeichen, wie dieses Skript sie erzeugt)
       (select substring(command from '[0-9a-f]{64}') from cron.job where jobname = 'flc-takt'),
