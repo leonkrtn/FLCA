@@ -2,6 +2,7 @@ import Link from "next/link";
 import { abmelden } from "@/app/login/actions";
 import { MobilKopf } from "@/components/mobil/teile";
 import { PushSchalter } from "@/components/mobil/push-schalter";
+import { MailPushSchalter } from "@/components/mail/push-mail";
 import { Formular, Senden } from "@/components/admin/formular";
 import { TaktStatus } from "@/components/admin/takt-status";
 import { pushTest } from "@/lib/aktionen/push";
@@ -15,10 +16,12 @@ export const metadata = { title: "Mehr" };
 export default async function MehrSeite() {
   const b = await benutzerMitRecht("termine");
   // Was der Server kennt, nicht was das Handy glaubt: Nur an diese Geräte gehen Nachrichten.
-  const [{ count: geraete }, post] = await Promise.all([
+  const [{ count: geraete }, post, { data: profil }] = await Promise.all([
     db().from("push_abos").select("id", { count: "exact", head: true }).eq("profil_id", b.id),
     zugang(b).then(ungelesen),
+    db().from("profile").select("mail_push").eq("id", b.id).maybeSingle(),
   ]);
+  const mailPush = (profil?.mail_push as boolean | undefined) ?? true;
   const neueMails = post.gesamt;
   return (
     <>
@@ -31,6 +34,7 @@ export default async function MehrSeite() {
             {geraete ? `Eingeschaltet auf ${geraete === 1 ? "einem Gerät" : `${geraete} Geräten`}.` : "Noch auf keinem Gerät eingeschaltet."}
           </p>
           <PushSchalter />
+          <MailPushSchalter an={mailPush} />
           <Formular aktion={pushTest}>
             <Senden art="rahmen" className="w-full" vorab="Gesendet">Test-Push an mich</Senden>
           </Formular>
