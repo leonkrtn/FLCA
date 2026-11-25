@@ -18,6 +18,23 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-25 · Eingehende Mails und Takt kamen nicht an: Domain ohne www leitet weiter
+
+- **Stand:** behoben (Code/Doku); in Resend und Supabase muss die Adresse noch umgestellt werden
+- **Wo:** Resend-Webhook, `supabase/zeitsteuerung-einrichten.sql`, README (Umzug auf die eigene Domain, Resend)
+- **Was man sah:** (vom Nutzer gemeldet) Mails standen in Resend, aber nicht im Postfach der App. Resend zeigte bei
+  jeder Zustellung „308 Permanent Redirect“ und „Attempting“.
+- **Ursache:** Vercel liefert die Website unter `www.flcautomotive.de` aus und leitet `flcautomotive.de` mit 308
+  dorthin weiter. Resend (Svix) und pg_net folgen keiner Weiterleitung, der Aufruf kommt nie bei der App an. Die
+  Zeitsteuerung zeigte seit dem Domainwechsel ebenfalls auf die Adresse ohne www.
+- **Behebung:** Zeitsteuerung und README auf `https://www.flcautomotive.de`; Webhook-Endpunkt in Resend und
+  `NEXT_PUBLIC_SITE_URL` in Vercel ebenso.
+- **Muster:** Eine Adresse, die ein Dienst von sich aus aufruft (Webhook, Cron, Rückruf), zeigt auf eine Domain, die
+  nur weiterleitet. Im Browser fällt das nie auf. Prüfen mit `curl -sI -X POST <adresse>`: Es darf kein 30x kommen.
+- **Weitere Stellen:** `ENV.siteUrl` speist Links in Mails, Signatur und Sitemap (Browser folgen der Weiterleitung,
+  unkritisch) und die Anzeige des Endpunkts in Einstellungen → E-Mail → Einrichtung (zeigt die falsche Adresse, solange
+  `NEXT_PUBLIC_SITE_URL` ohne www ist). Ausgehende Webhooks der App rufen fremde Adressen auf, nicht betroffen.
+
 ### 2026-11-25 · Einstellungen: abgewählter Haken war nach „Speichern“ wieder gesetzt
 
 - **Stand:** behoben
