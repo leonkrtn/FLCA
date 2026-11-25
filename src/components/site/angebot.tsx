@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Pfeil } from "@/components/icons";
-import { countdownText, rabattText, type Angebot, type AngebotsPreis } from "@/lib/angebote/preise";
+import { countdownKnapp, rabattText, type Angebot, type AngebotsPreis } from "@/lib/angebote/preise";
 import { absaetze, datum, preis } from "@/lib/format";
 import { websiteDatei } from "@/lib/supabase/admin";
 import type { Leistung } from "@/lib/termine";
@@ -40,9 +40,16 @@ export function angeboteIn(leistungen: Pick<Leistung, "angebot">[]): AngebotsPre
   return [...new Map(leistungen.flatMap((l) => (l.angebot ? [[l.angebot.id, l.angebot] as const] : []))).values()];
 }
 
+/** Die große Zahl einer Angebotskarte: „−20 %“, „−10 €“ oder beim Festpreis der Preis selbst. */
+function grosseZahl(a: Pick<Angebot, "art" | "wert">): string {
+  return a.art === "festpreis" ? preis(a.wert) : rabattText(a);
+}
+
 /**
- * Laufende Angebote auf der Startseite: Titel, Text, Bild, Rabatt, Countdown und Bedingungen. Führt zur
- * Terminanfrage, wenn das Angebot genau eine buchbare Leistung trifft, sonst zu den Preisen.
+ * Laufende Angebote auf der Startseite, kompakt nebeneinander: oben der Titel, darunter Leistungen, Text und Weg
+ * zur Anfrage, rechts daneben groß der Rabatt. Ohne eigenes Bild trägt die Zahl die Karte, damit keine leere
+ * Fläche bleibt. Der Countdown erscheint erst kurz vor Ende (`countdownKnapp`), vorher genügt das Enddatum. Führt
+ * zur Terminanfrage, wenn das Angebot genau eine buchbare Leistung trifft, sonst zu den Preisen.
  */
 export function AngebotsHinweise({ angebote, leistungen, heute }: { angebote: Angebot[]; leistungen: Leistung[]; heute: string }) {
   const sichtbar = angebote
@@ -52,43 +59,53 @@ export function AngebotsHinweise({ angebote, leistungen, heute }: { angebote: An
   if (!sichtbar.length) return null;
 
   return (
-    <section aria-label="Angebote" className="rand grid gap-4 pt-16 md:pt-24">
+    <section aria-label="Angebote" className={`rand grid gap-4 pt-16 md:pt-24 ${sichtbar.length > 1 ? "lg:grid-cols-2" : ""}`}>
       {sichtbar.map(({ a, getroffen }) => {
         const bild = websiteDatei(a.bild_pfad);
-        const countdown = countdownText(a.bis, heute);
+        const countdown = countdownKnapp(a.bis, heute);
         const buchbar = getroffen.filter((l) => l.online_anfragbar);
         const ziel = buchbar.length === 1 ? { href: `/termin?leistung=${buchbar[0].slug}`, text: `${buchbar[0].name} anfragen` } : { href: "/#preise", text: "Zu den Preisen" };
         return (
-          <article key={a.id} className="grid overflow-hidden rounded-lg bg-flaeche ring-1 ring-linie md:grid-cols-12">
+          <article key={a.id} className="flex flex-col overflow-hidden rounded-lg bg-flaeche ring-1 ring-linie">
             {bild ? (
-              <div className="relative aspect-[16/9] md:col-span-5 md:aspect-auto md:min-h-72">
-                <Image src={bild} alt="" fill sizes="(min-width: 768px) 40vw, 100vw" className="object-cover" />
+              <div className="relative aspect-[21/9]">
+                <Image src={bild} alt="" fill sizes="(min-width: 1024px) 50vw, 100vw" className="object-cover" />
               </div>
             ) : null}
-            <div className={`flex flex-col justify-center p-6 md:p-10 ${bild ? "md:col-span-7" : "md:col-span-12"}`}>
-              <p className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm uppercase tracking-[0.16em] text-grau">
+            <div className="flex flex-1 flex-col p-6 md:p-8">
+              <p className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm uppercase tracking-[0.16em] text-grau">
                 Angebot
-                {countdown ? <span className="zahlen normal-case tracking-normal text-tinte">{countdown}</span> : null}
+                {countdown ? <span className="zahlen rounded-md bg-rot px-2 py-0.5 font-semibold normal-case tracking-normal text-auf-rot">{countdown}</span> : null}
               </p>
-              <h2 className="schmal text-4xl md:text-6xl">{a.titel}</h2>
-              <p className="mt-4 flex flex-wrap items-center gap-3">
-                <span className="zahlen rounded-md bg-rot px-3 py-1.5 text-lg font-semibold text-auf-rot">{a.art === "festpreis" ? `Festpreis ${preis(a.wert)}` : rabattText(a)}</span>
-                <span className="text-sm text-grau">
-                  {getroffen.map((l) => l.name).join(", ")}
-                  {a.bis ? <span className="zahlen"> · bis {datum(a.bis)}</span> : null}
-                </span>
-              </p>
-              {a.kurztext ? (
-                <div className="mt-5 max-w-prose text-lg text-tinte/85">
-                  {absaetze(a.kurztext).map((x) => (
-                    <p key={x.slice(0, 24)}>{x}</p>
-                  ))}
+              {/* Titel über die volle Breite: neben der großen Zahl bräche „Reifensaison“ mitten im Wort um */}
+              <h2 className="schmal hyphens-auto text-4xl md:text-5xl">{a.titel}</h2>
+              <div className="mt-auto flex flex-col gap-6 pt-4 sm:flex-row sm:items-end sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-sm text-grau">
+                    {getroffen.map((l) => l.name).join(", ")}
+                    {a.bis ? <span className="zahlen"> · bis {datum(a.bis)}</span> : null}
+                  </p>
+                  {a.kurztext ? (
+                    <div className="mt-4 max-w-prose text-tinte/85">
+                      {absaetze(a.kurztext).map((x) => (
+                        <p key={x.slice(0, 24)}>{x}</p>
+                      ))}
+                    </div>
+                  ) : null}
+                  <Link href={ziel.href} className="mt-6 inline-flex w-fit items-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold ring-1 ring-linie hover:bg-white/[0.06]">
+                    {ziel.text} <Pfeil className="size-4" />
+                  </Link>
+                  {a.bedingungen ? <p className="mt-5 max-w-prose text-xs text-grau">{a.bedingungen}</p> : null}
                 </div>
-              ) : null}
-              <Link href={ziel.href} className="mt-7 inline-flex w-fit items-center gap-2 rounded-md px-5 py-3 font-semibold ring-1 ring-linie hover:bg-white/[0.06]">
-                {ziel.text} <Pfeil className="size-4" />
-              </Link>
-              {a.bedingungen ? <p className="mt-6 max-w-prose text-xs text-grau">{a.bedingungen}</p> : null}
+                {/* Auf dem Telefon direkt unter dem Titel, ab sm unten rechts */}
+                <p className="order-first shrink-0 sm:order-none sm:text-right">
+                  {a.art === "festpreis" ? <span className="block text-sm uppercase tracking-[0.16em] text-grau">Festpreis</span> : null}
+                  <span className="schmal zahlen block whitespace-nowrap text-7xl leading-[0.85] md:text-8xl">
+                    <span className="sr-only">{a.art === "festpreis" ? "" : "Rabatt "}</span>
+                    {grosseZahl(a)}
+                  </span>
+                </p>
+              </div>
             </div>
           </article>
         );

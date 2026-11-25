@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { Zurueck } from "@/components/icons";
 import { AngebotsChip, AngebotsPreisText } from "@/components/site/angebot";
 import { laufendeAngebote } from "@/lib/angebote/daten";
-import { countdownText } from "@/lib/angebote/preise";
+import { countdownKnapp } from "@/lib/angebote/preise";
 import { absaetze, datum, preis } from "@/lib/format";
 import { oeffentlicheLeistungen } from "@/lib/inhalte";
 import { websiteDatei } from "@/lib/supabase/admin";
@@ -29,7 +29,7 @@ export default async function LeistungSeite({ params }: { params: Promise<{ slug
   const l = alle.find((x) => x.slug === slug);
   if (!l) notFound();
   const angebot = l.angebot ? angebote.find((a) => a.id === l.angebot!.id) : undefined;
-  const countdown = countdownText(l.angebot?.bis ?? null, berlinDatum());
+  const countdown = countdownKnapp(l.angebot?.bis ?? null, berlinDatum());
   const bild = websiteDatei(l.bild_pfad);
   const dauer = l.dauer_min >= 420 ? "ganzer Tag" : l.dauer_min >= 60 ? `ca. ${String(Math.round((l.dauer_min / 60) * 2) / 2).replace(".", ",")} Stunden` : `ca. ${l.dauer_min} Minuten`;
   return (

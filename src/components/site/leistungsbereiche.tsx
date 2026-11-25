@@ -8,7 +8,8 @@ import { AngebotsChip, AngebotsPreisText, angeboteIn } from "@/components/site/a
 import { preis } from "@/lib/format";
 import type { Leistung } from "@/lib/termine";
 
-const BEREICHE: { kategorie: string; titel: string; text: string; bild: StaticImageData; alt: string; flaeche: string }[] = [
+/** Bereiche mit Foto und Kurztext; auch die Seite „Leistungen“ nimmt sie für ihre Bildbanner. */
+export const BEREICHE: { kategorie: string; titel: string; text: string; bild: StaticImageData; alt: string; flaeche: string }[] = [
   {
     kategorie: "reifen",
     titel: "Reifen",
