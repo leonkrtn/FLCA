@@ -1,5 +1,6 @@
 import "server-only";
 import { einstellungen } from "./einstellungen";
+import { agbStandard, datenschutzStandard } from "./rechtstexte-standard";
 
 /**
  * Rechtstexte (Datenschutz, AGB). Bevorzugt von einem Rechtstexte-Dienst wie der IT-Recht Kanzlei, dessen
@@ -10,7 +11,7 @@ import { einstellungen } from "./einstellungen";
  * Die Bereinigung (Positivliste von Tags und Adressen) stammt aus dem Projekt waprofis.
  */
 
-export type Rechtstext = { html: string; quelle: "dienst" | "hinterlegt" | "fehlt" };
+export type Rechtstext = { html: string; quelle: "dienst" | "hinterlegt" | "standard" };
 
 const ERLAUBTE_TAGS = new Set([
   'p', 'br', 'hr', 'span', 'div',
@@ -181,7 +182,7 @@ function textAlsHtml(text: string): string {
 }
 
 export async function rechtstext(art: "datenschutz" | "agb"): Promise<Rechtstext> {
-  const { rechtstexte } = await einstellungen();
+  const { rechtstexte, firma } = await einstellungen();
   const url = art === "datenschutz" ? rechtstexte.datenschutzUrl : rechtstexte.agbUrl;
   const hinterlegt = art === "datenschutz" ? rechtstexte.datenschutzText : rechtstexte.agbText;
   if (url.startsWith("https://")) {
@@ -196,5 +197,6 @@ export async function rechtstext(art: "datenschutz" | "agb"): Promise<Rechtstext
     }
   }
   if (hinterlegt.trim()) return { html: textAlsHtml(hinterlegt), quelle: "hinterlegt" };
-  return { html: "", quelle: "fehlt" };
+  // Ohne Dienst und Ersatztext gilt der mitgelieferte Text, damit die Pflichtseite nie leer ist.
+  return { html: art === "datenschutz" ? datenschutzStandard(firma) : agbStandard(firma), quelle: "standard" };
 }
