@@ -334,7 +334,7 @@ export function BelegEditor({
   // Klassen je Darstellung. Ausgeschrieben statt zusammengesetzt, damit Tailwind sie findet.
   const tabelle = !kompakt;
   const zeile = tabelle
-    ? "grid-cols-[minmax(0,1fr)_2.5rem] md:grid-cols-[minmax(0,1fr)_5rem_7rem_7rem_7rem_2.5rem] md:items-start"
+    ? "grid-cols-[minmax(0,1fr)_2.5rem] @3xl:grid-cols-[minmax(0,1fr)_5rem_7rem_7rem_7rem_2.5rem] @3xl:items-start"
     : "grid-cols-[minmax(0,1fr)_2.5rem]";
   const regulaer = d.positionen.map((p, i) => (p.rabatt ? -1 : i)).filter((i) => i >= 0);
 
@@ -490,10 +490,12 @@ export function BelegEditor({
       </section>
       )}
 
-      <section className="min-w-0">
+      {/* Tabelle nach der Breite des Abschnitts, nicht des Bildschirms: Neben der Verlauf-Spalte (iPad quer,
+          Laptop) blieb der Bezeichnung sonst kaum Platz, die festen Spalten brauchen schon rund 500 px. */}
+      <section className="@container min-w-0">
         <h2 className="mb-3 font-semibold">Positionen</h2>
         {tabelle ? (
-          <div className="hidden grid-cols-[minmax(0,1fr)_5rem_7rem_7rem_7rem_2.5rem] gap-2 border-b-2 border-tinte pb-2 text-sm font-semibold md:grid">
+          <div className="hidden grid-cols-[minmax(0,1fr)_5rem_7rem_7rem_7rem_2.5rem] gap-2 border-b-2 border-tinte pb-2 text-sm font-semibold @3xl:grid">
             <span>Bezeichnung</span>
             <span className="text-right">Menge</span>
             <span>Einheit</span>
@@ -502,7 +504,7 @@ export function BelegEditor({
             <span />
           </div>
         ) : null}
-        <div className={`divide-y divide-linie border-b border-linie ${tabelle ? "border-t-2 border-t-tinte md:border-t-0" : "border-t-2 border-t-tinte"}`}>
+        <div className={`divide-y divide-linie border-b border-linie ${tabelle ? "border-t-2 border-t-tinte @3xl:border-t-0" : "border-t-2 border-t-tinte"}`}>
           {d.positionen.map((p, i) => {
             const z = zeilen[i];
             if (p.rabatt) {
@@ -510,8 +512,8 @@ export function BelegEditor({
               return (
                 <div key={i} className={`grid gap-2 py-3 ${zeile}`}>
                   <input value={p.text} onChange={(ev) => setPos(i, { text: ev.target.value })} className="feld min-h-10 min-w-0" aria-label="Bezeichnung des Rabatts" />
-                  <Entfernen onClick={() => weg(i)} className={tabelle ? "flex md:hidden" : "flex"} />
-                  <div className={tabelle ? "col-span-2 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2 md:col-span-3 md:grid-cols-[5rem_minmax(0,1fr)_7rem]" : "col-span-2 grid grid-cols-2 gap-2"}>
+                  <Entfernen onClick={() => weg(i)} className={tabelle ? "flex @3xl:hidden" : "flex"} />
+                  <div className={tabelle ? "col-span-2 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2 @3xl:col-span-3 @3xl:grid-cols-[5rem_minmax(0,1fr)_7rem]" : "col-span-2 grid grid-cols-2 gap-2"}>
                     <Spalte text="Art" tabelle={tabelle}>
                       <select
                         value={prozent ? "%" : "€"}
@@ -523,7 +525,7 @@ export function BelegEditor({
                         <option value="€">€ netto</option>
                       </select>
                     </Spalte>
-                    <span className="hidden md:block" />
+                    <span className="hidden @3xl:block" />
                     <Spalte text={prozent ? "Prozent" : "Betrag € netto"} tabelle={tabelle}>
                       <input
                         value={z?.preis ?? ""}
@@ -537,14 +539,14 @@ export function BelegEditor({
                       />
                     </Spalte>
                   </div>
-                  <span className={`zahlen col-span-2 text-right text-sm text-grau ${tabelle ? "md:hidden" : ""}`}>Rabatt: {euro(summen.zeilenNetto[i] ?? 0)}</span>
+                  <span className={`zahlen col-span-2 text-right text-sm text-grau ${tabelle ? "@3xl:hidden" : ""}`}>Rabatt: {euro(summen.zeilenNetto[i] ?? 0)}</span>
                   {tabelle ? (
                     <>
-                      <span className="zahlen hidden pt-2 text-right md:block">{euro(summen.zeilenNetto[i] ?? 0)}</span>
-                      <Entfernen onClick={() => weg(i)} className="hidden md:flex" />
+                      <span className="zahlen hidden pt-2 text-right @3xl:block">{euro(summen.zeilenNetto[i] ?? 0)}</span>
+                      <Entfernen onClick={() => weg(i)} className="hidden @3xl:flex" />
                     </>
                   ) : null}
-                  <p className={`text-xs text-grau ${tabelle ? "col-span-2 md:col-span-6" : "col-span-2"}`}>Gilt für alle Positionen dieses Belegs.</p>
+                  <p className={`text-xs text-grau ${tabelle ? "col-span-2 @3xl:col-span-6" : "col-span-2"}`}>Gilt für alle Positionen dieses Belegs.</p>
                 </div>
               );
             }
@@ -560,9 +562,9 @@ export function BelegEditor({
                   aria-label="Bezeichnung"
                   placeholder="Bezeichnung"
                 />
-                <Entfernen onClick={() => weg(i)} className={tabelle ? "flex md:hidden" : "flex"} />
+                <Entfernen onClick={() => weg(i)} className={tabelle ? "flex @3xl:hidden" : "flex"} />
                 {/* Menge braucht wenig Platz, „Pauschal“ in der Einheit dagegen schon. */}
-                <div className={tabelle ? "col-span-2 grid grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,1fr)] gap-2 md:contents" : "col-span-2 grid grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,1fr)] gap-2"}>
+                <div className={tabelle ? "col-span-2 grid grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,1fr)] gap-2 @3xl:contents" : "col-span-2 grid grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,1fr)] gap-2"}>
                   <Spalte text={p.einheit === "Std" ? "Stunden" : "Menge"} tabelle={tabelle}>
                     <input
                       value={z?.menge ?? mengeText(p.menge)}
@@ -588,22 +590,22 @@ export function BelegEditor({
                     <span className="zahlen mt-0.5 block text-right text-xs text-grau">brutto {euro(runden(vk * (1 + p.mwst_satz / 100)))}</span>
                   </Spalte>
                 </div>
-                <span className={`zahlen col-span-2 text-right text-sm text-grau ${tabelle ? "md:hidden" : ""}`}>
+                <span className={`zahlen col-span-2 text-right text-sm text-grau ${tabelle ? "@3xl:hidden" : ""}`}>
                   Zeile: {euro(summen.zeilenNetto[i] ?? 0)} netto · {euro(summen.zeilenBrutto[i] ?? 0)} brutto
                 </span>
                 {tabelle ? (
                   <>
-                    <span className="hidden pt-2 text-right md:block">
+                    <span className="hidden pt-2 text-right @3xl:block">
                       <span className="zahlen block">{euro(summen.zeilenNetto[i] ?? 0)}</span>
                       <span className="zahlen block text-xs text-grau">brutto {euro(summen.zeilenBrutto[i] ?? 0)}</span>
                     </span>
-                    <Entfernen onClick={() => weg(i)} className="hidden md:flex" />
+                    <Entfernen onClick={() => weg(i)} className="hidden @3xl:flex" />
                   </>
                 ) : null}
 
                 {/* Zusatz je Art: Lohn wählt den Stundensatz, ein Teil rechnet aus Einkauf und Aufschlag. */}
                 {p.einheit === "Std" || MIT_EK.has(p.einheit) || z?.hinweis ? (
-                  <div className={`flex flex-wrap items-end gap-x-4 gap-y-2 ${tabelle ? "col-span-2 md:col-span-6" : "col-span-2"}`}>
+                  <div className={`flex flex-wrap items-end gap-x-4 gap-y-2 ${tabelle ? "col-span-2 @3xl:col-span-6" : "col-span-2"}`}>
                     {p.einheit === "Std" ? (
                       <label className="block min-w-0">
                         <span className="mb-1 block text-xs text-grau">Lohnart</span>
@@ -655,7 +657,7 @@ export function BelegEditor({
           })}
           {!d.positionen.length ? <p className="py-6 text-center text-grau">Noch keine Position. Aus der Preisliste oder einem Paket wählen oder eine freie Position anlegen.</p> : null}
         </div>
-        <div className={`mt-3 grid gap-2 ${tabelle ? "md:flex md:flex-wrap md:items-center" : ""}`}>
+        <div className={`mt-3 grid gap-2 ${tabelle ? "@3xl:flex @3xl:flex-wrap @3xl:items-center" : ""}`}>
           <select
             value=""
             onChange={(ev) => {
@@ -663,7 +665,7 @@ export function BelegEditor({
               if (a) anhaengen([ausListe(a)]);
             }}
             // Ohne max-w-full wird die Auswahl so breit wie der längste Eintrag und schiebt das Handy-Layout auf.
-            className={`feld min-h-10 max-w-full ${tabelle ? "md:w-auto" : ""}`}
+            className={`feld min-h-10 max-w-full ${tabelle ? "@3xl:w-auto" : ""}`}
             aria-label="Position aus der Preisliste hinzufügen"
           >
             <option value="">+ Aus der Preisliste</option>
@@ -680,7 +682,7 @@ export function BelegEditor({
                 const p = pakete.find((x) => x.id === ev.target.value);
                 if (p) paketEinfuegen(p);
               }}
-              className={`feld min-h-10 max-w-full ${tabelle ? "md:w-auto" : ""}`}
+              className={`feld min-h-10 max-w-full ${tabelle ? "@3xl:w-auto" : ""}`}
               aria-label="Paket hinzufügen"
             >
               <option value="">+ Paket</option>

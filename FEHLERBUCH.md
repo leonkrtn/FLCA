@@ -18,6 +18,23 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-26 · Beleg-Editor: Bezeichnung der Positionen nur 50 px breit
+
+- **Stand:** behoben
+- **Wo:** Positionen im `BelegEditor` (`src/components/admin/beleg-editor.tsx`), also Kostenvoranschlag und Rechnung
+- **Was man sah:** (beim Erkunden für das Erklärvideo bemerkt) Bei 1280 px Fensterbreite (Laptop, iPad quer) war das
+  Feld „Bezeichnung“ so schmal, dass nur „Ölwecl“ oder „Brems“ zu lesen war.
+- **Ursache:** Die Tabellenansicht schaltete ab Bildschirmbreite `md` (768 px) ein. Neben Seitenleiste und
+  Verlauf-Spalte ist die Karte dann aber nur rund 600 px breit, die festen Spalten (Menge, Einheit, Einzel, Gesamt,
+  Entfernen) brauchen schon rund 500 px.
+- **Behebung:** Der Abschnitt ist ein `@container`; Tabelle erst ab 48 rem Abschnittsbreite (`@3xl:` statt `md:`),
+  darunter die gestapelte Ansicht wie auf dem Handy.
+- **Muster:** Tabellen mit festen Spalten in einer Karte neben einer Seitenspalte: nach der Breite des Containers
+  umschalten, nicht nach der des Bildschirms.
+- **Weitere Stellen:** Die übrigen Raster mit festen Spalten (Termine, Aufträge, Kostenvoranschläge, Kunden,
+  Mitarbeiter) stehen in voller Breite ohne Seitenspalte und haben eine flexible Textspalte `minmax(0,1fr)`; dort
+  bleibt genug Platz.
+
 ### 2026-11-25 · Knopfbeschriftung läuft über den Rand
 
 - **Stand:** behoben
