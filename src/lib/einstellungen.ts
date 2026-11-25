@@ -138,7 +138,7 @@ export const STANDARD: Einstellungen = {
     ort: "Dietzenbach",
     telefon: "+49 176 40384963",
     whatsapp: "4917640384963",
-    email: "info@flcautomotive.de",
+    email: "service@flcautomotive.de",
     instagram: "flcautomotive",
     hinweisAnfahrt: "Der Eingang liegt in der Karl-Benz-Straße. Fahren Sie durch das große Metalltor.",
     googleBewertungLink: "https://www.google.com/maps?cid=10779731825307987908",
