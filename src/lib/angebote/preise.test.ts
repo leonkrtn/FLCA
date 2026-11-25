@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type Angebot, angeboteAnwenden, countdownText, laeuft, mitAngebot, reduziert, trifft } from "./preise";
+import { type Angebot, angeboteAnwenden, COUNTDOWN_TAGE, countdownKnapp, countdownText, laeuft, mitAngebot, reduziert, trifft } from "./preise";
 
 const angebot = (x: Partial<Angebot>): Angebot => ({
   id: "a",
@@ -95,5 +95,15 @@ describe("countdownText", () => {
   });
   it("rechnet über die Zeitumstellung hinweg ganze Tage", () => {
     expect(countdownText("2026-10-30", "2026-10-20")).toBe("Noch 11 Tage");
+  });
+});
+
+describe("countdownKnapp", () => {
+  it("zeigt den Countdown erst in den letzten Tagen", () => {
+    expect(countdownKnapp("2026-12-24", "2026-11-25")).toBeNull();
+    expect(countdownKnapp("2026-12-24", "2026-12-11")).toBe(`Noch ${COUNTDOWN_TAGE} Tage`);
+    expect(countdownKnapp("2026-12-24", "2026-12-10")).toBeNull();
+    expect(countdownKnapp("2026-12-24", "2026-12-24")).toBe("Nur noch heute");
+    expect(countdownKnapp(null, "2026-12-24")).toBeNull();
   });
 });

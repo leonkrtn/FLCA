@@ -122,6 +122,17 @@ export function countdownText(bis: string | null, heute: string): string | null 
   return `Noch ${n} Tage`;
 }
 
+/** Ab so vielen Resttagen zeigt die Website einen Countdown, vorher nur das Enddatum. */
+export const COUNTDOWN_TAGE = 14;
+
+/**
+ * Countdown für die Website: erst kurz vor Ende. Ein „Noch 97 Tage“ wirkt wie ein Dauer-Countdown und nimmt
+ * dem knappen einen Teil seiner Wirkung; bis dahin genügt „bis 24.12.2026“.
+ */
+export function countdownKnapp(bis: string | null, heute: string): string | null {
+  return bis && restTage(bis, heute) <= COUNTDOWN_TAGE ? countdownText(bis, heute) : null;
+}
+
 /** „1.10.2026 bis 15.11.2026“, „ab 1.10.2026“ */
 export function laufzeitText(a: Pick<Angebot, "von" | "bis">): string {
   return a.bis ? `${datum(a.von)} bis ${datum(a.bis)}` : `ab ${datum(a.von)}, ohne Ende`;
