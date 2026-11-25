@@ -91,7 +91,7 @@ Website, Terminvergabe, Werkstatt-Verwaltung, Rechnungen, Team und Karriere für
 
 ### 2. Resend
 
-Domain `flcautomotive.de` anlegen, die DNS-Einträge (SPF, DKIM, optional DMARC) beim Domain-Anbieter setzen, warten bis „Verified“. Absender z. B. `FLC Automotive <termine@flcautomotive.de>`; die Domain aus `MAIL_FROM` ist auch die der Postfächer. Antworten der Kunden auf Systemmails gehen an die Firmen-E-Mail aus den Einstellungen (Reply-To): Steht dort `info@flcautomotive.de`, landen sie im Firmenpostfach der Anwendung.
+Domain `flcautomotive.de` anlegen, die DNS-Einträge (SPF, DKIM, optional DMARC) beim Domain-Anbieter setzen, warten bis „Verified“. Absender z. B. `FLC Automotive <service@flcautomotive.de>`; die Domain aus `MAIL_FROM` ist auch die der Postfächer. Antworten der Kunden auf Systemmails gehen an die Firmen-E-Mail aus den Einstellungen (Reply-To): Steht dort `service@flcautomotive.de`, landen sie im Firmenpostfach der Anwendung.
 
 **Empfangen** (Postfächer in der Anwendung):
 
@@ -99,7 +99,7 @@ Domain `flcautomotive.de` anlegen, die DNS-Einträge (SPF, DKIM, optional DMARC)
 2. Resend → *Domains → flcautomotive.de* → Empfangen (Receiving) einschalten und den angezeigten **MX-Eintrag** beim Domain-Anbieter setzen. Danach nimmt Resend alle Mails an `…@flcautomotive.de` an; ein anderes Postfach für die Domain (z. B. beim Domain-Anbieter) bekommt dann nichts mehr.
 3. Resend → *Webhooks → Add Endpoint*: `https://<website>/api/mail/eingang`, Ereignisse `email.received` und `email.sent` (das zweite merkt sich die Kennung gesendeter Mails, damit Antworten im richtigen Verlauf landen).
 4. Das *Signing Secret* des Webhooks (`whsec_…`) in Vercel als `RESEND_WEBHOOK_SECRET` eintragen, neu deployen.
-5. Probe: eine Mail an `info@flcautomotive.de` schicken; sie steht nach wenigen Sekunden unter *Mail*. Fehler beim Empfang stehen unter *Einstellungen → Fehler*.
+5. Probe: eine Mail an `service@flcautomotive.de` schicken; sie steht nach wenigen Sekunden unter *Mail*. Fehler beim Empfang stehen unter *Einstellungen → Fehler*.
 
 ### 3. Push-Nachrichten
 
