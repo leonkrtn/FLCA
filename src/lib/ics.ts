@@ -26,7 +26,7 @@ export function ics({
     "PRODID:-//FLC Automotive//Termine//DE",
     `METHOD:${storniert ? "CANCEL" : "PUBLISH"}`,
     "BEGIN:VEVENT",
-    `UID:${uid}@flc-automotive.de`,
+    `UID:${uid}@flcautomotive.de`,
     `DTSTAMP:${fmt(new Date())}`,
     `DTSTART:${fmt(beginn)}`,
     `DTEND:${fmt(ende)}`,

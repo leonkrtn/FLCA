@@ -80,16 +80,16 @@ Website, Terminvergabe, Werkstatt-Verwaltung, Rechnungen, Team und Karriere für
 4. *Authentication → Emails → SMTP Settings*: eigenen SMTP eintragen, sonst schickt Supabase nur 2 Mails pro Stunde. Mit Resend: Host `smtp.resend.com`, Port 465, Benutzer `resend`, Passwort = Resend-API-Key, Absender wie `MAIL_FROM`.
 5. *Authentication → Emails → Templates*: In „Invite user“ und „Reset password“ den Link ersetzen durch
    `{{ .SiteURL }}/auth/bestaetigen?token_hash={{ .TokenHash }}&type=invite` bzw. `…&type=recovery`.
-   *URL Configuration*: Site URL = Adresse der Website, derzeit `https://flca.vercel.app` (später `https://flc-automotive.de`).
+   *URL Configuration*: Site URL = Adresse der Website, derzeit `https://flca.vercel.app` (später `https://flcautomotive.de`).
 6. Ersten Inhaber anlegen: *Authentication → Users → Add user* (Auto Confirm an), dann im SQL-Editor:
    ```sql
-   update public.profile set rolle = 'inhaber', name = 'Flavio Ciurli' where email = 'info@flc-automotive.de';
+   update public.profile set rolle = 'inhaber', name = 'Flavio Ciurli' where email = 'info@flcautomotive.de';
    ```
    Weitere Personen lädt der Inhaber danach unter *Mitarbeiter → Personen und Zugang* ein.
 
 ### 2. Resend
 
-Domain `flc-automotive.de` anlegen, die DNS-Einträge (SPF, DKIM, optional DMARC) beim Domain-Anbieter setzen, warten bis „Verified“. Absender z. B. `FLC Automotive <termine@flc-automotive.de>`. Antworten der Kunden gehen an die Firmen-E-Mail aus den Einstellungen (Reply-To), also ins Gmail-Postfach.
+Domain `flcautomotive.de` anlegen, die DNS-Einträge (SPF, DKIM, optional DMARC) beim Domain-Anbieter setzen, warten bis „Verified“. Absender z. B. `FLC Automotive <termine@flcautomotive.de>`. Antworten der Kunden gehen an die Firmen-E-Mail aus den Einstellungen (Reply-To), also ins Gmail-Postfach.
 
 ### 3. Push-Nachrichten
 
@@ -101,7 +101,7 @@ Projekt aus dem Repo anlegen, Region ist über `vercel.json` Frankfurt. Umgebung
 
 | Variable | Woher |
 | --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | derzeit `https://flca.vercel.app`, später `https://flc-automotive.de` |
+| `NEXT_PUBLIC_SITE_URL` | derzeit `https://flca.vercel.app`, später `https://flcautomotive.de` |
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` | Supabase → Project Settings → API Keys |
 | `RESEND_API_KEY`, `MAIL_FROM` | Resend |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | `npx web-push generate-vapid-keys` |
@@ -111,9 +111,9 @@ Der kostenlose Hobby-Tarif ist laut Vercel nur für nicht-kommerzielle Nutzung. 
 
 ### Umzug auf die eigene Domain
 
-Die Website läuft derzeit unter `https://flca.vercel.app`. Beim Wechsel auf `https://flc-automotive.de`:
+Die Website läuft derzeit unter `https://flca.vercel.app`. Beim Wechsel auf `https://flcautomotive.de`:
 
-1. Vercel: Domain hinzufügen, `NEXT_PUBLIC_SITE_URL` auf `https://flc-automotive.de` setzen, neu deployen.
+1. Vercel: Domain hinzufügen, `NEXT_PUBLIC_SITE_URL` auf `https://flcautomotive.de` setzen, neu deployen.
 2. Supabase: *Authentication → URL Configuration* → Site URL ändern.
 3. Supabase-SQL-Editor: in `supabase/zeitsteuerung-einrichten.sql` die Adresse ändern und ausführen. Das Geheimnis bleibt gleich, `CRON_SECRET` in Vercel muss nicht angefasst werden.
 4. Die Web-Apps auf den Handys einmal vom Home-Bildschirm löschen und unter der neuen Adresse neu hinzufügen (Push neu einschalten).
