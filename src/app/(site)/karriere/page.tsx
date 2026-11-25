@@ -30,12 +30,13 @@ export default async function KarriereSeite() {
         </div>
       </section>
 
+      {/* Stellen und Initiativbewerbung über die volle Breite, auch bei nur einer Stelle (sonst steht rechts eine leere Hälfte) */}
       <section aria-labelledby="stellen-titel" className="rand pt-16 md:pt-24">
         <h2 id="stellen-titel" className="schmal mb-8 text-3xl sm:text-4xl md:text-6xl">
           Offene Stellen
         </h2>
         {liste.length ? (
-          <ul className="grid gap-4 md:grid-cols-2">
+          <ul className="grid gap-4">
             {liste.map((s) => (
               <li key={s.id}>
                 <Link
@@ -63,10 +64,9 @@ export default async function KarriereSeite() {
         )}
       </section>
 
-      {/* Breite innen begrenzt, nicht an der Box mit „rand“ (siehe Fehlerbuch: rand mit max-w) */}
       <section aria-labelledby="initiativ-titel" className="rand pb-24 pt-20 md:pt-28">
         {/* Grund „papier“ wie auf der Stellenseite, damit die Felder (Fläche) sich abheben */}
-        <div className="mx-auto max-w-2xl rounded-lg bg-papier p-6 ring-1 ring-linie md:p-10">
+        <div className="rounded-lg bg-papier p-6 ring-1 ring-linie md:p-10">
           <h2 id="initiativ-titel" className="schmal mb-2 text-3xl md:text-4xl">
             Initiativ bewerben
           </h2>
