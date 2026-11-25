@@ -166,11 +166,14 @@
     justify-content: center;
     gap: 0.5rem;
     min-height: 3rem;
-    padding: 0 1.25rem;
+    padding: 0.5rem 1.25rem;
     border-radius: var(--radius);
     font-weight: 600;
-    line-height: 1;
-    white-space: nowrap;
+    /* Passt die Beschriftung nicht in die Spalte (zwei Knöpfe nebeneinander auf dem iPad), bricht sie um, statt
+       über den Rand zu laufen. In Zeilen mit flex-wrap rutscht der Knopf vorher in die nächste Zeile. */
+    line-height: 1.2;
+    text-align: center;
+    text-wrap: balance;
     transition: background-color 120ms var(--ease-ruhig), color 120ms var(--ease-ruhig), border-color 120ms var(--ease-ruhig);
     -webkit-tap-highlight-color: transparent;
   }
@@ -212,7 +215,7 @@
   }
   .knopf-klein {
     min-height: 2.25rem;
-    padding: 0 0.875rem;
+    padding: 0.375rem 0.875rem;
     font-size: var(--text-sm);
   }
 

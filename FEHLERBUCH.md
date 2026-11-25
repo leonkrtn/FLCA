@@ -18,6 +18,26 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-25 · Knopfbeschriftung läuft über den Rand
+
+- **Stand:** behoben
+- **Wo:** `.knopf` in `src/app/globals.css` (alle Knöpfe, auch `Senden`)
+- **Was man sah:** (vom Nutzer gemeldet, Screenshot iPad) Termin → Entscheidung: „Andere Zeit vorschlagen …“ und
+  „Nein, ablehnen …“ nebeneinander, die Schrift lief links und rechts über die Rahmen und in den Nachbarknopf.
+- **Ursache:** `.knopf` hatte `white-space: nowrap`. In Spalten fester Breite (`grid-cols-2` ist in Tailwind
+  `minmax(0,1fr)`, darf also schmaler werden als der Text) passte die Beschriftung nicht und lief hinaus.
+- **Behebung:** Knöpfe brechen um (`text-wrap: balance`, zentriert, Zeilenhöhe 1.2, Innenrand oben und unten). In
+  Zeilen mit `flex-wrap` rutscht ein Knopf vorher in die nächste Zeile, einzeilig sieht alles aus wie vorher.
+- **Muster:** Text mit `nowrap` in einer Spalte, deren Breite nicht vom Text kommt (`grid-cols-N`,
+  `minmax(0,…)`, `w-full` in schmaler Karte). Nicht pro Stelle mit `whitespace-normal` flicken, sondern im Baustein.
+- **Weitere Stellen:** Alle Knöpfe sind über `.knopf` mitbehoben (Entscheidung, Erledigt/Nicht erschienen,
+  Absagen, Beleg-Editor). `beleg-editor.tsx` hatte den Umbruch schon einzeln nachgerüstet, bleibt so. Weitere
+  `whitespace-nowrap` geprüft: Reiter (scrollen quer), Chips, Datumsspalten in Tabellen, Navigation: kurz oder in
+  scrollbaren Bereichen, kein Überlauf. Raster mit Text nutzen durchweg `minmax(0,1fr)`. Kopfzeilen (`Kopf`)
+  haben `flex-wrap`. Öffentliche Seiten im Browser auf 320, 375, 768 und 1024 px geprüft: kein Überlauf. Die
+  Verwaltung ließ sich hier ohne Datenbank nicht öffnen; die Entscheidung-Karte ist mit dem echten CSS
+  nachgestellt geprüft.
+
 ### 2026-11-25 · Mails auf dem iPhone schmal und mit grauem Rand
 
 - **Stand:** behoben
