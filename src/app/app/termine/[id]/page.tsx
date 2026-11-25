@@ -53,7 +53,7 @@ export default async function AppTermin({ params }: { params: Promise<{ id: stri
           {t.notiz_kunde ? <p className="mt-2 whitespace-pre-line">„{t.notiz_kunde}“</p> : null}
           {t.notiz_intern ? <p className="mt-2 text-sm text-grau">Intern: {t.notiz_intern}</p> : null}
           {t.kunde?.telefon ? (
-            <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="mt-3 knopfreihe">
               <a href={telHref(t.kunde.telefon)} className="knopf knopf-rahmen">Anrufen</a>
               {/* Nachricht passend zum Stand (Bestätigung, Freigabe, fertig …), Texte unter Einstellungen → WhatsApp */}
               {wa ? (

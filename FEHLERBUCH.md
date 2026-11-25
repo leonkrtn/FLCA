@@ -28,10 +28,17 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
   `minmax(0,1fr)`, darf also schmaler werden als der Text) passte die Beschriftung nicht und lief hinaus.
 - **Behebung:** Knöpfe brechen um (`text-wrap: balance`, zentriert, Zeilenhöhe 1.2, Innenrand oben und unten). In
   Zeilen mit `flex-wrap` rutscht ein Knopf vorher in die nächste Zeile, einzeilig sieht alles aus wie vorher.
+- **Nachtrag (vom Nutzer gemeldet):** Umgebrochene Knöpfe waren höher als die übrigen, das sah unsauber aus.
+  Knopfgruppen stehen deshalb nicht mehr in festen Spalten, sondern in `.knopfreihe` (füllt die Breite, ein Knopf
+  rutscht in die nächste Zeile, bevor er umbricht; `.knopfreihe-frei` ab Tablet in natürlicher Breite). Damit sind
+  alle Knöpfe einzeilig und 48 px hoch; der Umbruch in `.knopf` bleibt nur als Sicherung für extrem schmale Stellen.
 - **Muster:** Text mit `nowrap` in einer Spalte, deren Breite nicht vom Text kommt (`grid-cols-N`,
   `minmax(0,…)`, `w-full` in schmaler Karte). Nicht pro Stelle mit `whitespace-normal` flicken, sondern im Baustein.
+  Mehrere Knöpfe nebeneinander nie in `grid-cols-2`, sondern in `.knopfreihe`.
 - **Weitere Stellen:** Alle Knöpfe sind über `.knopf` mitbehoben (Entscheidung, Erledigt/Nicht erschienen,
-  Absagen, Beleg-Editor). `beleg-editor.tsx` hatte den Umbruch schon einzeln nachgerüstet, bleibt so. Weitere
+  Absagen, Beleg-Editor). Auf `.knopfreihe` umgestellt: Termin (Entscheidung, Erledigt/Nicht erschienen,
+  Verschieben/Absagen), Werkstattauftrag, Kostenvoranschlag (vier Gruppen), Rechnung, Werkstatt-App Termin
+  (Anrufen/WhatsApp) und Kunde. `beleg-editor.tsx` hatte den Umbruch schon einzeln nachgerüstet, bleibt so. Weitere
   `whitespace-nowrap` geprüft: Reiter (scrollen quer), Chips, Datumsspalten in Tabellen, Navigation: kurz oder in
   scrollbaren Bereichen, kein Überlauf. Raster mit Text nutzen durchweg `minmax(0,1fr)`. Kopfzeilen (`Kopf`)
   haben `flex-wrap`. Öffentliche Seiten im Browser auf 320, 375, 768 und 1024 px geprüft: kein Überlauf. Die

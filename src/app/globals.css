@@ -218,6 +218,25 @@
     padding: 0.375rem 0.875rem;
     font-size: var(--text-sm);
   }
+  /* Knopfgruppe statt fester Spalten: füllt die Breite, ein Knopf rutscht erst in die nächste Zeile, wenn er
+     daneben nicht mehr einzeilig passt. So bleiben alle Knöpfe einzeilig und gleich hoch; in festen Spalten brach
+     eine lange Beschriftung um und der Knopf wurde höher als die anderen. Formulare mit class="contents" zählen
+     durch. Mit .knopfreihe-frei ab Tablet-Breite in natürlicher Breite nebeneinander (wie eine Werkzeugleiste). */
+  .knopfreihe {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .knopfreihe > :not(.contents),
+  .knopfreihe > .contents > * {
+    flex: 1 1 auto;
+  }
+  @media (width >= 40rem) {
+    .knopfreihe-frei > :not(.contents),
+    .knopfreihe-frei > .contents > * {
+      flex: 0 1 auto;
+    }
+  }
 
   .feld {
     display: block;
