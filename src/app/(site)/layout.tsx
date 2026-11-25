@@ -1,5 +1,6 @@
 import { NachTastatur } from "@/components/nach-tastatur";
 import type { Viewport } from "next";
+import { CookieHinweis } from "@/components/site/cookie-hinweis";
 import { Fuss } from "@/components/site/fuss";
 import { Kopf } from "@/components/site/kopf";
 import { MobilLeiste } from "@/components/site/mobil-leiste";
@@ -16,6 +17,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       <main>{children}</main>
       <Fuss e={e} />
       <NachTastatur />
+      <CookieHinweis />
       <MobilLeiste telefon={e.firma.telefon} whatsapp={e.firma.whatsapp} />
     </div>
   );
