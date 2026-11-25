@@ -15,12 +15,13 @@ export type Bereich =
   | "schulung"
   | "einstellungen"
   | "benutzer"
-  | "werkstatt";
+  | "werkstatt"
+  | "firmenmail";
 
 export const ROLLEN: { wert: Rolle; name: string; beschreibung: string }[] = [
   { wert: "inhaber", name: "Inhaber", beschreibung: "Alles, inklusive Einstellungen, Benutzer und Rechnungsnummern" },
-  { wert: "buero", name: "Büro", beschreibung: "Termine, Notizen, Kunden, Rechnungen, Angebote, Einlagerung, Bewerbungen, Mitarbeiterplanung, Schulung" },
-  { wert: "mitarbeiter", name: "Mitarbeiter", beschreibung: "Eigene Arbeitszeiten, Aufträge, Urlaub und Zeiterfassung" },
+  { wert: "buero", name: "Büro", beschreibung: "Termine, Notizen, Kunden, Rechnungen, Angebote, Einlagerung, Bewerbungen, Mitarbeiterplanung, Schulung, Firmenpostfach" },
+  { wert: "mitarbeiter", name: "Mitarbeiter", beschreibung: "Eigene Arbeitszeiten, Aufträge, Urlaub, Zeiterfassung und eigenes Postfach" },
 ];
 
 const RECHTE: Record<Bereich, Rolle[]> = {
@@ -44,6 +45,8 @@ const RECHTE: Record<Bereich, Rolle[]> = {
   benutzer: ["inhaber"],
   // Team-App: alle mit Konto
   werkstatt: ["inhaber", "buero", "mitarbeiter"],
+  // Firmenpostfach (info@, termine@ …). Das eigene Postfach hat jede Person mit Konto (Recht „werkstatt“).
+  firmenmail: ["inhaber", "buero"],
 };
 
 export function darf(rolle: Rolle | null | undefined, bereich: Bereich): boolean {

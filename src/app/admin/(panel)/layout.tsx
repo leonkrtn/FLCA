@@ -15,6 +15,7 @@ import { darf, rollenName } from "@/lib/rollen";
 import { db } from "@/lib/supabase/admin";
 import { weich } from "@/lib/fehler";
 import { offeneFehlerAnzahl } from "@/lib/fehlerprotokoll";
+import { ungelesen } from "@/lib/mail/postfach";
 
 export const metadata: Metadata = { title: { default: "Verwaltung", template: "%s | Verwaltung FLC" }, robots: { index: false } };
 
@@ -27,7 +28,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // Ein kaputter Zähler darf nicht jede Seite der Verwaltung umwerfen: dann 0, aber im Fehlerprotokoll.
   const zaehlen = (tabelle: string, spalte: string, wert: string) =>
     weich(db().from(tabelle).select("id", { count: "exact", head: true }).eq(spalte, wert).then((r) => r.count ?? 0), 0, `Menü-Zähler ${tabelle}`);
-  const [anfragen, abwesenheiten, bewerbungen, erinnerungen, ohnePerson, fehler, meldungen, kundenEingaben] = await Promise.all([
+  const [anfragen, abwesenheiten, bewerbungen, erinnerungen, ohnePerson, fehler, meldungen, kundenEingaben, post] = await Promise.all([
     zaehlen("termine", "status", "angefragt"),
     darf(b.rolle, "team") ? zaehlen("abwesenheiten", "status", "beantragt") : 0,
     darf(b.rolle, "karriere") ? zaehlen("bewerbungen", "status", "neu") : 0,
@@ -44,6 +45,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           "Menü-Zähler kundenbildschirm_eingaben",
         )
       : 0,
+    // Ungelesen im eigenen und (mit Recht) im Firmenpostfach
+    weich(ungelesen(b), { eigene: 0, firma: 0 }, "Menü-Zähler Mail"),
   ]);
 
   const alle: (NavEintrag & { recht: Parameters<typeof darf>[1]; modul?: keyof typeof e.module })[] = [
@@ -52,6 +55,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: "/admin/termine", text: "Termine", recht: "termine", anzahl: anfragen },
     { href: "/admin/auftraege", text: "Werkstattaufträge", recht: "termine", anzahl: meldungen },
     { href: "/admin/notizen", text: "Notizen", recht: "notizen", anzahl: erinnerungen },
+    { href: "/admin/mail", text: "Mail", recht: "werkstatt", anzahl: post.eigene + post.firma },
     { href: "/admin/kunden", text: "Kunden", recht: "kunden" },
     { href: "/admin/kundenbildschirm", text: "Kundenbildschirm", recht: "kunden", anzahl: kundenEingaben },
     { href: "/admin/einlagerung", text: "Einlagerung", recht: "einlagerung", modul: "einlagerung" },

@@ -8,13 +8,18 @@ import { pushTest } from "@/lib/aktionen/push";
 import { benutzerMitRecht } from "@/lib/auth";
 import { rollenName } from "@/lib/rollen";
 import { db } from "@/lib/supabase/admin";
+import { ungelesen } from "@/lib/mail/postfach";
 
 export const metadata = { title: "Mehr" };
 
 export default async function MehrSeite() {
   const b = await benutzerMitRecht("termine");
   // Was der Server kennt, nicht was das Handy glaubt: Nur an diese Geräte gehen Nachrichten.
-  const { count: geraete } = await db().from("push_abos").select("id", { count: "exact", head: true }).eq("profil_id", b.id);
+  const [{ count: geraete }, post] = await Promise.all([
+    db().from("push_abos").select("id", { count: "exact", head: true }).eq("profil_id", b.id),
+    ungelesen(b),
+  ]);
+  const neueMails = post.eigene + post.firma;
   return (
     <>
       <MobilKopf titel="Mehr" unter={`${b.name || b.email} · ${rollenName(b.rolle)}`} />
@@ -32,6 +37,10 @@ export default async function MehrSeite() {
           <TaktStatus />
         </section>
         <nav className="grid grid-cols-1 gap-px bg-linie">
+          <Link href="/app/mail" className="flex items-center justify-between bg-weiss px-4 py-4 font-semibold">
+            Mail
+            {neueMails ? <span className="zahlen min-w-6 rounded-full bg-rot px-1.5 text-center text-xs leading-5 text-weiss">{neueMails}</span> : null}
+          </Link>
           {[
             ["/app/notizen", "Notizen und Erinnerungen"],
             ["/app/anfragen", "Alle Anfragen"],

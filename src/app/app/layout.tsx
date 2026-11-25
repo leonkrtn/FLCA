@@ -9,6 +9,7 @@ import { benutzerMitRecht } from "@/lib/auth";
 import { erinnerungenNachholen } from "@/lib/automatik";
 import { db } from "@/lib/supabase/admin";
 import { weich } from "@/lib/fehler";
+import { ungelesen } from "@/lib/mail/postfach";
 
 export const metadata: Metadata = {
   title: { default: "Werkstatt", template: "%s · Werkstatt" },
@@ -28,10 +29,13 @@ export const viewport: Viewport = { themeColor: "#ecebe7", viewportFit: "cover" 
  * Kostenvoranschlag, Rechnung oder Kunde anlegen oder per Sprache Notiz, Termin, Rechnung oder Kostenvoranschlag). Alles andere steht im großen Admin am Rechner.
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  await benutzerMitRecht("termine");
+  const b = await benutzerMitRecht("termine");
   // Fällige Erinnerungen nachholen, falls die Zeitsteuerung nicht anruft (nach der Antwort, bremst nichts)
   after(() => weich(erinnerungenNachholen(), undefined, "Erinnerungen nachholen"));
-  const count = await weich(db().from("termine").select("id", { count: "exact", head: true }).eq("status", "angefragt").then((r) => r.count), 0, "Zähler Anfragen (App)");
+  const [count, post] = await Promise.all([
+    weich(db().from("termine").select("id", { count: "exact", head: true }).eq("status", "angefragt").then((r) => r.count), 0, "Zähler Anfragen (App)"),
+    weich(ungelesen(b), { eigene: 0, firma: 0 }, "Zähler Mail (App)"),
+  ]);
   return (
     <div className="handy-app min-h-dvh bg-grund pb-[calc(4.5rem+env(safe-area-inset-bottom))]" data-leiste="dunkel">
       <div className="mx-auto max-w-xl">{children}</div>
@@ -59,8 +63,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             ],
           },
           { href: "/app/rechnungen", text: "Rechnungen", icon: <Dokument />, auch: ["/app/kostenvoranschlaege"] },
-          // Notizen öffnet man aus „Mehr“, dort bleibt der Tab markiert
-          { href: "/app/mehr", text: "Mehr", icon: <Mehr />, auch: ["/app/notizen"] },
+          // Notizen und Mail öffnet man aus „Mehr“, dort bleibt der Tab markiert; der Zähler zeigt ungelesene Mails
+          { href: "/app/mehr", text: "Mehr", icon: <Mehr />, auch: ["/app/notizen", "/app/mail"], anzahl: post.eigene + post.firma },
         ]}
       />
     </div>

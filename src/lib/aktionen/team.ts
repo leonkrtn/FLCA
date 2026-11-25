@@ -17,6 +17,7 @@ import { db, DbFehler, dbRoh } from "../supabase/admin";
 import { nachAbwesenheitUmverteilen, PlanungsWarnung, terminLaden, uebernehmen } from "../termine";
 import { weich } from "../fehler";
 import { istPlanbar } from "../mitarbeiter";
+import { mailNamePruefen } from "../mail/postfach";
 import { zeitStarten, zeitStoppen } from "../werkstatt";
 import { nachFertig } from "../auftrag";
 import { berlin, berlinUhrzeit, istDatum, plusTage } from "../zeit";
@@ -65,10 +66,16 @@ export async function profilSpeichern(id: string, _v: Ergebnis, fd: FormData): P
     const rolle = text(fd, "rolle") as Rolle;
     if (!ROLLEN.includes(rolle)) return { status: "fehler", meldung: "Ungültige Rolle." };
     if (id === b.id && (rolle !== "inhaber" || !ja(fd, "aktiv"))) return { status: "fehler", meldung: "Sie können sich nicht selbst die Inhaber-Rolle nehmen." };
+    const name = text(fd, "name", 120);
+    // Leer = vorname.nachname aus dem Namen
+    const mailName = text(fd, "mail_name", 64).toLowerCase().replace(/@.*$/, "") || null;
+    const mailFehler = await mailNamePruefen(id, name, mailName);
+    if (mailFehler) return { status: "fehler", meldung: mailFehler, fehler: { mail_name: mailFehler } };
     const { error } = await db()
       .from("profile")
       .update({
-        name: text(fd, "name", 120),
+        name,
+        mail_name: mailName,
         telefon: text(fd, "telefon", 40),
         rolle,
         aktiv: ja(fd, "aktiv"),
