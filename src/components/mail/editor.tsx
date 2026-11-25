@@ -1,6 +1,8 @@
 "use client";
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { IconFeld, IconKnopf, unsichtbaresFeld } from "@/components/icon-knopf";
+import { Kette, Liste, Nummerierung, OhneFormat, Schriftgroesse, Textbaustein } from "@/components/icons";
 
 export type EditorApi = {
   /** Fügt HTML an der Schreibmarke ein (Textbaustein), sonst am Anfang */
@@ -92,7 +94,6 @@ export const Editor = forwardRef<EditorApi, {
     },
   }));
 
-  const knopf = "min-h-9 min-w-9 rounded-sm px-2 text-sm hover:bg-boden active:bg-boden";
   // mousedown statt click: Sonst verliert das Textfeld die Markierung, bevor der Befehl läuft
   const tipp = (fn: () => void) => ({ onMouseDown: (e: React.MouseEvent) => { e.preventDefault(); fn(); } });
 
@@ -100,56 +101,66 @@ export const Editor = forwardRef<EditorApi, {
     <div className="rounded-sm border border-linie bg-weiss focus-within:border-tinte">
       {name ? <input type="hidden" name={name} value={html} /> : null}
       <div role="toolbar" aria-label="Formatierung" className="flex flex-wrap items-center gap-0.5 border-b border-linie px-1 py-1">
-        <button type="button" className={`${knopf} font-bold`} title="Fett (Strg+B)" aria-label="Fett" {...tipp(() => befehl("bold"))}>B</button>
-        <button type="button" className={`${knopf} italic`} title="Kursiv (Strg+I)" aria-label="Kursiv" {...tipp(() => befehl("italic"))}>I</button>
-        <button type="button" className={`${knopf} underline`} title="Unterstrichen (Strg+U)" aria-label="Unterstrichen" {...tipp(() => befehl("underline"))}>U</button>
-        <span className="mx-1 h-5 w-px bg-linie" />
-        <button type="button" className={knopf} aria-label="Aufzählung" title="Aufzählung" {...tipp(() => befehl("insertUnorderedList"))}>• Liste</button>
-        <button type="button" className={knopf} aria-label="Nummerierung" title="Nummerierung" {...tipp(() => befehl("insertOrderedList"))}>1. Liste</button>
-        <button
-          type="button"
-          className={knopf}
-          title="Link einfügen"
+        <IconKnopf text="Fett (Strg+B)" lage={{ ausrichtung: "links" }} className="text-base font-bold" {...tipp(() => befehl("bold"))}>B</IconKnopf>
+        <IconKnopf text="Kursiv (Strg+I)" className="font-serif text-base italic" {...tipp(() => befehl("italic"))}>I</IconKnopf>
+        <IconKnopf text="Unterstrichen (Strg+U)" className="text-base underline" {...tipp(() => befehl("underline"))}>U</IconKnopf>
+        <span className="mx-1 h-5 w-px shrink-0 bg-linie" />
+        <IconKnopf text="Aufzählung" {...tipp(() => befehl("insertUnorderedList"))}>
+          <Liste />
+        </IconKnopf>
+        <IconKnopf text="Nummerierung" {...tipp(() => befehl("insertOrderedList"))}>
+          <Nummerierung />
+        </IconKnopf>
+        <IconKnopf
+          text="Link einfügen"
           {...tipp(() => {
             const url = window.prompt("Adresse des Links (https://…)");
             if (url && /^(https?:\/\/|mailto:|tel:)/i.test(url.trim())) befehl("createLink", url.trim());
           })}
         >
-          Link
-        </button>
-        <select
-          aria-label="Schriftgröße"
-          className="min-h-9 rounded-sm bg-transparent px-1 text-sm"
-          defaultValue=""
-          onMouseDown={merken}
-          onChange={(e) => {
-            if (e.target.value) befehl("fontSize", e.target.value);
-            e.target.value = "";
-          }}
-        >
-          <option value="" disabled>Größe</option>
-          {GROESSEN.map(([w, t]) => (
-            <option key={w} value={w}>{t}</option>
-          ))}
-        </select>
-        <button type="button" className={`${knopf} text-grau`} title="Formatierung entfernen" {...tipp(() => befehl("removeFormat"))}>Ohne Format</button>
-        {vorlagen?.length ? (
+          <Kette />
+        </IconKnopf>
+        <IconFeld text="Schriftgröße" icon={<Schriftgroesse />}>
           <select
-            aria-label="Textbaustein einfügen"
-            className="ml-auto min-h-9 max-w-44 rounded-sm bg-transparent px-1 text-sm"
+            aria-label="Schriftgröße"
+            className={unsichtbaresFeld}
             defaultValue=""
             onMouseDown={merken}
             onChange={(e) => {
-              const v = vorlagen.find((x) => x.id === e.target.value);
-              if (v) befehl("insertHTML", v.html);
+              if (e.target.value) befehl("fontSize", e.target.value);
               e.target.value = "";
             }}
           >
-            <option value="" disabled>Textbaustein</option>
-            {vorlagen.map((v) => (
-              <option key={v.id} value={v.id}>{v.name}</option>
+            <option value="" disabled>Größe</option>
+            {GROESSEN.map(([w, t]) => (
+              <option key={w} value={w}>{t}</option>
             ))}
           </select>
+        </IconFeld>
+        <IconKnopf text="Formatierung entfernen" className="text-grau" {...tipp(() => befehl("removeFormat"))}>
+          <OhneFormat />
+        </IconKnopf>
+        {vorlagen?.length ? (
+          <span className="ml-auto">
+            <IconFeld text="Textbaustein einfügen" lage={{ ausrichtung: "rechts" }} icon={<Textbaustein />}>
+              <select
+                aria-label="Textbaustein einfügen"
+                className={unsichtbaresFeld}
+                defaultValue=""
+                onMouseDown={merken}
+                onChange={(e) => {
+                  const v = vorlagen.find((x) => x.id === e.target.value);
+                  if (v) befehl("insertHTML", v.html);
+                  e.target.value = "";
+                }}
+              >
+                <option value="" disabled>Textbaustein</option>
+                {vorlagen.map((v) => (
+                  <option key={v.id} value={v.id}>{v.name}</option>
+                ))}
+              </select>
+            </IconFeld>
+          </span>
         ) : null}
       </div>
       <div

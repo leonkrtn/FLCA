@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { type ReactNode, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
+import { IconFeld, IconKnopf as Knopf, IconLink, unsichtbaresFeld as auswahlFeld } from "@/components/icon-knopf";
 import { Antworten, Archiv, Drucker, Etikett, Fahne, Glocke, Nadel, Papierkorb, Person, Posteingang, Ungelesen, Weiterleiten, Wiederherstellen } from "@/components/icons";
 import { mailOrdnen } from "@/lib/aktionen/mail";
 import type { Aktion, Ansicht } from "@/lib/mail/postfach";
@@ -73,7 +74,7 @@ export function LeseAktionen({
 
   return (
     <div className={`relative flex flex-wrap items-center gap-0.5 ${laeuft ? "opacity-70" : ""}`}>
-      <Knopf text="Antworten" links className="bg-tinte text-flaeche hover:bg-tinte/90" onClick={() => oeffnen("antwort", antwortAuf)}>
+      <Knopf text="Antworten" lage={{ ausrichtung: "links" }} className="bg-tinte text-flaeche hover:bg-tinte/90" onClick={() => oeffnen("antwort", antwortAuf)}>
         <Antworten />
       </Knopf>
       <Knopf text="Weiterleiten" onClick={() => oeffnen("weiter", weiterleiten)}>
@@ -117,7 +118,7 @@ export function LeseAktionen({
         <Nadel an={stand.angeheftet} />
       </Knopf>
       {kategorien.length ? (
-        <Auswahl text={stand.kategorien.length ? `Kategorie: ${kategorien.filter((x) => stand.kategorien.includes(x.id)).map((x) => x.name).join(", ")}` : "Kategorie"} aktiv={stand.kategorien.length > 0} icon={<Etikett />}>
+        <IconFeld text={stand.kategorien.length ? `Kategorie: ${kategorien.filter((x) => stand.kategorien.includes(x.id)).map((x) => x.name).join(", ")}` : "Kategorie"} aktiv={stand.kategorien.length > 0} icon={<Etikett />}>
           <select
             aria-label="Kategorie"
             className={auswahlFeld}
@@ -132,10 +133,10 @@ export function LeseAktionen({
               <option key={x.id} value={x.id}>{stand.kategorien.includes(x.id) ? `✓ ${x.name}` : x.name}</option>
             ))}
           </select>
-        </Auswahl>
+        </IconFeld>
       ) : null}
       {zuweisbar ? (
-        <Auswahl
+        <IconFeld
           text={stand.zugewiesen_an ? `Zugewiesen an ${personen.find((p) => p.id === stand.zugewiesen_an)?.name ?? "jemanden"}` : "Zuweisen"}
           aktiv={Boolean(stand.zugewiesen_an)}
           icon={<Person />}
@@ -146,7 +147,7 @@ export function LeseAktionen({
               <option key={p.id} value={p.id}>An {p.name}</option>
             ))}
           </select>
-        </Auswahl>
+        </IconFeld>
       ) : null}
       <Knopf text="Später erinnern" onClick={() => setErinnernOffen(!erinnernOffen)} aria-expanded={erinnernOffen}>
         <Glocke />
@@ -154,12 +155,9 @@ export function LeseAktionen({
       <Knopf text="Als ungelesen markieren" onClick={() => tun({ art: "ungelesen" }, true)}>
         <Ungelesen />
       </Knopf>
-      <span className="group relative">
-        <a href={druckHref} target="_blank" rel="noopener" aria-label="Drucken" className={knopf}>
-          <Drucker />
-        </a>
-        <Hinweis text="Drucken" />
-      </span>
+      <IconLink text="Drucken" href={druckHref} target="_blank" rel="noopener">
+        <Drucker />
+      </IconLink>
       {erinnernOffen ? (
         <div className="absolute left-0 top-full z-20 mt-1 grid w-64 gap-1 rounded-md bg-flaeche p-2 text-sm shadow-xl ring-1 ring-black/10">
           <button type="button" className="rounded-sm px-2 py-2 text-left hover:bg-boden" onClick={() => erinnern(new Date(Date.now() + 3 * 3600_000))}>In 3 Stunden</button>
@@ -176,40 +174,3 @@ export function LeseAktionen({
   );
 }
 
-const knopf = "grid size-9 place-items-center rounded-sm hover:bg-boden focus-visible:bg-boden";
-// Unsichtbar über dem Icon: Der Tipp öffnet die Auswahl des Systems (am Handy die native Liste).
-const auswahlFeld = "absolute inset-0 size-full cursor-pointer opacity-0";
-
-/** Kurzer Text unter einem Icon beim Darüberfahren (nur mit Maus, Tailwind setzt hover dort voraus) oder per Tastatur. */
-function Hinweis({ text, links = false }: { text: string; links?: boolean }) {
-  return (
-    <span
-      aria-hidden
-      className={`pointer-events-none absolute top-full z-30 mt-1 whitespace-nowrap rounded-sm bg-tinte px-2 py-1 text-xs font-semibold text-flaeche opacity-0 transition-opacity group-hover:opacity-100 group-hover:delay-300 group-has-focus-visible:opacity-100 ${links ? "left-0" : "left-1/2 -translate-x-1/2"}`}
-    >
-      {text}
-    </span>
-  );
-}
-
-function Knopf({ text, links, className = "", children, ...rest }: { text: string; links?: boolean; children: ReactNode } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return (
-    <span className="group relative">
-      <button type="button" aria-label={text} className={`${knopf} ${className}`} {...rest}>
-        {children}
-      </button>
-      {/* Der erste Knopf steht am linken Rand, dort würde ein mittiger Hinweis abgeschnitten */}
-      <Hinweis text={text} links={links} />
-    </span>
-  );
-}
-
-function Auswahl({ text, aktiv, icon, children }: { text: string; aktiv: boolean; icon: ReactNode; children: ReactNode }) {
-  return (
-    <span className={`group relative ${knopf} ${aktiv ? "bg-boden" : ""} has-focus-visible:bg-boden`}>
-      {icon}
-      {children}
-      <Hinweis text={text} />
-    </span>
-  );
-}

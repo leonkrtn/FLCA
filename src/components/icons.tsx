@@ -202,3 +202,59 @@ export const Drucker = (p: Props) => (
     <path d="M7 14h10v7H7Z" />
   </Icon>
 );
+export const Gelesen = (p: Props) => (
+  <Icon {...p}>
+    <path d="M3 10 12 4l9 6v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z" />
+    <path d="m3.5 10.5 8.5 6 8.5-6" />
+  </Icon>
+);
+export const Bueroklammer = (p: Props) => (
+  <Icon {...p}>
+    <path d="M20 11.5 12.5 19a5 5 0 0 1-7-7L13 4.5a3.3 3.3 0 0 1 4.7 4.7l-7.4 7.4a1.7 1.7 0 0 1-2.4-2.4l6.6-6.6" />
+  </Icon>
+);
+export const Minus = (p: Props) => (
+  <Icon {...p}>
+    <path d="M6 12h12" />
+  </Icon>
+);
+export const Vollbild = (p: Props) => (
+  <Icon {...p}>
+    <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+  </Icon>
+);
+export const Fenster = (p: Props) => (
+  <Icon {...p}>
+    <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" />
+  </Icon>
+);
+
+// Editor: Formatierung
+export const Nummerierung = (p: Props) => (
+  <Icon {...p}>
+    <path d="M10 6h10M10 12h10M10 18h10" />
+    <path d="M4.5 4.5 6 4v5M4.5 14.5a1.5 1.5 0 1 1 2.2 1.3L4.5 19h3" />
+  </Icon>
+);
+export const Kette = (p: Props) => (
+  <Icon {...p}>
+    <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" />
+    <path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
+  </Icon>
+);
+export const OhneFormat = (p: Props) => (
+  <Icon {...p}>
+    <path d="M4 7V4h16v3M5 20h6M13 4 8 20M15 15l5 5M20 15l-5 5" />
+  </Icon>
+);
+export const Schriftgroesse = (p: Props) => (
+  <Icon {...p}>
+    <path d="M3 19 8 6l5 13M4.6 15h6.8" />
+    <path d="m14 19 3.5-8 3.5 8M15.2 16.5h4.6" />
+  </Icon>
+);
+export const Textbaustein = (p: Props) => (
+  <Icon {...p}>
+    <path d="M4 6h16M4 12h10M4 18h7M18 15v6M15 18h6" />
+  </Icon>
+);
