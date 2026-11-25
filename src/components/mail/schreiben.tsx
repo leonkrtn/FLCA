@@ -19,6 +19,8 @@ import {
 import { adresseZerlegen, groesse, istAdresse } from "@/lib/mail/adressen";
 import { hatText } from "@/lib/mail/inhalt";
 import type { Anhang } from "@/lib/mail/postfach";
+import { IconFeld, IconKnopf, unsichtbaresFeld } from "@/components/icon-knopf";
+import { Bueroklammer, Dokument, Fenster as NormalGross, Kreuz, Minus, Papierkorb, Uhr, Vollbild } from "@/components/icons";
 import { Editor, type EditorApi } from "./editor";
 
 type Oeffnen = (art: EntwurfDaten["art"], mailId?: string | null, wunsch?: { postfach?: "firma" | "ich"; an?: string; betreff?: string }) => void;
@@ -321,10 +323,18 @@ function Fenster({
         <h2 id={titelId} className="truncate font-semibold">
           {daten.art === "antwort" ? "Antworten" : daten.art === "weiter" ? "Weiterleiten" : daten.art === "entwurf" ? "Entwurf" : "Neue Mail"}
         </h2>
-        <div className="flex items-center gap-1 text-sm">
-          <button type="button" className="hidden min-h-9 rounded-sm px-2 hover:bg-weiss lg:block" onClick={() => setKlein(true)} title="Verkleinern">Verkleinern</button>
-          <button type="button" className="hidden min-h-9 rounded-sm px-2 hover:bg-weiss lg:block" onClick={() => setGross(!gross)} title={gross ? "Normal" : "Groß"}>{gross ? "Normal" : "Groß"}</button>
-          <button type="button" className="min-h-9 rounded-sm px-2 font-semibold hover:bg-weiss" onClick={zumachen}>Schließen</button>
+        <div className="flex items-center gap-0.5 text-sm">
+          <span className="hidden lg:contents">
+            <IconKnopf text="Verkleinern" aufBoden onClick={() => setKlein(true)}>
+              <Minus />
+            </IconKnopf>
+            <IconKnopf text={gross ? "Normale Größe" : "Groß"} aufBoden onClick={() => setGross(!gross)}>
+              {gross ? <NormalGross /> : <Vollbild />}
+            </IconKnopf>
+          </span>
+          <IconKnopf text="Schließen" aufBoden lage={{ ausrichtung: "rechts" }} onClick={zumachen}>
+            <Kreuz />
+          </IconKnopf>
         </div>
       </div>
 
@@ -409,27 +419,31 @@ function Fenster({
       <div className="border-t border-linie px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         {fehler ? <p role="alert" className="mb-2 text-sm font-semibold text-rot">{fehler}</p> : null}
         {spaeterOffen ? <SpaeterSenden abbrechen={() => setSpaeterOffen(false)} senden={(iso) => senden(iso)} /> : null}
-        <div className="flex flex-wrap items-center gap-2">
-          <button type="button" disabled={beschaeftigt || hochladen > 0} className="knopf knopf-dunkel" onClick={() => senden(null)}>
+        <div className="flex items-center gap-1">
+          <button type="button" disabled={beschaeftigt || hochladen > 0} className="knopf knopf-dunkel mr-1" onClick={() => senden(null)}>
             {beschaeftigt ? "Wird gesendet …" : "Senden"}
           </button>
-          <button type="button" disabled={beschaeftigt || hochladen > 0} className="knopf knopf-rahmen" onClick={() => setSpaeterOffen(!spaeterOffen)}>Später senden</button>
-          <label className="knopf knopf-rahmen cursor-pointer">
-            Datei
-            <input type="file" multiple className="sr-only" onChange={(e) => { void dateien(e.target.files); e.target.value = ""; }} />
-          </label>
-          <button
-            type="button"
-            className="knopf knopf-rahmen"
+          <IconKnopf text="Später senden" lage={{ seite: "oben" }} disabled={beschaeftigt || hochladen > 0} onClick={() => setSpaeterOffen(!spaeterOffen)} aria-expanded={spaeterOffen}>
+            <Uhr />
+          </IconKnopf>
+          <IconFeld text="Datei anhängen" lage={{ seite: "oben" }} icon={<Bueroklammer />}>
+            <input type="file" multiple aria-label="Datei anhängen" className={unsichtbaresFeld} onChange={(e) => { void dateien(e.target.files); e.target.value = ""; }} />
+          </IconFeld>
+          <IconKnopf
+            text="Beleg anhängen"
+            lage={{ seite: "oben" }}
             onClick={async () => {
               const r = await belegeSuchen([...an, ...cc]);
               if (r.ok) setBelege(r.daten);
               else setFehler(r.meldung);
             }}
           >
-            Beleg
-          </button>
-          <button type="button" className="knopf knopf-rahmen ml-auto" onClick={verwerfen}>Verwerfen</button>
+            <Dokument />
+          </IconKnopf>
+          <span className="ml-auto" />
+          <IconKnopf text="Verwerfen" lage={{ seite: "oben", ausrichtung: "rechts" }} onClick={verwerfen}>
+            <Papierkorb />
+          </IconKnopf>
         </div>
         <p className="mt-2 min-h-5 truncate text-xs text-grau">
           {hochladen ? "Anhang wird vorbereitet … " : ""}

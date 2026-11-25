@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { IconFeld, IconKnopf, unsichtbaresFeld } from "@/components/icon-knopf";
+import { Archiv, Etikett, Fahne as FahneIcon, Gelesen, Kreuz, Nadel, Papierkorb, Person, Posteingang, Ungelesen, Wiederherstellen } from "@/components/icons";
 import { mailOrdnen } from "@/lib/aktionen/mail";
 import { KATEGORIE_FARBEN } from "@/lib/mail/inhalt";
 import type { Aktion, ListenEintrag } from "@/lib/mail/postfach";
@@ -20,17 +22,6 @@ function wann(wert: string): string {
   if (jetzt.getTime() - d.getTime() < 6 * 864e5) return d.toLocaleDateString("de-DE", { weekday: "short", timeZone: "Europe/Berlin" }) + " " + d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" });
   return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "Europe/Berlin" });
 }
-
-const Fahne = ({ an }: { an: boolean }) => (
-  <svg viewBox="0 0 24 24" className="size-4" fill={an ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" aria-hidden>
-    <path d="M5 21V4h11l-2 4 2 4H5" strokeLinejoin="round" />
-  </svg>
-);
-const Nadel = ({ an }: { an: boolean }) => (
-  <svg viewBox="0 0 24 24" className="size-4" fill={an ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" aria-hidden>
-    <path d="M9 3h6l-1 6 3 3H7l3-3-1-6Zm3 9v9" strokeLinejoin="round" />
-  </svg>
-);
 
 /**
  * Mailliste wie in Outlook: Häkchen für Mehrfachauswahl (am Rechner auch Strg/Shift), Leiste mit Aktionen für
@@ -115,60 +106,87 @@ export function MailListe({
   return (
     <div className="flex min-h-0 flex-col">
       {auswahl.length ? (
-        <div className="sticky top-0 z-10 flex flex-wrap items-center gap-1 border-b border-linie bg-weiss px-3 py-2 text-sm">
-          <span className="mr-2 font-semibold">{auswahl.length} gewählt</span>
-          <Knopf onClick={() => ausfuehren(auswahl, { art: "gelesen" })}>Gelesen</Knopf>
-          <Knopf onClick={() => ausfuehren(auswahl, { art: "ungelesen" })}>Ungelesen</Knopf>
-          <Knopf onClick={() => ausfuehren(auswahl, { art: "kennzeichnen" })}>Kennzeichnen</Knopf>
-          {verschiebbar && ordnerEcht !== "archiv" ? <Knopf onClick={() => ausfuehren(auswahl, { art: "verschieben", ordner: "archiv" }, true)}>Archivieren</Knopf> : null}
-          {ordnerEcht === "archiv" || ordnerEcht === "sonstige" ? <Knopf onClick={() => ausfuehren(auswahl, { art: "verschieben", ordner: "eingang" }, true)}>In Posteingang</Knopf> : null}
-          {imPapierkorb ? <Knopf onClick={() => ausfuehren(auswahl, { art: "wiederherstellen" }, true)}>Wiederherstellen</Knopf> : null}
-          <Knopf
+        <div className="sticky top-0 z-10 flex items-center gap-0.5 border-b border-linie bg-weiss px-2 py-1.5 text-sm">
+          <span className="mr-1 whitespace-nowrap px-1 font-semibold">{auswahl.length} gewählt</span>
+          <IconKnopf klein text="Als gelesen markieren" onClick={() => ausfuehren(auswahl, { art: "gelesen" })}>
+            <Gelesen />
+          </IconKnopf>
+          <IconKnopf klein text="Als ungelesen markieren" onClick={() => ausfuehren(auswahl, { art: "ungelesen" })}>
+            <Ungelesen />
+          </IconKnopf>
+          <IconKnopf klein text="Kennzeichnen" onClick={() => ausfuehren(auswahl, { art: "kennzeichnen" })}>
+            <FahneIcon />
+          </IconKnopf>
+          {verschiebbar && ordnerEcht !== "archiv" ? (
+            <IconKnopf klein text="Archivieren" onClick={() => ausfuehren(auswahl, { art: "verschieben", ordner: "archiv" }, true)}>
+              <Archiv />
+            </IconKnopf>
+          ) : null}
+          {ordnerEcht === "archiv" || ordnerEcht === "sonstige" ? (
+            <IconKnopf klein text="In Posteingang" onClick={() => ausfuehren(auswahl, { art: "verschieben", ordner: "eingang" }, true)}>
+              <Posteingang />
+            </IconKnopf>
+          ) : null}
+          {imPapierkorb ? (
+            <IconKnopf klein text="Wiederherstellen" onClick={() => ausfuehren(auswahl, { art: "wiederherstellen" }, true)}>
+              <Wiederherstellen />
+            </IconKnopf>
+          ) : null}
+          <IconKnopf
+            klein
+            text={imPapierkorb ? "Endgültig löschen" : "Löschen"}
             onClick={() => {
               if (imPapierkorb && !window.confirm(`${auswahl.length} endgültig löschen?`)) return;
               ausfuehren(auswahl, { art: "loeschen" }, true);
             }}
           >
-            {imPapierkorb ? "Endgültig löschen" : "Löschen"}
-          </Knopf>
+            <Papierkorb />
+          </IconKnopf>
           {kategorien.length ? (
-            <select
-              aria-label="Kategorie zuordnen"
-              className="min-h-9 rounded-sm bg-transparent px-1"
-              defaultValue=""
-              onChange={(e) => {
-                const [an, id] = e.target.value.split(":");
-                if (id) ausfuehren(auswahl, { art: "kategorie", id, an: an === "+" });
-                e.target.value = "";
-              }}
-            >
-              <option value="" disabled>Kategorie</option>
-              {kategorien.map((k) => (
-                <option key={k.id} value={`+:${k.id}`}>{k.name}</option>
-              ))}
-              {kategorien.map((k) => (
-                <option key={`-${k.id}`} value={`-:${k.id}`}>ohne {k.name}</option>
-              ))}
-            </select>
+            <IconFeld klein text="Kategorie" icon={<Etikett />}>
+              <select
+                aria-label="Kategorie zuordnen"
+                className={unsichtbaresFeld}
+                defaultValue=""
+                onChange={(e) => {
+                  const [an, id] = e.target.value.split(":");
+                  if (id) ausfuehren(auswahl, { art: "kategorie", id, an: an === "+" });
+                  e.target.value = "";
+                }}
+              >
+                <option value="" disabled>Kategorie</option>
+                {kategorien.map((k) => (
+                  <option key={k.id} value={`+:${k.id}`}>{k.name}</option>
+                ))}
+                {kategorien.map((k) => (
+                  <option key={`-${k.id}`} value={`-:${k.id}`}>ohne {k.name}</option>
+                ))}
+              </select>
+            </IconFeld>
           ) : null}
           {firma ? (
-            <select
-              aria-label="Zuweisen"
-              className="min-h-9 rounded-sm bg-transparent px-1"
-              defaultValue=""
-              onChange={(e) => {
-                if (e.target.value) ausfuehren(auswahl, { art: "zuweisen", an: e.target.value === "-" ? null : e.target.value });
-                e.target.value = "";
-              }}
-            >
-              <option value="" disabled>Zuweisen</option>
-              {personen.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-              <option value="-">Niemandem</option>
-            </select>
+            <IconFeld klein text="Zuweisen" icon={<Person />}>
+              <select
+                aria-label="Zuweisen"
+                className={unsichtbaresFeld}
+                defaultValue=""
+                onChange={(e) => {
+                  if (e.target.value) ausfuehren(auswahl, { art: "zuweisen", an: e.target.value === "-" ? null : e.target.value });
+                  e.target.value = "";
+                }}
+              >
+                <option value="" disabled>Zuweisen</option>
+                {personen.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+                <option value="-">Niemandem</option>
+              </select>
+            </IconFeld>
           ) : null}
-          <button type="button" className="ml-auto text-grau underline" onClick={() => setGewaehlt(new Set())}>Aufheben</button>
+          <span className="ml-auto" />
+          <IconKnopf klein text="Auswahl aufheben" lage={{ ausrichtung: "rechts" }} className="text-grau" onClick={() => setGewaehlt(new Set())}>
+            <Kreuz />
+          </IconKnopf>
         </div>
       ) : null}
       {meldung ? <p role="alert" className="px-4 py-2 text-sm font-semibold text-rot">{meldung}</p> : null}
@@ -235,7 +253,7 @@ export function MailListe({
                   onClick={() => ausfuehren([e.schluessel], { art: e.gekennzeichnet ? "entkennzeichnen" : "kennzeichnen" })}
                   className={`rounded-sm p-1 ${e.gekennzeichnet ? "text-rot" : "text-grau lg:opacity-0 lg:group-hover:opacity-100"}`}
                 >
-                  <Fahne an={e.gekennzeichnet} />
+                  <FahneIcon an={e.gekennzeichnet} className="size-4" />
                 </button>
                 <button
                   type="button"
@@ -244,7 +262,7 @@ export function MailListe({
                   onClick={() => ausfuehren([e.schluessel], { art: e.angeheftet ? "loesen" : "anheften" })}
                   className={`rounded-sm p-1 ${e.angeheftet ? "text-tinte" : "text-grau lg:opacity-0 lg:group-hover:opacity-100"}`}
                 >
-                  <Nadel an={e.angeheftet} />
+                  <Nadel an={e.angeheftet} className="size-4" />
                 </button>
               </div>
             </div>
@@ -269,14 +287,6 @@ export function MailListe({
       </ul>
       {!sichtbar.length ? <p className="px-4 py-10 text-center text-grau">{ansicht.q ? "Nichts gefunden." : `${ORDNER_TEXT[ordnerEcht]} ist leer.`}</p> : null}
     </div>
-  );
-}
-
-function Knopf({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
-  return (
-    <button type="button" onClick={onClick} className="min-h-9 rounded-sm px-2 font-semibold hover:bg-boden">
-      {children}
-    </button>
   );
 }
 

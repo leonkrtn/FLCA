@@ -25,6 +25,7 @@ const STIL_ERLAUBT: Record<string, RegExp> = {
   "margin-top": /^[\d.]+(px|em)$/,
   "margin-bottom": /^[\d.]+(px|em)$/,
   "padding-left": /^[\d.]+(px|em|ex)$/,
+  "padding-right": /^[\d.]+(px|em|ex)$/,
   "border-left": /^[\d.]+px solid #[0-9a-f]{3,6}$/i,
   "line-height": /^[\d.]+$/,
   "vertical-align": /^(top|middle)$/,
@@ -181,7 +182,9 @@ export function signaturHtml(d: SignaturDaten): string {
   ].filter(Boolean);
   const firma = [`<b>${esc(d.firma.name)}</b>`, [d.firma.strasse, [d.firma.plz, d.firma.ort].filter(Boolean).join(" ")].filter(Boolean).map(esc).join(", ")].filter(Boolean);
   const text = [kopf, kontakt.join("<br>"), firma.join("<br>"), d.oeffnungszeiten ? `<span style="${grau}">${esc(d.oeffnungszeiten)}</span>` : ""].filter(Boolean).join('<br><span style="line-height:.6"><br></span>');
-  const logo = d.logoUrl ? `<td valign="top" style="padding-left:0"><img src="${esc(d.logoUrl)}" alt="${esc(d.firma.name)}" width="120" style="width:120px"></td>` : "";
+  // Logo (360 × 194) klein neben dem Text, mit Abstand zur Trennlinie. Breite und Höhe fest, damit Mailprogramme
+  // nicht in Originalgröße zeigen, bevor das Bild geladen ist.
+  const logo = d.logoUrl ? `<td valign="top" style="padding-left:0;padding-right:14px"><img src="${esc(d.logoUrl)}" alt="${esc(d.firma.name)}" width="96" height="52" style="width:96px"></td>` : "";
   zeilen.push(
     `<table style="font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.45;color:#222222"><tbody><tr>${logo}<td valign="top"${logo ? ' style="padding-left:14px;border-left:1px solid #dddddd"' : ""}>${text}</td></tr></tbody></table>`,
   );
