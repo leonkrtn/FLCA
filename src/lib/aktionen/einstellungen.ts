@@ -198,7 +198,6 @@ export async function moduleSpeichern(_v: Ergebnis, fd: FormData): Promise<Ergeb
     await benutzerMitRecht("einstellungen");
     await einstellungenSpeichern("module", {
       karriere: ja(fd, "karriere"),
-      galerie: ja(fd, "galerie"),
       einlagerung: ja(fd, "einlagerung"),
       zeiterfassung: ja(fd, "zeiterfassung"),
       bewertungen: ja(fd, "bewertungen"),

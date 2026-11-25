@@ -8,7 +8,6 @@ import { berlinDatum, wochentag } from "@/lib/zeit";
 const NAV = [
   { href: "/#preise", label: "Preise" },
   { href: "/leistungen", label: "Leistungen" },
-  { href: "/galerie", label: "Galerie" },
   { href: "/karriere", label: "Karriere" },
   { href: "/#anfahrt", label: "Anfahrt" },
 ];
@@ -20,8 +19,8 @@ function heuteText(o: Einstellungen["oeffnungszeiten"]): string {
   return f.length ? `Heute ${f.map(([a, b]) => `${a}–${b}`).join(", ")}` : "Heute geschlossen";
 }
 
-export function Kopf({ module, telefon, oeffnungszeiten }: { module: { galerie: boolean; karriere: boolean }; telefon: string; oeffnungszeiten: Einstellungen["oeffnungszeiten"] }) {
-  const nav = NAV.filter((n) => (n.href !== "/galerie" || module.galerie) && (n.href !== "/karriere" || module.karriere));
+export function Kopf({ module, telefon, oeffnungszeiten }: { module: { karriere: boolean }; telefon: string; oeffnungszeiten: Einstellungen["oeffnungszeiten"] }) {
+  const nav = NAV.filter((n) => n.href !== "/karriere" || module.karriere);
   return (
     <header className="sticky top-0 z-40 border-b border-white/5 bg-black/40 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
       <div className="rand flex h-16 items-center justify-between gap-4">
