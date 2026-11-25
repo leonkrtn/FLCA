@@ -18,6 +18,19 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-25 · Mails auf dem iPhone schmal und mit grauem Rand
+
+- **Stand:** behoben
+- **Wo:** `mail()` in `src/lib/email/vorlagen.ts` (alle Mails an Kunden und Team)
+- **Was man sah:** (vom Nutzer gemeldet, Screenshot) In iOS-Mail stand die Karte verkleinert und nicht mittig im
+  Bildschirm, links und rechts ein breiter grauer Rand.
+- **Ursache:** Das HTML hatte keinen `<head>` mit Viewport-Angabe; iOS-Mail rechnet die Mail dann breiter und
+  verkleinert sie. Dazu 12 px Außenrand und Kartenrand auf jeder Breite.
+- **Behebung:** Viewport und `x-apple-disable-message-reformatting`, bis 600 px Breite kein Außenrand, Karte voll
+  breit, weißer Grund, schmalerer Innenrand. Am Rechner bleibt die Karte 560 px breit.
+- **Muster:** jedes selbst gebaute Mail-HTML braucht den `<head>` mit Viewport; Mails nie ohne `mail()` bauen.
+- **Weitere Stellen:** keine weitere Mail-Vorlage im Code; Mails aus den Postfächern sind freier Text ohne Hülle.
+
 ### 2026-11-25 · Kundenlink Kostenvoranschlag: „Die freien Termine konnten nicht geladen werden“
 
 - **Stand:** behoben
