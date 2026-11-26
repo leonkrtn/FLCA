@@ -18,6 +18,26 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-26 · Automatische Mails ohne die Signatur aus dem Postfach
+
+- **Stand:** behoben
+- **Wo:** `src/lib/email/vorlagen.ts` (`mail()`), `src/lib/mail/signatur.ts`
+- **Was man sah:** (vom Nutzer gemeldet, Outlook am iPhone) Nach der Umstellung auf reine Textmails stand unter
+  den automatischen Mails nur „Viele Grüße … und Team“ und eine Textzeile, nicht die Signatur mit Logo, Kontakt,
+  Öffnungszeiten und Pflichtangaben wie bei Mails aus dem Postfach.
+- **Ursache:** Die Vorgabe „die Signatur bleibt, wie sie ist“ wurde als die alte Fußzeile der Systemmails gelesen,
+  gemeint war die Signatur aus Einstellungen → E-Mail. Die braucht HTML (Logo, Spalten), die Mail ging aber nur als
+  Text raus.
+- **Behebung:** `mail()` baut wieder eine HTML-Fassung, aber ohne Layout: Absätze in normaler Schrift wie eine Mail
+  aus dem Postfach, darunter `signaturHtml` des Inhabers (`automatischeSignatur`). Die Textfassung bekommt dieselbe
+  Signatur über `signaturText`. Den eigenen Gruß der Mailtexte gibt es nicht mehr, er kommt aus der Signatur.
+  Dabei aufgefallen: lange Links (Terminlink mit Schlüssel) liefen auf dem Handy rechts aus dem Bild; sie brechen
+  jetzt um (`word-break:break-all`).
+- **Muster:** Eine Mail ohne HTML-Teil verliert alles, was nur als HTML geht (Logo, Signatur, Spalten). Und: ein
+  langer Link ohne Umbruch in Mail-HTML schiebt die Mail auf dem Handy breiter als den Bildschirm.
+- **Weitere Stellen:** Mails aus dem Postfach hatten die Signatur immer. Sonst bauen nur `mail()` und `signaturHtml`
+  Mail-HTML; in der Signatur stehen nur kurze Adressen.
+
 ### 2026-11-26 · Auftrag einplanen: Dauer 120 gilt als „kein gültiger Wert“
 
 - **Stand:** behoben

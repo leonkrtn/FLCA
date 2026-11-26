@@ -200,6 +200,27 @@ export function signaturHtml(d: SignaturDaten): string {
   return `<div data-signatur="1" style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222222">${zeilen.join("")}</div>`;
 }
 
+/** Dieselbe Signatur als Text, für die Textfassung einer Mail (Mailprogramme ohne HTML, Vorschau). */
+export function signaturText(d: SignaturDaten): string {
+  const bloecke = [
+    d.gruss,
+    [d.name, d.job].filter(Boolean).join("\n"),
+    [d.telefon ? `Telefon ${d.telefon}` : "", d.email, d.website.replace(/^https?:\/\//, "")].filter(Boolean).join("\n"),
+    [d.firma.name, [d.firma.strasse, [d.firma.plz, d.firma.ort].filter(Boolean).join(" ")].filter(Boolean).join(", "), d.oeffnungszeiten].filter(Boolean).join("\n"),
+    d.pflichtangaben
+      ? [
+          [d.firma.name, d.firma.rechtsform].filter(Boolean).join(", "),
+          d.firma.inhaber ? `Inhaber: ${d.firma.inhaber}${d.firma.titel ? ` (${d.firma.titel})` : ""}` : "",
+          d.firma.steuernummer ? `Steuernummer ${d.firma.steuernummer}` : "",
+          d.firma.ustId ? `USt-IdNr. ${d.firma.ustId}` : "",
+        ]
+          .filter(Boolean)
+          .join(" · ")
+      : "",
+  ];
+  return bloecke.filter(Boolean).join("\n\n");
+}
+
 const TAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
 /** Öffnungszeiten kurz für die Signatur: „Mo–Fr 08:30–13:00, 14:00–18:00 · Sa 09:00–13:00“. */

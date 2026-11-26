@@ -326,8 +326,7 @@ export async function auftragVersenden(terminId: string, an: string, vonBenutzer
   const { firma } = e;
   const erteilt = Boolean(t.auftrag_erteilt_am);
   const m = mailTexte(e, erteilt ? "auftrag_kopie" : "auftrag_freigabe", auftragWerte(t));
-  const { text } = mail(firma, {
-    gruss: m.gruss,
+  const { text, html } = await mail(firma, {
     bausteine: [
       { art: "absatz", text: m.text },
       ...(erteilt ? [] : [{ art: "link" as const, text: "Hier können Sie den Auftrag ansehen und erteilen", url: auftragLink(t) }]),
@@ -338,6 +337,7 @@ export async function auftragVersenden(terminId: string, an: string, vonBenutzer
     an,
     betreff: m.betreff,
     text,
+    html,
     antwortAn: firma.email,
     anhaenge: [{ dateiname: auftragDateiname(t), inhalt: await auftragPdf(t), typ: "application/pdf" }],
   });
@@ -373,8 +373,7 @@ async function kundeBestaetigen(terminId: string): Promise<void> {
   // einem dauerhaften Datenträger muss dann die Widerrufsbelehrung und das Verlangen nach sofortigem Beginn
   // enthalten (§ 312f Abs. 2 BGB). Lieber einmal zu oft als zu selten: Bei Firmenkunden schadet sie nicht.
   const fernabsatz = t.auftrag_erteilt_wie !== "unterschrift";
-  const { text } = mail(firma, {
-    gruss: m.gruss,
+  const { text, html } = await mail(firma, {
     bausteine: [
       { art: "absatz", text: m.text },
       { art: "link", text: "Termin und Auftrag können Sie hier jederzeit ansehen", url: auftragLink(t) },
@@ -393,6 +392,7 @@ async function kundeBestaetigen(terminId: string): Promise<void> {
     an,
     betreff: m.betreff,
     text,
+    html,
     antwortAn: firma.email,
     anhaenge: [{ dateiname: auftragDateiname(t), inhalt: await auftragPdf(t), typ: "application/pdf" }],
   });

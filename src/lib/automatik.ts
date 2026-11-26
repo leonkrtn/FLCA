@@ -117,9 +117,8 @@ export async function takt(): Promise<Bericht> {
       if (!t.kunde?.email || !erlaubt.has(t.kunde.id)) continue;
       if (!(await einmalig("bewertung", `${t.kunde.id}:${berlinDatum().slice(0, 4)}`))) continue;
       const m = mailTexte(e, "bewertung", { name: t.kunde.name, leistung: t.leistung_name });
-      const inhalt = mail(e.firma, {
+      const inhalt = await mail(e.firma, {
         abmelden: abmeldeLink(t.kunde.id),
-        gruss: m.gruss,
         bausteine: [
           { art: "absatz", text: m.text },
           { art: "link", text: "Hier geht es direkt zur Bewertung", url: e.firma.googleBewertungLink },
@@ -182,9 +181,8 @@ export async function takt(): Promise<Bericht> {
           fuer_fahrzeug: fuerFahrzeug(z.fahrzeug),
           dauer,
         });
-        const inhalt = mail(e.firma, {
+        const inhalt = await mail(e.firma, {
           abmelden: abmeldeLink(z.kunde.id),
-          gruss: m.gruss,
           bausteine: [
             { art: "absatz", text: m.text },
             { art: "link", text: "Einen freien Termin für den Wechsel können Sie sich hier aussuchen", url: link },
@@ -205,7 +203,7 @@ export async function takt(): Promise<Bericht> {
       if (!(await einmalig("datev", vormonat))) return "schon gesendet";
       const { zip, anzahl } = await monatsexport(vormonat, d);
       const m = mailTexte(e, "datev", { monat: `${vormonat.slice(5)}/${vormonat.slice(0, 4)}`, anzahl: String(anzahl) });
-      const inhalt = mail(e.firma, { gruss: m.gruss, bausteine: [{ art: "absatz", text: m.text }] });
+      const inhalt = await mail(e.firma, { bausteine: [{ art: "absatz", text: m.text }] });
       const r = await mailer().senden({ an: d.email, betreff: m.betreff, antwortAn: e.firma.email, ...inhalt, anhaenge: [{ dateiname: `${e.firma.name.replace(/\W+/g, "-")}-${vormonat}.zip`, inhalt: zip, typ: "application/zip" }] });
       return r.ok ? `${anzahl} Rechnungen gesendet` : `nicht gesendet: ${r.fehler}`;
     });

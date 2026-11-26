@@ -635,8 +635,7 @@ export async function versenden(id: string, an: string, vonBenutzer: string): Pr
       : "",
     storniert: storno && b.original?.nummer ? `Sie hebt unsere Rechnung ${b.original.nummer}${b.original.rechnungsdatum ? ` vom ${datum(b.original.rechnungsdatum)}` : ""} auf.` : "",
   });
-  const { text } = mail(firma, {
-    gruss: m.gruss,
+  const { text, html } = await mail(firma, {
     bausteine: [
       { art: "absatz", text: m.text },
       { art: "link", text: "Online können Sie die Rechnung jederzeit hier ansehen und herunterladen", url: link },
@@ -652,6 +651,7 @@ export async function versenden(id: string, an: string, vonBenutzer: string): Pr
     an,
     betreff: m.betreff,
     text,
+    html,
     antwortAn: firma.email,
     anhaenge: [
       { dateiname: dateiname(r), inhalt: pdf, typ: "application/pdf" },

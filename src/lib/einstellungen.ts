@@ -241,7 +241,7 @@ export const STANDARD: Einstellungen = {
   },
   medien: { heroBild: "", heroVideo: "", ueberBild: "" },
   whatsapp: WHATSAPP_STANDARD,
-  mailTexte: { gruss: "", vorlagen: {} },
+  mailTexte: { vorlagen: {} },
   mail: {
     absenderName: "",
     standardAdresse: "service",

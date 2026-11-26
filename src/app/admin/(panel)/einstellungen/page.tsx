@@ -40,7 +40,7 @@ import { datum, datumZeit, euro } from "@/lib/format";
 import { darf } from "@/lib/rollen";
 import { db, DbFehler, dbRoh } from "@/lib/supabase/admin";
 import { berlinDatum } from "@/lib/zeit";
-import { GRUSS_STANDARD, MAIL_FELDER, MAIL_GRUPPEN, MAIL_PLATZHALTER, MAIL_PLATZHALTER_JE, MAIL_STANDARD, MAIL_VORLAGEN } from "@/lib/email/texte";
+import { MAIL_FELDER, MAIL_GRUPPEN, MAIL_PLATZHALTER, MAIL_PLATZHALTER_JE, MAIL_STANDARD, MAIL_VORLAGEN } from "@/lib/email/texte";
 import { WHATSAPP_PLATZHALTER, WHATSAPP_STANDARD, WHATSAPP_VORLAGEN } from "@/lib/whatsapp";
 
 export const metadata = { title: "Einstellungen" };
@@ -187,7 +187,13 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
             <p className="mb-4 text-sm text-grau">
               Die Mails gehen als schlichte Textmail raus, wie von Hand geschrieben. Termin, Betrag, Nummer und Fahrzeug stehen über die Wörter in geschweiften Klammern im Text, die App füllt sie beim Senden; fehlt ein Wert, fällt das Wort weg. Links, Anhänge und Pflichtangaben (Widerruf, AGB, Abmelden, E-Rechnung) setzt die App selbst dazu. Ein leeres Feld setzt den Standardtext zurück.
             </p>
-            <Textfeld label="Gruß am Ende jeder Mail" name="gruss" wert={e.mailTexte.gruss || GRUSS_STANDARD} zeilen={2} hilfe="Gilt für alle Mails an Kunden, Bewerber und den Steuerberater. Hinweise ans Büro gehen ohne Gruß." />
+            <p className="text-sm text-grau">
+              Gruß und Signatur kommen aus{" "}
+              <Link href="/admin/einstellungen?bereich=mail#signatur" className="underline">
+                Einstellungen → E-Mail → Signatur
+              </Link>
+              , unterschrieben wird mit dem Namen des Inhabers. Hinweise ans Büro gehen ohne Signatur.
+            </p>
           </Abschnitt>
           {MAIL_GRUPPEN.map((gruppe) => (
             <Abschnitt key={gruppe} titel={gruppe}>

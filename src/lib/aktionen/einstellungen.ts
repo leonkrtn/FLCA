@@ -13,7 +13,7 @@ import { systemcheck } from "../systemcheck/lauf";
 import { zaehlen } from "../systemcheck/regeln";
 import { berlinDatum } from "../zeit";
 import { eingabeFehler, gleich, type Nummernkreis, nummerText } from "../rechnung/nummernkreis";
-import { GRUSS_STANDARD, MAIL_FELDER, MAIL_STANDARD, MAIL_VORLAGEN, type MailTexteEinstellung } from "../email/texte";
+import { MAIL_FELDER, MAIL_STANDARD, MAIL_VORLAGEN, type MailTexteEinstellung } from "../email/texte";
 import { WHATSAPP_STANDARD, WHATSAPP_VORLAGEN } from "../whatsapp";
 
 const alles = () => revalidatePath("/", "layout");
@@ -182,9 +182,7 @@ export async function mailTexteSpeichern(_v: Ergebnis, fd: FormData): Promise<Er
       const roh = fd.get(name);
       return typeof roh === "string" ? roh.replace(/\r\n?/g, "\n").replace(/[^\P{C}\n\t]/gu, "").trim().slice(0, laenge) : "";
     };
-    const neu: MailTexteEinstellung = { gruss: "", vorlagen: {} };
-    const gruss = lesen("gruss", 300);
-    if (gruss && gruss !== GRUSS_STANDARD) neu.gruss = gruss;
+    const neu: MailTexteEinstellung = { vorlagen: {} };
     for (const { schluessel } of MAIL_VORLAGEN) {
       const standard = MAIL_STANDARD[schluessel];
       for (const { feld } of MAIL_FELDER) {

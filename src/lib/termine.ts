@@ -419,12 +419,13 @@ async function kundenMail(
     erinnerung: [...absatz(m.text), { art: "link" as const, text: "Falls etwas dazwischenkommt, können Sie den Termin hier absagen", url: link }],
   }[art];
 
-  const { text } = mail(firma, { gruss: m.gruss, bausteine });
+  const { text, html } = await mail(firma, { bausteine });
   const mitKalender = art === "bestaetigt" || art === "verschoben" || art === "storniert" || art === "zeit_abgesagt";
   const ergebnis = await mailer().senden({
     an: t.kunde.email,
     betreff: m.betreff,
     text,
+    html,
     antwortAn: firma.email,
     anhaenge: mitKalender
       ? [
@@ -464,8 +465,8 @@ async function betriebBenachrichtigen(t: GeplanterTermin, art: "neu" | "stornier
   await Promise.all([
     pushSenden({ rollen: ["inhaber", "buero"] }, { titel, text, url: `/app/termine/${t.id}`, tag: `termin-${t.id}` }),
     (async () => {
-      const { text: klartext } = mail(firma, {
-        gruss: false,
+      const { text: klartext } = await mail(firma, {
+        signatur: false,
         bausteine: [
           {
             art: "fakten",
