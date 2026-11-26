@@ -291,11 +291,10 @@ export async function abwesenheitMelden(fuer: string | null, _v: Ergebnis, fd: F
           an: firma.email,
           betreff: titel,
           ...mail(firma, {
-            ueberschrift: titel,
             gruss: false,
             bausteine: [
               { art: "fakten", zeilen: [["Wann", zeitraum], ["Notiz", notiz || "–"], ...(zusatz ? [["Termine", zusatz.trim()] as [string, string]] : [])] },
-              { art: "knopf", text: status === "beantragt" ? "Antrag ansehen" : "Bei den Mitarbeitern ansehen", url: `${ENV.siteUrl}${ansehen}` },
+              { art: "link", text: status === "beantragt" ? "Antrag ansehen" : "Bei den Mitarbeitern ansehen", url: `${ENV.siteUrl}${ansehen}` },
             ],
           }),
         }),

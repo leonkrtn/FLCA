@@ -3,7 +3,7 @@ import { einstellungen, type Einstellungen } from "../einstellungen";
 import { ENV } from "../env";
 import { melden, verlauf } from "../ereignisse";
 import { datum, euro } from "../format";
-import { mailTexte } from "../email/texte";
+import { fahrzeugAngabe, fuerFahrzeug, mailTexte } from "../email/texte";
 import { mail } from "../email/vorlagen";
 import { mailer } from "../services/email";
 import { db, DbFehler, dbRoh, pruefe } from "../supabase/admin";
@@ -609,47 +609,48 @@ export async function versenden(id: string, an: string, vonBenutzer: string): Pr
   const offen = offenerBetrag(r);
   // Nur zur Zahlung auffordern, solange etwas offen ist: nicht bei Storno, bezahlt, storniert oder verrechnet.
   const zahlen = !storno && r.status === "gestellt" && offen > 0;
-  // Texte aus Einstellungen → Mailtexte; Beträge, Zahlungsangaben und der Hinweis zur E-Rechnung kommen immer dazu.
+  // Was zu zahlen ist, als Satz im Fließtext: Frist und Bankverbindung, schon Bezahltes, Erstattung.
+  const bis = zahlen && r.faellig_am ? ` bis zum ${datum(r.faellig_am)}` : "";
+  const zahlung = zahlen
+    ? `${bereits ? `Davon haben Sie bereits ${euro(bereits)} bezahlt. Bitte überweisen Sie den offenen Betrag von ${euro(offen)}` : "Bitte überweisen Sie den Betrag"}${bis}${
+        firma.iban ? ` auf unser Konto ${firma.iban} mit dem Verwendungszweck ${r.nummer}. Auf der Rechnung finden Sie auch einen QR-Code für Ihre Banking-App.` : "."
+      }`
+    : !storno && offen < 0
+      ? `Sie haben bereits ${euro(bereits)} bezahlt, den Unterschied von ${euro(-offen)} erstatten wir Ihnen.`
+      : !storno && (r.status === "bezahlt" || bereits > 0)
+        ? "Der Betrag ist bereits bezahlt, vielen Dank."
+        : "";
+  // Texte aus Einstellungen → Mailtexte; Link und der Hinweis zur E-Rechnung kommen immer dazu.
   const m = mailTexte(e, storno ? "rechnung_storno" : korrektur ? "rechnung_korrektur" : "rechnung", {
     name: r.empfaenger.name,
     nummer: r.nummer ?? "",
+    betrag: euro(r.summe_brutto_cent),
+    fahrzeug: fahrzeugAngabe(r.fahrzeug),
+    fuer_fahrzeug: fuerFahrzeug(r.fahrzeug),
+    zahlung,
     ersetzt: korrektur
       ? `Sie ersetzt unsere Rechnung ${korrektur.nummer}${korrektur.rechnungsdatum ? ` vom ${datum(korrektur.rechnungsdatum)}` : ""}${
           stornoDazu ? `, die wir mit der ebenfalls angehängten Stornorechnung ${stornoDazu.nummer} storniert haben` : ""
         }.${r.korrektur_grund ? ` Grund: ${r.korrektur_grund}.` : ""}`
       : "",
+    storniert: storno && b.original?.nummer ? `Sie hebt unsere Rechnung ${b.original.nummer}${b.original.rechnungsdatum ? ` vom ${datum(b.original.rechnungsdatum)}` : ""} auf.` : "",
   });
-  const { html, text } = mail(firma, {
-    ueberschrift: m.ueberschrift,
+  const { text } = mail(firma, {
     gruss: m.gruss,
     bausteine: [
-      ...(m.text ? [{ art: "absatz" as const, text: m.text }] : []),
-      {
-        art: "fakten",
-        zeilen: [
-          ["Rechnungsnummer", r.nummer!],
-          ["Betrag", euro(r.summe_brutto_cent)],
-          ...(bereits ? ([["Bereits bezahlt", euro(bereits)], [offen < 0 ? "Wird erstattet" : "Noch offen", euro(Math.abs(offen))]] as [string, string][]) : []),
-          ...(zahlen && r.faellig_am ? ([["Zahlbar bis", datum(r.faellig_am)]] as [string, string][]) : []),
-          ...(r.fahrzeug?.kennzeichen ? ([["Fahrzeug", r.fahrzeug.kennzeichen]] as [string, string][]) : []),
-        ],
-      },
-      ...(zahlen && firma.iban
-        ? [{ art: "absatz" as const, text: `Bitte überweisen Sie ${bereits ? `${euro(offen)} ` : ""}auf ${firma.iban} mit dem Verwendungszweck ${r.nummer}. Auf dem PDF ist ein QR-Code für Ihre Banking-App.` }]
-        : []),
-      { art: "knopf", text: "Rechnung online ansehen", url: link },
+      { art: "absatz", text: m.text },
+      { art: "link", text: "Online können Sie die Rechnung jederzeit hier ansehen und herunterladen", url: link },
       {
         art: "absatz",
         text: xrechnung
-          ? "Die Rechnung liegt zusätzlich als XRechnung (XML, Version 3.0) bei; dieselbe XML ist auch im PDF eingebettet."
-          : "Geschäftskunden: Das PDF enthält die Rechnung zusätzlich als E-Rechnung (ZUGFeRD, EN 16931).",
+          ? "Die Rechnung liegt zusätzlich als XRechnung (XML, Version 3.0) bei, dieselbe XML ist auch im PDF enthalten."
+          : "Für Geschäftskunden enthält das PDF die Rechnung zusätzlich als E-Rechnung (ZUGFeRD, EN 16931).",
       },
     ],
   });
   const ergebnis = await mailer().senden({
     an,
     betreff: m.betreff,
-    html,
     text,
     antwortAn: firma.email,
     anhaenge: [

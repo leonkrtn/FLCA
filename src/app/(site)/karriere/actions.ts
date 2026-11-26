@@ -86,11 +86,10 @@ export async function bewerben(_v: Ergebnis, formData: FormData): Promise<Ergebn
       const mi = mailTexte(einst, "intern_bewerbung", { name: e.name, stelle: stelleTitel });
       const mk = mailTexte(einst, "bewerbung", { name: e.name, stelle: stelleTitel });
       const intern = mail(firma, {
-        ueberschrift: mi.ueberschrift,
         gruss: false,
         bausteine: [
-          { art: "fakten", zeilen: [["Name", e.name], ["Telefon", e.telefon], ["E-Mail", e.email || "–"], ["Lebenslauf", lebenslauf ? "ja" : "nein"], ...(e.nachricht ? ([["Nachricht", e.nachricht]] as [string, string][]) : [])] },
-          { art: "knopf", text: "Bewerbung öffnen", url: `${ENV.siteUrl}/admin/karriere/${neu.id}` },
+          { art: "fakten", zeilen: [["Stelle", stelleTitel], ["Name", e.name], ["Telefon", e.telefon], ["E-Mail", e.email || "–"], ["Lebenslauf", lebenslauf ? "ja" : "nein"], ...(e.nachricht ? ([["Nachricht", e.nachricht]] as [string, string][]) : [])] },
+          { art: "link", text: "Bewerbung öffnen", url: `${ENV.siteUrl}/admin/karriere/${neu.id}` },
         ],
       });
       await Promise.all([
@@ -100,7 +99,7 @@ export async function bewerben(_v: Ergebnis, formData: FormData): Promise<Ergebn
               an: e.email,
               betreff: mk.betreff,
               antwortAn: firma.email,
-              ...mail(firma, { ueberschrift: mk.ueberschrift, gruss: mk.gruss, bausteine: mk.text ? [{ art: "absatz", text: mk.text }] : [] }),
+              ...mail(firma, { gruss: mk.gruss, bausteine: [{ art: "absatz", text: mk.text }] }),
             })
           : Promise.resolve(),
         pushSenden({ rollen: ["inhaber"] }, { titel: "Neue Bewerbung", text: `${e.name} · ${stelleTitel}`, url: `/admin/karriere/${neu.id}` }),

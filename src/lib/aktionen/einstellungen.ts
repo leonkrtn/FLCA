@@ -189,9 +189,9 @@ export async function mailTexteSpeichern(_v: Ergebnis, fd: FormData): Promise<Er
       const standard = MAIL_STANDARD[schluessel];
       for (const { feld } of MAIL_FELDER) {
         if (standard[feld] === undefined) continue;
-        const wert = lesen(`${schluessel}.${feld}`, feld === "betreff" || feld === "ueberschrift" ? 200 : 2000);
-        // Betreff und Überschrift sind einzeilig
-        const sauber = feld === "betreff" || feld === "ueberschrift" ? wert.replace(/\s*\n\s*/g, " ") : wert;
+        const wert = lesen(`${schluessel}.${feld}`, feld === "betreff" ? 200 : 3000);
+        // Der Betreff ist einzeilig
+        const sauber = feld === "betreff" ? wert.replace(/\s*\n\s*/g, " ") : wert;
         if (sauber && sauber !== standard[feld]) (neu.vorlagen[schluessel] ??= {})[feld] = sauber;
       }
     }

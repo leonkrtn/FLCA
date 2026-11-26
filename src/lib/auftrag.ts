@@ -5,7 +5,7 @@ import { einstellungen } from "./einstellungen";
 import { ENV } from "./env";
 import { melden, verlauf } from "./ereignisse";
 import { datum, datumLangText, datumZeit, euro, zeit } from "./format";
-import { mailTexte } from "./email/texte";
+import { fahrzeugAngabe, fuerFahrzeug, mailTexte } from "./email/texte";
 import { mail } from "./email/vorlagen";
 import { markeUndModell } from "./kunden";
 import type { Position } from "./rechnung/berechnung";
@@ -325,21 +325,18 @@ export async function auftragVersenden(terminId: string, an: string, vonBenutzer
   const e = await einstellungen();
   const { firma } = e;
   const erteilt = Boolean(t.auftrag_erteilt_am);
-  const m = mailTexte(e, erteilt ? "auftrag_kopie" : "auftrag_freigabe", { name: t.kunde?.name ?? "", nummer: t.auftrag_nummer });
-  const { html, text } = mail(firma, {
-    ueberschrift: m.ueberschrift,
+  const m = mailTexte(e, erteilt ? "auftrag_kopie" : "auftrag_freigabe", auftragWerte(t));
+  const { text } = mail(firma, {
     gruss: m.gruss,
     bausteine: [
-      ...(m.text ? [{ art: "absatz" as const, text: m.text }] : []),
-      { art: "fakten", zeilen: auftragFakten(t) },
-      ...(erteilt ? [] : [{ art: "knopf" as const, text: "Ansehen und Auftrag erteilen", url: auftragLink(t) }]),
-      ...(m.schluss ? [{ art: "absatz" as const, text: m.schluss }] : []),
+      { art: "absatz", text: m.text },
+      ...(erteilt ? [] : [{ art: "link" as const, text: "Hier können Sie den Auftrag ansehen und erteilen", url: auftragLink(t) }]),
+      { art: "absatz", text: m.schluss },
     ],
   });
   const ergebnis = await mailer().senden({
     an,
     betreff: m.betreff,
-    html,
     text,
     antwortAn: firma.email,
     anhaenge: [{ dateiname: auftragDateiname(t), inhalt: await auftragPdf(t), typ: "application/pdf" }],
@@ -350,14 +347,18 @@ export async function auftragVersenden(terminId: string, an: string, vonBenutzer
   after(() => melden("auftrag.versendet", { ...ereignisDaten(t), an }));
 }
 
-function auftragFakten(t: AuftragTermin): [string, string][] {
-  return [
-    ["Auftrag", t.auftrag_nummer ?? ""],
-    ["Termin", terminText(t)],
-    ...(t.fahrzeug ? ([["Fahrzeug", [t.fahrzeug.kennzeichen, t.fahrzeug.marke_modell].filter(Boolean).join(", ")]] as [string, string][]) : []),
-    ["Betrag (voraussichtlich)", euro(t.auftrag_summe_brutto_cent ?? 0)],
-    ...(t.auftrag_kostengrenze_cent != null ? ([["Kostengrenze", euro(t.auftrag_kostengrenze_cent)]] as [string, string][]) : []),
-  ];
+/** Werte für die Platzhalter der Auftragsmails: Nummer, Fahrzeug, Betrag, Kostengrenze und Termin im Fließtext. */
+function auftragWerte(t: AuftragTermin): Record<string, string> {
+  return {
+    name: t.kunde?.name ?? "",
+    nummer: t.auftrag_nummer ?? "",
+    betrag: euro(t.auftrag_summe_brutto_cent ?? 0),
+    fahrzeug: fahrzeugAngabe(t.fahrzeug),
+    fuer_fahrzeug: fuerFahrzeug(t.fahrzeug),
+    grenze_satz: t.auftrag_kostengrenze_cent != null ? `Wird es teurer als ${euro(t.auftrag_kostengrenze_cent)}, fragen wir Sie vorher.` : "",
+    termin_satz: t.beginn ? `Ihr Termin ist am ${datumLangText(t.beginn)} um ${zeit(t.beginn)} Uhr.` : "Den Termin vereinbaren wir noch mit Ihnen.",
+    erteilt: t.auftrag_erteilt_am ? `${erteiltText(t).replace(/^Erteilt am /, "Sie haben ihn am ")} erteilt.` : "",
+  };
 }
 
 /** Nach der Erteilung: Bestätigung mit dem Auftrag als PDF (mit Unterschrift), wenn eine E-Mail bekannt ist. */
@@ -367,25 +368,23 @@ async function kundeBestaetigen(terminId: string): Promise<void> {
   if (!t || !an) return;
   const e = await einstellungen();
   const { firma } = e;
-  const m = mailTexte(e, "auftrag_bestaetigung", { name: t.kunde?.name ?? "", nummer: t.auftrag_nummer ?? "" });
+  const m = mailTexte(e, "auftrag_bestaetigung", auftragWerte(t));
   // Nicht in der Werkstatt erteilt (online, über einen KV per Mail oder Telefon): Fernabsatz. Die Bestätigung auf
   // einem dauerhaften Datenträger muss dann die Widerrufsbelehrung und das Verlangen nach sofortigem Beginn
   // enthalten (§ 312f Abs. 2 BGB). Lieber einmal zu oft als zu selten: Bei Firmenkunden schadet sie nicht.
   const fernabsatz = t.auftrag_erteilt_wie !== "unterschrift";
-  const { html, text } = mail(firma, {
-    ueberschrift: m.ueberschrift,
+  const { text } = mail(firma, {
     gruss: m.gruss,
     bausteine: [
-      ...(m.text ? [{ art: "absatz" as const, text: m.text }] : []),
-      { art: "fakten", zeilen: [...auftragFakten(t), ["Erteilt", erteiltText(t).replace(/^Erteilt am /, "")]] },
-      { art: "knopf", text: "Termin und Auftrag ansehen", url: auftragLink(t) },
+      { art: "absatz", text: m.text },
+      { art: "link", text: "Termin und Auftrag können Sie hier jederzeit ansehen", url: auftragLink(t) },
       ...(fernabsatz
         ? ([
             {
-              art: "hinweis",
+              art: "absatz",
               text: `${t.auftrag_vorab_am ? `Sie haben am ${datumZeit(t.auftrag_vorab_am)} ausdrücklich verlangt, dass wir vor Ablauf der Widerrufsfrist mit den Arbeiten beginnen, und bestätigt, dass Ihr Widerrufsrecht erlischt, sobald der Auftrag vollständig ausgeführt ist. ` : ""}Es gelten unsere Allgemeinen Geschäftsbedingungen: ${ENV.siteUrl}/agb`,
             },
-            { art: "klein", text: widerrufText(firma) },
+            { art: "absatz", text: widerrufText(firma) },
           ] as const)
         : []),
     ],
@@ -393,7 +392,6 @@ async function kundeBestaetigen(terminId: string): Promise<void> {
   const ergebnis = await mailer().senden({
     an,
     betreff: m.betreff,
-    html,
     text,
     antwortAn: firma.email,
     anhaenge: [{ dateiname: auftragDateiname(t), inhalt: await auftragPdf(t), typ: "application/pdf" }],
