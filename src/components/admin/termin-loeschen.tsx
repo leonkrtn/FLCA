@@ -23,7 +23,7 @@ export function TerminLoeschen({
   const steht = ["angefragt", "bestaetigt"].includes(status);
   const frage = [
     "Termin endgültig löschen?",
-    "Fotos, Verlauf und Kostenvoranschläge zum Termin werden mitgelöscht. Rechnungen zum Termin bleiben erhalten.",
+    "Entwürfe von Kostenvoranschlägen gehen mit. Was der Kunde schon bekommen hat (Kostenvoranschläge, Werkstattauftrag mit Fotos und Unterschrift), kommt ins Archiv unter Einstellungen. Rechnungen zum Termin bleiben erhalten.",
     steht ? "Der Kunde bekommt keine Nachricht. Soll er Bescheid bekommen, den Termin vorher absagen." : "",
   ]
     .filter(Boolean)

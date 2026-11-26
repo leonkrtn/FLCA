@@ -8,7 +8,9 @@ export type Baustein =
   | { art: "absatz"; text: string }
   | { art: "fakten"; zeilen: [string, string][] }
   | { art: "knopf"; text: string; url: string }
-  | { art: "hinweis"; text: string };
+  | { art: "hinweis"; text: string }
+  /** Kleingedrucktes, z. B. Widerrufsbelehrung: grau, kleiner, Zeilenumbrüche bleiben */
+  | { art: "klein"; text: string };
 
 /**
  * Einheitliches Mail-Layout: schlicht, eine Spalte, schwarzer Kopf mit Firmennamen, ein roter Knopf.
@@ -16,7 +18,18 @@ export type Baustein =
  */
 export function mail(
   firma: Einstellungen["firma"],
-  { ueberschrift, bausteine, gruss = true }: { ueberschrift: string; bausteine: Baustein[]; gruss?: boolean },
+  {
+    ueberschrift,
+    bausteine,
+    gruss = true,
+    abmelden,
+  }: {
+    ueberschrift: string;
+    bausteine: Baustein[];
+    gruss?: boolean;
+    /** Werbliche Mails (Erinnerung, Bewertung): Abmeldelink im Fuß, Pflicht nach § 7 UWG */
+    abmelden?: string;
+  },
 ): { html: string; text: string } {
   const teile = bausteine.map((b) => {
     switch (b.art) {
@@ -31,6 +44,8 @@ export function mail(
               `<tr><td style="padding:8px 12px 8px 0;border-bottom:1px solid #e3e0da;color:#6b6862;white-space:nowrap;vertical-align:top">${esc(k)}</td><td style="padding:8px 0;border-bottom:1px solid #e3e0da;font-weight:600">${esc(v).replace(/\n/g, "<br>")}</td></tr>`,
           )
           .join("")}</table>`;
+      case "klein":
+        return `<p style="margin:0 0 16px;color:#6b6862;font-size:12px;line-height:1.5">${esc(b.text).replace(/\n/g, "<br>")}</p>`;
       case "knopf":
         return `<p style="margin:8px 0 24px"><a href="${esc(b.url)}" style="display:inline-block;background:#2a2a2e;color:#f2f0eb;text-decoration:none;font-weight:600;padding:12px 20px;border-radius:6px">${esc(b.text)}</a></p>`;
     }
@@ -51,7 +66,7 @@ export function mail(
 ${teile.join("\n")}
 ${gruss ? `<p style="margin:0">Viele Grüße<br>${esc(firma.inhaber)} und Team</p>` : ""}
 </td></tr>
-<tr><td class="fuss" style="padding:16px 28px;border-top:1px solid #e3e0da;color:#6b6862;font-size:12px">${esc(fuss)}<br><a href="${esc(ENV.siteUrl)}" style="color:#6b6862">${esc(ENV.siteUrl.replace(/^https?:\/\//, ""))}</a></td></tr>
+<tr><td class="fuss" style="padding:16px 28px;border-top:1px solid #e3e0da;color:#6b6862;font-size:12px">${esc(fuss)}<br><a href="${esc(ENV.siteUrl)}" style="color:#6b6862">${esc(ENV.siteUrl.replace(/^https?:\/\//, ""))}</a>${abmelden ? `<br>Keine Erinnerungen und Bewertungsbitten mehr? <a href="${esc(abmelden)}" style="color:#6b6862">Abmelden</a>` : ""}</td></tr>
 </table></td></tr></table></body></html>`;
 
   const text = [
@@ -61,6 +76,7 @@ ${gruss ? `<p style="margin:0">Viele Grüße<br>${esc(firma.inhaber)} und Team</
       switch (b.art) {
         case "absatz":
         case "hinweis":
+        case "klein":
           return `${b.text}\n`;
         case "fakten":
           return `${b.zeilen.map(([k, v]) => `${k}: ${v}`).join("\n")}\n`;
@@ -71,6 +87,7 @@ ${gruss ? `<p style="margin:0">Viele Grüße<br>${esc(firma.inhaber)} und Team</
     gruss ? `Viele Grüße\n${firma.inhaber} und Team\n` : "",
     "--",
     fuss,
+    ...(abmelden ? [`Keine Erinnerungen und Bewertungsbitten mehr? Abmelden: ${abmelden}`] : []),
   ].join("\n");
 
   return { html, text };

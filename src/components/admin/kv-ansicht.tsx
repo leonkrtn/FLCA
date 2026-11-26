@@ -21,6 +21,18 @@ export function KvAnsicht({ k, ort, termin, termine }: { k: Kostenvoranschlag; o
   const abgelaufen = kvAbgelaufen(k);
   const auftrag = termin?.auftrag_nummer ? termin : null;
   const wartet = termin?.status === "ungeplant";
+  // Termin gelöscht, KV war verschickt: nur noch zum Nachschlagen, ohne Kundenlink und ohne Aktionen.
+  if (k.archiviert_am) {
+    return (
+      <div className="grid gap-6">
+        <p className="text-sm text-grau">Im Archiv seit {datum(k.archiviert_am)}: Der Termin dazu wurde gelöscht. Der Kostenvoranschlag bleibt als Geschäftsbrief erhalten, der Kundenlink ist abgeschaltet.</p>
+        <div className="knopfreihe knopfreihe-frei">
+          <DateiKnopf art="datei" href={`/admin/kostenvoranschlaege/${k.id}/pdf`} className="knopf knopf-dunkel">PDF öffnen</DateiKnopf>
+        </div>
+        <PositionenUebersicht positionen={k.positionen} />
+      </div>
+    );
+  }
   return (
     <div className="grid gap-6">
       <div className="knopfreihe knopfreihe-frei">

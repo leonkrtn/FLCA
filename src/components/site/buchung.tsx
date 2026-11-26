@@ -445,8 +445,13 @@ export function Buchung({ leistungen, vorauswahl, telefon }: { leistungen: Leist
               {gewaehltEng ? (
                 <p className="mt-3 max-w-xl text-sm">Die gewählte Zeit ist eigentlich belegt. Wir melden uns mit einer Zusage oder einem anderen Vorschlag.</p>
               ) : null}
+              {/* Reservierung statt Vertrag (AGB § 2): Erst der Werkstattauftrag verpflichtet, deshalb kein Widerrufsrecht hier. */}
               <p className="mt-3 max-w-xl text-sm text-grau">
-                Wir verwenden Ihre Angaben nur für diesen Termin und die zugehörige Rechnung. Mehr dazu in der{" "}
+                Die Anfrage ist eine unverbindliche Reservierung und kostet nichts. Den Auftrag erteilen Sie erst, wenn wir die Arbeiten mit Ihnen besprochen haben; dafür gelten unsere{" "}
+                <Link href="/agb" className="underline">
+                  AGB
+                </Link>
+                . Wir verwenden Ihre Angaben nur für diesen Termin, den Auftrag und die Rechnung. Mehr dazu in der{" "}
                 <Link href="/datenschutz" className="underline">
                   Datenschutzerklärung
                 </Link>

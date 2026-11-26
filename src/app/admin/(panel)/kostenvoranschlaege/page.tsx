@@ -12,7 +12,8 @@ const ANSICHTEN = [["alle", "Alle"], ["entwurf", "Entwürfe"], ["offen", "Offen"
 export default async function KostenvoranschlagListe({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
   await benutzerMitRecht("rechnungen");
   const { status = "alle" } = await searchParams;
-  let q = db().from("kostenvoranschlaege").select("*").order("erstellt_am", { ascending: false }).limit(300);
+  // Archivierte (Termin gelöscht) stehen unter Einstellungen → Archiv, nicht im Alltag.
+  let q = db().from("kostenvoranschlaege").select("*").is("archiviert_am", null).order("erstellt_am", { ascending: false }).limit(300);
   if (status !== "alle") q = q.eq("status", status);
   const { data } = await q;
   const liste = (data ?? []) as Kostenvoranschlag[];

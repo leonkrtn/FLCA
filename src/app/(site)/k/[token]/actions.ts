@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { type Ergebnis } from "@/lib/forms";
+import { type Ergebnis, ja } from "@/lib/forms";
 import { istSystemfehler } from "@/lib/fehler";
 import { sicher } from "@/lib/sicher";
 import { imLimit } from "@/lib/limit";
@@ -10,13 +10,18 @@ import { db } from "@/lib/supabase/admin";
 import { anfrageAusKv, TerminFehler } from "@/lib/termine";
 import { istDatum } from "@/lib/zeit";
 
-export async function kundeAntwortet(token: string, antwort: "angenommen" | "abgelehnt", _v: Ergebnis): Promise<Ergebnis> {
+export async function kundeAntwortet(token: string, antwort: "angenommen" | "abgelehnt", _v: Ergebnis, fd?: FormData): Promise<Ergebnis> {
   return sicher(null, async () => {
     if ((await imLimit("kostenvoranschlag")) !== "ok") return { status: "fehler", meldung: "Bitte versuchen Sie es später noch einmal oder rufen Sie an." };
     const k = await kvPerToken(token);
     if (!k) return { status: "fehler", meldung: "Kostenvoranschlag nicht gefunden." };
+    // Annehmen ist eine Beauftragung im Fernabsatz: AGB und das Verlangen nach sofortigem Beginn (§ 356 Abs. 4 BGB)
+    if (antwort === "angenommen") {
+      if (!fd || !ja(fd, "einverstanden")) return { status: "fehler", meldung: "Bitte bestätigen Sie, dass Sie die Arbeiten beauftragen." };
+      if (!ja(fd, "vorab")) return { status: "fehler", meldung: "Bitte bestätigen Sie, dass wir vor Ablauf der Widerrufsfrist beginnen sollen." };
+    }
     try {
-      await kvBeantworten(k.id, antwort === "abgelehnt" ? "abgelehnt" : "angenommen", { kunde: true });
+      await kvBeantworten(k.id, antwort === "abgelehnt" ? "abgelehnt" : "angenommen", { kunde: true, vorab: antwort === "angenommen" });
     } catch (error) {
       // Systemfehler an sicher() weitergeben: ins Protokoll und ohne technische Meldung an den Kunden
       if (istSystemfehler(error)) throw error;

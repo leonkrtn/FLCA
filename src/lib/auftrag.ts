@@ -1,6 +1,6 @@
 import "server-only";
 import { after } from "next/server";
-import { type Annahme, annahmeZeilen, auftragStand, bruttoVon, type ErteiltWie, erteiltText, grenzeText, positionenAusLeistungen } from "./auftrag-regeln";
+import { type Annahme, annahmeZeilen, auftragStand, bruttoVon, type ErteiltWie, erteiltText, freigabeText, grenzeText, positionenAusLeistungen, ueberKostengrenze } from "./auftrag-regeln";
 import { einstellungen } from "./einstellungen";
 import { ENV } from "./env";
 import { melden, verlauf } from "./ereignisse";
@@ -16,6 +16,7 @@ import { db, DbFehler, dbRoh } from "./supabase/admin";
 import { type Termin, TerminFehler, terminLaden } from "./termine";
 import { berlinDatum } from "./zeit";
 import { fehlerMelden } from "./fehler";
+import { widerrufText } from "./rechtstexte-standard";
 
 /**
  * Werkstattauftrag: Der Kunde erteilt ihn, bevor gearbeitet wird. Er hängt am Termin (Spalten auftrag_* in
@@ -75,13 +76,13 @@ async function positionenAusTermin(t: Termin): Promise<Position[]> {
   return positionenAusLeistungen(ids.map((id) => (data ?? []).find((l) => l.id === id)).filter(Boolean), t.leistung_name, t.angebot_preise ?? {});
 }
 
-type KvKurz = { id: string; nummer: string | null; positionen: Position[]; empfaenger: Empfaenger };
+type KvKurz = { id: string; nummer: string | null; positionen: Position[]; empfaenger: Empfaenger; vorab_am?: string | null };
 
 /** Kostenvoranschlag am Termin mit diesem Stand, der jüngste zuerst. */
 async function kvAmTermin(terminId: string, status: "angenommen" | "offen"): Promise<KvKurz | null> {
   const { data } = await db()
     .from("kostenvoranschlaege")
-    .select("id, nummer, positionen, empfaenger")
+    .select("id, nummer, positionen, empfaenger, vorab_am")
     .eq("termin_id", terminId)
     .eq("status", status)
     .order(status === "angenommen" ? "beantwortet_am" : "erstellt_am", { ascending: false })
@@ -146,7 +147,7 @@ export async function auftragAusKv(terminId: string, kv: KvKurz, vonBenutzer: st
     const neu = (await terminLaden(terminId))!;
     after(() => melden("auftrag.angelegt", { ...ereignisDaten(neu), kostenvoranschlag_id: kv.id }));
   }
-  await auftragErteilen(terminId, "kostenvoranschlag", { name: kv.empfaenger?.name ?? "", vonBenutzer, stumm: true });
+  await auftragErteilen(terminId, "kostenvoranschlag", { name: kv.empfaenger?.name ?? "", vonBenutzer, stumm: true, vorab: Boolean(kv.vorab_am) });
   return nummer;
 }
 
@@ -165,6 +166,26 @@ export async function auftragSpeichern(terminId: string, a: { positionen: Positi
   const warnung = grenzeText(t);
   await verlauf("termin", terminId, `Werkstattauftrag geändert: ${euro(summe)}${warnung ? " (über der Kostengrenze)" : ""}`, vonBenutzer);
   return t;
+}
+
+/**
+ * Der Kunde hat Mehrkosten über der Kostengrenze zugestimmt (Telefon, WhatsApp …): freigegeben ist die aktuelle
+ * Summe. Wie, wann und von wem eingetragen, steht am Auftrag und im Verlauf, denn ohne nachweisbare Zustimmung
+ * schuldet der Kunde den Mehrbetrag nicht. Kommt danach noch etwas dazu, warnt der Auftrag erneut.
+ */
+export async function mehrkostenFreigeben(terminId: string, wie: string, vonBenutzer: string): Promise<void> {
+  const t = await terminLaden(terminId);
+  if (!t?.auftrag_nummer) throw new TerminFehler("Zu diesem Termin gibt es keinen Werkstattauftrag.");
+  if (!ueberKostengrenze(t)) throw new TerminFehler("Der Auftrag liegt nicht über der Kostengrenze.");
+  const bis = t.auftrag_summe_brutto_cent ?? 0;
+  const { error } = await db()
+    .from("termine")
+    .update({ auftrag_freigabe_bis_cent: bis, auftrag_freigabe_am: new Date().toISOString(), auftrag_freigabe_wie: wie, auftrag_freigabe_von: vonBenutzer })
+    .eq("id", terminId);
+  if (error) throw new DbFehler(error);
+  const neu = (await terminLaden(terminId))!;
+  await verlauf("termin", terminId, `${freigabeText(neu)} (Kostengrenze ${euro(t.auftrag_kostengrenze_cent ?? 0)})`, vonBenutzer);
+  after(() => melden("auftrag.mehrkosten_freigegeben", { ...ereignisDaten(neu), freigegeben_bis_cent: bis, wie }));
 }
 
 /**
@@ -197,7 +218,7 @@ export async function annahmeSpeichern(
 export async function auftragErteilen(
   terminId: string,
   wie: ErteiltWie,
-  o: { name?: string; bild?: string | null; vonBenutzer?: string | null; stumm?: boolean } = {},
+  o: { name?: string; bild?: string | null; vonBenutzer?: string | null; stumm?: boolean; vorab?: boolean } = {},
 ): Promise<void> {
   const t = await terminLaden(terminId);
   if (!t?.auftrag_nummer) throw new TerminFehler("Zu diesem Termin gibt es noch keinen Werkstattauftrag.");
@@ -210,6 +231,8 @@ export async function auftragErteilen(
       auftrag_erteilt_name: (o.name ?? "").trim().slice(0, 120),
       auftrag_erteilt_brutto_cent: t.auftrag_summe_brutto_cent ?? 0,
       auftrag_erteilt_von: o.vonBenutzer ?? null,
+      // Nachweis für § 356 Abs. 4 BGB: Der Kunde hat online verlangt, dass wir sofort anfangen.
+      auftrag_vorab_am: o.vorab ? new Date().toISOString() : null,
     })
     .eq("id", terminId)
     .is("auftrag_erteilt_am", null)
@@ -342,12 +365,25 @@ async function kundeBestaetigen(terminId: string): Promise<void> {
   const an = t?.kundeVoll?.email || t?.kunde?.email;
   if (!t || !an) return;
   const { firma } = await einstellungen();
+  // Nicht in der Werkstatt erteilt (online, über einen KV per Mail oder Telefon): Fernabsatz. Die Bestätigung auf
+  // einem dauerhaften Datenträger muss dann die Widerrufsbelehrung und das Verlangen nach sofortigem Beginn
+  // enthalten (§ 312f Abs. 2 BGB). Lieber einmal zu oft als zu selten: Bei Firmenkunden schadet sie nicht.
+  const fernabsatz = t.auftrag_erteilt_wie !== "unterschrift";
   const { html, text } = mail(firma, {
     ueberschrift: "Danke für Ihren Auftrag.",
     bausteine: [
       { art: "absatz", text: `Hallo ${t.kunde?.name ?? ""},\nIhr Werkstattauftrag ist bei uns. Eine Kopie hängt als PDF an dieser Mail.` },
       { art: "fakten", zeilen: [...auftragFakten(t), ["Erteilt", erteiltText(t).replace(/^Erteilt am /, "")]] },
       { art: "knopf", text: "Termin und Auftrag ansehen", url: auftragLink(t) },
+      ...(fernabsatz
+        ? ([
+            {
+              art: "hinweis",
+              text: `${t.auftrag_vorab_am ? `Sie haben am ${datumZeit(t.auftrag_vorab_am)} ausdrücklich verlangt, dass wir vor Ablauf der Widerrufsfrist mit den Arbeiten beginnen, und bestätigt, dass Ihr Widerrufsrecht erlischt, sobald der Auftrag vollständig ausgeführt ist. ` : ""}Es gelten unsere Allgemeinen Geschäftsbedingungen: ${ENV.siteUrl}/agb`,
+            },
+            { art: "klein", text: widerrufText(firma) },
+          ] as const)
+        : []),
     ],
   });
   const ergebnis = await mailer().senden({
@@ -358,7 +394,7 @@ async function kundeBestaetigen(terminId: string): Promise<void> {
     antwortAn: firma.email,
     anhaenge: [{ dateiname: auftragDateiname(t), inhalt: await auftragPdf(t), typ: "application/pdf" }],
   });
-  if (!ergebnis.ok) console.warn(`Auftragsbestätigung ${t.auftrag_nummer} nicht versendet: ${ergebnis.fehler}`);
+  if (!ergebnis.ok) await fehlerMelden(new Error(`Auftragsbestätigung ${t.auftrag_nummer} nicht versendet: ${ergebnis.fehler}`), "Auftragsbestätigung an den Kunden");
 }
 
 /**

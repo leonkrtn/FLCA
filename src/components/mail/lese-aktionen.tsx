@@ -85,7 +85,7 @@ export function LeseAktionen({
           <Knopf text="Wiederherstellen" onClick={() => tun({ art: "wiederherstellen" }, true)}>
             <Wiederherstellen />
           </Knopf>
-          <Knopf text="Endgültig löschen" onClick={() => window.confirm("Endgültig löschen?") && tun({ art: "loeschen" }, true)}>
+          <Knopf text="Aus dem Papierkorb löschen" onClick={() => window.confirm("Aus dem Papierkorb löschen? Geschäftliche Mails bleiben 6 Jahre im Archiv (Einstellungen → Archiv).") && tun({ art: "loeschen" }, true)}>
             <Papierkorb />
           </Knopf>
         </>

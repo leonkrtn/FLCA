@@ -42,7 +42,7 @@ export async function kvsZumTermin(terminId: string, kundeId: string | null): Pr
   const [verknuepft, frei] = await Promise.all([
     db().from("kostenvoranschlaege").select(felder).eq("termin_id", terminId).order("erstellt_am"),
     kundeId
-      ? db().from("kostenvoranschlaege").select(felder).eq("kunde_id", kundeId).is("termin_id", null).neq("status", "abgelehnt").order("erstellt_am", { ascending: false }).limit(20)
+      ? db().from("kostenvoranschlaege").select(felder).eq("kunde_id", kundeId).is("termin_id", null).is("archiviert_am", null).neq("status", "abgelehnt").order("erstellt_am", { ascending: false }).limit(20)
       : Promise.resolve({ data: [] }),
   ]);
   return { verknuepft: (verknuepft.data ?? []) as KvAmTermin[], frei: (frei.data ?? []) as KvAmTermin[] };

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { KorrekturHinweis, RechnungAnsicht } from "@/components/admin/rechnung-ansicht";
 import { BelegEditor } from "@/components/admin/beleg-editor";
+import { KostengrenzeHinweis } from "@/components/admin/kostengrenze-hinweis";
 import { MobilKopf } from "@/components/mobil/teile";
 import { benutzerMitRecht } from "@/lib/auth";
 import { kundenSuchen } from "@/lib/kunden";
@@ -28,6 +29,7 @@ export default async function AppRechnung({ params }: { params: Promise<{ id: st
       <MobilKopf titel={r.storno_zu ? `Stornorechnung ${r.nummer}` : r.nummer ? `Rechnung ${r.nummer}` : korrektur ? `Korrektur zu ${korrektur.original}` : "Rechnungsentwurf"} unter={r.storno_zu ? stornoStand(r) : RECHNUNG_STATUS[r.status]} zurueck={r.termin_id ? `/app/termine/${r.termin_id}` : "/app/rechnungen"} />
       <div className="bg-weiss p-4">
         {korrektur ? <KorrekturHinweis k={korrektur} basis="/app/rechnungen" /> : null}
+        {r.status === "entwurf" && r.termin_id ? <KostengrenzeHinweis terminId={r.termin_id} summe={r.summe_brutto_cent} basis="/app" /> : null}
         {r.status === "entwurf" ? (
           <BelegEditor
             art="rechnung"
@@ -41,7 +43,7 @@ export default async function AppRechnung({ params }: { params: Promise<{ id: st
         ) : (
           <RechnungAnsicht r={r} basis="/app/rechnungen" pdfHref={`/admin/rechnungen/${r.id}/pdf`} bezuege={bezuege} />
         )}
-        {wa ? <WhatsappKnopf href={wa.href} vermerken={whatsappVermerken.bind(null, "rechnung", r.id, wa.vorlage)} className="knopf knopf-rahmen mt-4 w-full">Per WhatsApp schicken</WhatsappKnopf> : null}
+        {wa ? <WhatsappKnopf href={wa.href} ohneEinwilligung={wa.ohneEinwilligung} vermerken={whatsappVermerken.bind(null, "rechnung", r.id, wa.vorlage)} className="knopf knopf-rahmen mt-4 w-full">Per WhatsApp schicken</WhatsappKnopf> : null}
       </div>
     </>
   );

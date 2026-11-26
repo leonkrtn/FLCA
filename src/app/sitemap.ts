@@ -17,5 +17,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: url("/impressum"), priority: 0.1 },
     { url: url("/datenschutz"), priority: 0.1 },
     { url: url("/agb"), priority: 0.1 },
+    { url: url("/widerruf"), priority: 0.1 },
   ];
 }

@@ -274,8 +274,8 @@ function Suche({
         <p className="font-semibold">{t("mehrereGefunden")}</p>
         {treffer.map((k, i) => (
           <button key={k.id} type="button" autoFocus={i === 0} onClick={() => gewaehlt(k)} className="rounded-lg border border-linie bg-flaeche p-4 text-left hover:border-tinte focus-visible:border-tinte">
-            <span className="block font-semibold">{k.name}</span>
-            <span className="block text-base text-grau">{[k.firma, k.ort, k.fahrzeuge.map((f) => f.kennzeichen).join(", ")].filter(Boolean).join(" · ")}</span>
+            <span className="block font-semibold">{k.maske?.name ?? k.name}</span>
+            <span className="block text-base text-grau">{[k.maske?.firma ?? k.firma, k.ort, k.fahrzeuge.map((f) => f.kennzeichen).join(", ")].filter(Boolean).join(" · ")}</span>
           </button>
         ))}
       </div>
@@ -338,21 +338,22 @@ function Daten({
   return (
     <form action={aktion} className="grid gap-8" key={zustand.versuch}>
       <input type="hidden" name="sprache" value={sprache} />
-      {kunde ? <h1 className="schmal text-4xl uppercase">{t("willkommen")}, {kunde.name}</h1> : null}
+      {kunde ? <h1 className="schmal text-4xl uppercase">{t("willkommen")}, {kunde.maske?.name ?? kunde.name}</h1> : null}
+      {kunde?.maske ? <p className="text-lg text-grau">{t("verdecktHinweis")}</p> : null}
 
       <Gruppe titel={t("abschnittKontakt")}>
-        <Eingabe label={t("name")} name="name" wert={w("name", kunde?.name)} pflicht={t("pflicht")} autoFocus autoComplete="name" />
+        <Eingabe label={t("name")} name="name" wert={w("name", kunde?.name)} maske={kunde?.maske?.name} pflicht={kunde ? undefined : t("pflicht")} autoFocus autoComplete="name" />
         <div className="grid gap-4 sm:grid-cols-2">
-          <Eingabe label={t("telefon")} name="telefon" typ="tel" wert={w("telefon", kunde?.telefon)} autoComplete="tel" />
-          <Eingabe label={t("email")} name="email" typ="email" wert={w("email", kunde?.email)} autoComplete="email" />
+          <Eingabe label={t("telefon")} name="telefon" typ="tel" wert={w("telefon", kunde?.telefon)} maske={kunde?.maske?.telefon} autoComplete="tel" />
+          <Eingabe label={t("email")} name="email" typ="email" wert={w("email", kunde?.email)} maske={kunde?.maske?.email} autoComplete="email" />
         </div>
       </Gruppe>
 
       <Gruppe titel={t("abschnittAnschrift")}>
-        <Eingabe label={t("strasse")} name="strasse" wert={w("strasse", kunde?.strasse)} autoComplete="street-address" />
+        <Eingabe label={t("strasse")} name="strasse" wert={w("strasse", kunde?.strasse)} maske={kunde?.maske?.strasse} autoComplete="street-address" />
         <div className="grid gap-4 sm:grid-cols-[10rem_minmax(0,1fr)]">
-          <Eingabe label={t("plz")} name="plz" wert={w("plz", kunde?.plz)} inputMode="numeric" autoComplete="postal-code" />
-          <Eingabe label={t("ort")} name="ort" wert={w("ort", kunde?.ort)} autoComplete="address-level2" />
+          <Eingabe label={t("plz")} name="plz" wert={w("plz", kunde?.plz)} maske={kunde?.maske?.plz} inputMode="numeric" autoComplete="postal-code" />
+          <Eingabe label={t("ort")} name="ort" wert={w("ort", kunde?.ort)} maske={kunde?.maske?.ort} autoComplete="address-level2" />
         </div>
       </Gruppe>
 
@@ -390,8 +391,8 @@ function Daten({
 
       <Gruppe titel={t("abschnittFirma")}>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Eingabe label={t("firma")} name="firma" wert={w("firma", kunde?.firma)} autoComplete="organization" />
-          <Eingabe label={t("ustId")} name="ust_id" wert={w("ust_id", kunde?.ust_id)} grossbuchstaben />
+          <Eingabe label={t("firma")} name="firma" wert={w("firma", kunde?.firma)} maske={kunde?.maske?.firma} autoComplete="organization" />
+          <Eingabe label={t("ustId")} name="ust_id" wert={w("ust_id", kunde?.ust_id)} maske={kunde?.maske?.ust_id} grossbuchstaben />
         </div>
       </Gruppe>
 
@@ -404,6 +405,8 @@ function Daten({
         </Haken>
         <Haken name="whatsapp" an={haken("whatsapp", Boolean(kunde?.whatsapp))}>{t("whatsapp")}</Haken>
         <Haken name="erinnerung" an={haken("erinnerung", Boolean(kunde?.erinnerung))}>{t("erinnerung")}</Haken>
+        {/* Art. 7 Abs. 3 DSGVO: vor der Einwilligung auf das Widerrufsrecht hinweisen */}
+        <p className="text-lg text-grau">{t("einwilligungHinweis")}</p>
       </Gruppe>
 
       {zustand.status === "fehler" ? (
@@ -436,10 +439,13 @@ function Eingabe({
   autoComplete = "off",
   inputMode,
   grossbuchstaben,
+  maske,
 }: {
   label: string;
   name: string;
   wert: string;
+  /** Verdeckter gespeicherter Wert eines Bestandskunden: steht grau im leeren Feld */
+  maske?: string;
   typ?: "text" | "tel" | "email";
   pflicht?: string;
   autoFocus?: boolean;
@@ -457,6 +463,7 @@ function Eingabe({
         name={name}
         type={typ}
         defaultValue={wert}
+        placeholder={maske || undefined}
         required={Boolean(pflicht)}
         autoFocus={autoFocus}
         autoComplete={autoComplete}

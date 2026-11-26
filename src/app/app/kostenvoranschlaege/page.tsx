@@ -15,6 +15,7 @@ export default async function AppKostenvoranschlaege() {
     .select("id, nummer, status, gueltig_bis, summe_brutto_cent, empfaenger, fahrzeug, rechnung_id, erstellt_am")
     .in("status", ["entwurf", "offen", "angenommen"])
     .is("rechnung_id", null)
+    .is("archiviert_am", null)
     .order("erstellt_am", { ascending: false })
     .limit(100);
   const liste = (data ?? []) as Kostenvoranschlag[];

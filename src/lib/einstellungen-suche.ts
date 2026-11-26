@@ -23,6 +23,7 @@ export const BEREICHE = [
   ["schnittstellen", "Schnittstellen"],
   ["recht", "Rechtstexte"],
   ["uebernahme", "Datenübernahme"],
+  ["archiv", "Archiv"],
   ["fehler", "Fehler"],
 ] as const;
 
@@ -212,6 +213,10 @@ export function einstellungenVerzeichnis({ e, whatsapp }: Quelle): SuchEintrag[]
 
   add("uebernahme", [
     { titel: "Datenübernahme", hilfe: "Kunden, Fahrzeuge und frühere Rechnungen aus CSV-Dateien", woerter: ["import", "importieren", "csv", "einlesen", "altbestand", "alte", "daten", "kunden", "pdf"] },
+  ]);
+
+  add("archiv", [
+    { titel: "Archiv", hilfe: "Werkstattaufträge und Kostenvoranschläge gelöschter Termine, gelöschte Mails", woerter: ["archiv", "aufbewahrung", "gelöscht", "papierkorb", "termin gelöscht", "kostenvoranschlag", "auftrag", "mail", "wiederfinden"] },
   ]);
 
   add("fehler", [

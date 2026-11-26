@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { Senden } from "@/components/admin/formular";
 import { KorrekturHinweis, RechnungAnsicht } from "@/components/admin/rechnung-ansicht";
 import { BelegEditor } from "@/components/admin/beleg-editor";
+import { KostengrenzeHinweis } from "@/components/admin/kostengrenze-hinweis";
 import { Abschnitt, Kopf, Marke } from "@/components/admin/ui";
 import { entwurfLoeschen } from "@/lib/aktionen/rechnungen";
 import { benutzerMitRecht } from "@/lib/auth";
@@ -40,6 +41,7 @@ export default async function RechnungSeite({ params }: { params: Promise<{ id: 
       <div className="grid gap-x-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <Abschnitt className="min-w-0">
           {korrektur ? <KorrekturHinweis k={korrektur} basis="/admin/rechnungen" /> : null}
+          {r.status === "entwurf" && r.termin_id ? <KostengrenzeHinweis terminId={r.termin_id} summe={r.summe_brutto_cent} basis="/admin" /> : null}
           {r.status === "entwurf" ? (
             <BelegEditor
               art="rechnung"

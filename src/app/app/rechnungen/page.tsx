@@ -13,7 +13,7 @@ export default async function AppRechnungen() {
   const [{ data }, { count: kvOffen }] = await Promise.all([
     // „*“: bereits_bezahlt_cent (Korrektur) gibt es erst nach der Migration „rechnung_korrigieren“.
     db().from("rechnungen").select("*").in("status", ["entwurf", "gestellt"]).order("erstellt_am", { ascending: false }).limit(100),
-    db().from("kostenvoranschlaege").select("id", { count: "exact", head: true }).eq("status", "angenommen").is("rechnung_id", null),
+    db().from("kostenvoranschlaege").select("id", { count: "exact", head: true }).eq("status", "angenommen").is("rechnung_id", null).is("archiviert_am", null),
   ]);
   const heute = berlinDatum();
   // Entwürfe und gestellte Rechnungen getrennt: Ein Entwurf ist noch keine Rechnung (keine Nummer, nicht

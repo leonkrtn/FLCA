@@ -42,7 +42,7 @@ export default async function AppKostenvoranschlag({ params }: { params: Promise
         ) : (
           <KvAnsicht k={k} ort="app" termin={termin} termine={termine} />
         )}
-        {wa ? <WhatsappKnopf href={wa.href} vermerken={whatsappVermerken.bind(null, "kostenvoranschlag", k.id, wa.vorlage)} className="knopf knopf-rahmen mt-4 w-full">Per WhatsApp schicken</WhatsappKnopf> : null}
+        {wa ? <WhatsappKnopf href={wa.href} ohneEinwilligung={wa.ohneEinwilligung} vermerken={whatsappVermerken.bind(null, "kostenvoranschlag", k.id, wa.vorlage)} className="knopf knopf-rahmen mt-4 w-full">Per WhatsApp schicken</WhatsappKnopf> : null}
       </div>
     </>
   );

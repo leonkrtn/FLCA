@@ -25,6 +25,12 @@ export type AuftragFelder = {
   auftrag_erteilt_wie?: ErteiltWie | null;
   auftrag_erteilt_name?: string;
   auftrag_erteilt_brutto_cent?: number | null;
+  /** Online beauftragt: Der Kunde hat verlangt, dass vor Ablauf der Widerrufsfrist begonnen wird (§ 356 Abs. 4 BGB). */
+  auftrag_vorab_am?: string | null;
+  /** Mehrkosten über der Kostengrenze freigegeben, bis zu dieser Summe (brutto) */
+  auftrag_freigabe_bis_cent?: number | null;
+  auftrag_freigabe_am?: string | null;
+  auftrag_freigabe_wie?: string;
 };
 
 export const TANKSTAENDE = ["Reserve", "1/4", "1/2", "3/4", "voll"] as const;
@@ -65,18 +71,36 @@ export function erteiltText(t: AuftragFelder): string {
   return `Erteilt am ${datumZeit(t.auftrag_erteilt_am)} ${t.auftrag_erteilt_wie ? WIE[t.auftrag_erteilt_wie] : ""}${name ? ` (${name})` : ""}`.replace(/\s+/g, " ").trim();
 }
 
-/** Um so viel Cent liegt der Auftrag über der Kostengrenze; null = keine Grenze oder darunter. */
-export function ueberKostengrenze(t: Pick<AuftragFelder, "auftrag_kostengrenze_cent" | "auftrag_summe_brutto_cent">): number | null {
+type GrenzFelder = Pick<AuftragFelder, "auftrag_kostengrenze_cent" | "auftrag_summe_brutto_cent" | "auftrag_freigabe_bis_cent">;
+
+/**
+ * Um so viel Cent liegt der Auftrag über dem, was der Kunde freigegeben hat (Kostengrenze, oder nach einer
+ * Zustimmung zu Mehrkosten die dabei freigegebene Summe); null = keine Grenze oder darunter. Über der Grenze
+ * schuldet der Kunde den Mehrbetrag nur mit Zustimmung, und die muss die Werkstatt beweisen können.
+ */
+export function ueberKostengrenze(t: GrenzFelder): number | null {
   const grenze = t.auftrag_kostengrenze_cent;
   if (grenze == null) return null;
-  const mehr = (t.auftrag_summe_brutto_cent ?? 0) - grenze;
+  const frei = Math.max(grenze, t.auftrag_freigabe_bis_cent ?? 0);
+  const mehr = (t.auftrag_summe_brutto_cent ?? 0) - frei;
   return mehr > 0 ? mehr : null;
 }
 
 /** Hinweis für Werkstatt und Büro, wenn der Auftrag (nach Ergänzungen) über die Grenze geht. */
-export function grenzeText(t: Pick<AuftragFelder, "auftrag_kostengrenze_cent" | "auftrag_summe_brutto_cent">): string {
+export function grenzeText(t: GrenzFelder): string {
   const mehr = ueberKostengrenze(t);
-  return mehr ? `${euro(mehr)} über der Kostengrenze von ${euro(t.auftrag_kostengrenze_cent!)}. Bitte mit dem Kunden absprechen.` : "";
+  if (!mehr) return "";
+  const bis = Math.max(t.auftrag_kostengrenze_cent!, t.auftrag_freigabe_bis_cent ?? 0);
+  return `${euro(mehr)} über ${t.auftrag_freigabe_bis_cent ? `der Freigabe von ${euro(bis)}` : `der Kostengrenze von ${euro(bis)}`}. Vor den Mehrarbeiten den Kunden fragen und seine Zustimmung am Auftrag eintragen.`;
+}
+
+/** Wie der Kunde Mehrkosten zugestimmt hat (Auswahl am Auftrag) */
+export const FREIGABE_WEGE = ["telefonisch", "per WhatsApp", "per E-Mail", "persönlich in der Werkstatt", "schriftlich"] as const;
+
+/** „Mehrkosten bis 640,00 € freigegeben am 21.11.2026, 10:15 telefonisch“ */
+export function freigabeText(t: Pick<AuftragFelder, "auftrag_freigabe_bis_cent" | "auftrag_freigabe_am" | "auftrag_freigabe_wie">): string {
+  if (!t.auftrag_freigabe_am || t.auftrag_freigabe_bis_cent == null) return "";
+  return `Mehrkosten bis ${euro(t.auftrag_freigabe_bis_cent)} freigegeben am ${datumZeit(t.auftrag_freigabe_am)}${t.auftrag_freigabe_wie ? ` ${t.auftrag_freigabe_wie}` : ""}`;
 }
 
 /** Was aus Formular oder JSON kommt, auf erlaubte Werte bringen. */

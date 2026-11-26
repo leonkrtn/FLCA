@@ -104,8 +104,14 @@ ${kontakt(f)}
 <h2>5. Terminbuchung und WhatsApp</h2>
 <h3>Terminbuchung über das Buchungsformular</h3>
 <p>Wenn Sie über unser Buchungsformular einen Termin anfragen, werden die von Ihnen eingegebenen Daten (Name, Telefonnummer, E-Mail-Adresse, Kennzeichen, Fahrzeug, gewünschte Leistung, Terminwunsch und Ihre Nachricht) zum Zwecke der Terminvereinbarung und Vertragsanbahnung in unserer Kundenverwaltung gespeichert und verarbeitet. Die Verarbeitung erfolgt auf Grundlage von Art. 6 Abs. 1 lit. b DSGVO (vorvertragliche Maßnahmen bzw. Vertragserfüllung).</p>
+<h3>Werkstattauftrag, Fahrzeugannahme und Rechnung</h3>
+<p>Für Ihren Auftrag speichern wir Ihre Kontaktdaten, Anschrift, Fahrzeugdaten (Kennzeichen, Marke, Modell, Fahrgestellnummer, Kilometerstand, Erstzulassung), die vereinbarten Arbeiten und Preise, die Fahrzeugannahme mit Fotos von Vorschäden, Ihre Unterschrift oder Ihre Online-Erteilung und unsere Belege. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (Vertrag). Rechnungen und Buchungsbelege bewahren wir nach § 147 AO und § 257 HGB bis zu zehn Jahre auf (Art. 6 Abs. 1 lit. c DSGVO); dafür geben wir sie auch an unseren Steuerberater weiter.</p>
+<h3>Persönliche Links und Kundenbildschirm</h3>
+<p>Zu Termin, Kostenvoranschlag und Rechnung bekommen Sie einen persönlichen Link, über den Sie ohne Anmeldung zusagen, absagen oder Unterlagen abrufen können. Bitte geben Sie ihn nicht weiter. In unserem Büro können Sie Ihre Daten an einem Kundenbildschirm selbst eintragen oder ändern und den Auftrag dort unterschreiben. Gespeicherte Daten zeigt der Bildschirm nur teilweise an.</p>
+<h3>Erinnerungen und Bitte um eine Bewertung</h3>
+<p>Wenn Sie es uns erlaubt haben, erinnern wir Sie per E-Mail oder WhatsApp an Termine (z. B. HU oder Reifenwechsel) und bitten nach einem Besuch um eine Bewertung. Rechtsgrundlage ist Ihre Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 7 Abs. 2 UWG). Sie können sie jederzeit widerrufen, über den Abmeldelink in jeder solchen Mail, per E-Mail oder telefonisch. Die Erinnerung am Tag vor einem vereinbarten Termin gehört zum Vertrag und braucht keine Einwilligung.</p>
 <h3>WhatsApp</h3>
-<p>Wir bieten Ihnen die Möglichkeit, uns direkt über WhatsApp zu kontaktieren. WhatsApp ist ein Dienst der Meta Platforms Ireland Limited, 4 Grand Canal Square, Grand Canal Harbour, Dublin 2, Irland (für Nutzer im Europäischen Wirtschaftsraum). Bei der Nutzung von WhatsApp werden personenbezogene Daten (z. B. Ihre Telefonnummer, Ihr Name, Nachrichteninhalte) an Meta übermittelt und auf Servern verarbeitet, die sich auch außerhalb der EU/des EWR befinden können (insbesondere in den USA). Auf unserer Website ist WhatsApp nur verlinkt; Daten werden erst übertragen, wenn Sie den Link anklicken.</p>
+<p>Wir bieten Ihnen die Möglichkeit, uns direkt über WhatsApp zu kontaktieren. Von uns aus schreiben wir Sie über WhatsApp nur an, wenn Sie es uns erlaubt haben. WhatsApp ist ein Dienst der Meta Platforms Ireland Limited, 4 Grand Canal Square, Grand Canal Harbour, Dublin 2, Irland (für Nutzer im Europäischen Wirtschaftsraum). Bei der Nutzung von WhatsApp werden personenbezogene Daten (z. B. Ihre Telefonnummer, Ihr Name, Nachrichteninhalte) an Meta übermittelt und auf Servern verarbeitet, die sich auch außerhalb der EU/des EWR befinden können (insbesondere in den USA). Auf unserer Website ist WhatsApp nur verlinkt; Daten werden erst übertragen, wenn Sie den Link anklicken.</p>
 <p>Die Nutzung von WhatsApp erfolgt auf Grundlage unseres berechtigten Interesses an einer schnellen und effizienten Kommunikation mit Kunden und Interessenten (Art. 6 Abs. 1 lit. f DSGVO) sowie auf Grundlage Ihrer Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), sofern Sie uns über WhatsApp kontaktieren. Sie können diese Einwilligung jederzeit mit Wirkung für die Zukunft widerrufen.</p>
 <p>Die Datenübermittlung in die USA wird auf die EU-Standardvertragsklauseln der EU-Kommission gestützt. Weitere Informationen finden Sie in der Datenschutzrichtlinie von WhatsApp: ${link("https://www.whatsapp.com/legal/privacy-policy")}.</p>
 
@@ -118,10 +124,16 @@ ${kontakt(f)}
 <h3>Schriftarten</h3>
 <p>Die Schriftarten dieser Website liegen auf unserem eigenen Server. Beim Aufruf der Seiten wird keine Verbindung zu Google Fonts oder anderen Schriftanbietern aufgebaut.</p>
 
-<h2>7. E-Mail-Versand</h2>
-<p>Wenn Sie über unser Buchungsformular eine Terminanfrage stellen, erhalten Sie Bestätigungs- und Terminmails an die von Ihnen angegebene E-Mail-Adresse. Der Versand erfolgt über den E-Mail-Dienstleister Resend (Resend, Inc., USA). Die Datenübermittlung in die USA wird auf die EU-Standardvertragsklauseln gestützt. Details finden Sie hier: ${link("https://resend.com/legal/privacy-policy")}. Die Verarbeitung Ihrer E-Mail-Adresse erfolgt auf Grundlage von Art. 6 Abs. 1 lit. b DSGVO zur Durchführung vorvertraglicher Maßnahmen.</p>
+<h2>7. E-Mail</h2>
+<p>Wenn Sie über unser Buchungsformular eine Terminanfrage stellen oder einen Auftrag erteilen, erhalten Sie Bestätigungs-, Termin- und Auftragsmails an die von Ihnen angegebene E-Mail-Adresse. Versand und Empfang unserer E-Mails laufen über den E-Mail-Dienstleister Resend (Resend, Inc., USA); auch Mails, die Sie an uns schreiben, gehen über Resend in unser Postfach. Die Datenübermittlung in die USA wird auf die EU-Standardvertragsklauseln gestützt. Details finden Sie hier: ${link("https://resend.com/legal/privacy-policy")}. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO, bei sonstigen Anfragen Art. 6 Abs. 1 lit. f DSGVO. Geschäftliche E-Mails bewahren wir als Handels- und Geschäftsbriefe sechs Jahre auf (§ 257 HGB, § 147 AO, Art. 6 Abs. 1 lit. c DSGVO) und löschen sie danach.</p>
 
-<h2>8. Kontakt</h2>
+<h2>8. Bewerbungen</h2>
+<p>Wenn Sie sich bei uns bewerben, verarbeiten wir Ihre Angaben und Unterlagen (z. B. Lebenslauf) für das Bewerbungsverfahren (§ 26 BDSG, Art. 6 Abs. 1 lit. b DSGVO). Zugriff haben nur die Personen, die über die Einstellung entscheiden. Kommt es nicht zu einer Einstellung, löschen wir Ihre Daten sechs Monate nach Abschluss des Verfahrens; so lange brauchen wir sie, um uns gegen Ansprüche etwa nach dem AGG verteidigen zu können. Werden Sie eingestellt, kommen die Daten in Ihre Personalakte.</p>
+
+<h2>9. Schnittstellen</h2>
+<p>Einzelne Abläufe (z. B. Benachrichtigungen oder Auswertungen) können wir über Schnittstellen an weitere Dienste weitergeben, die wir für uns einsetzen. Das geschieht nur an Dienstleister, mit denen wir einen Vertrag über Auftragsverarbeitung geschlossen haben, und nur soweit es für den jeweiligen Zweck nötig ist (Art. 6 Abs. 1 lit. b und f DSGVO).</p>
+
+<h2>10. Kontakt</h2>
 <p>Bei Fragen zum Datenschutz können Sie sich jederzeit an uns wenden:</p>
 ${kontakt(f)}
 <p>Stand: November 2026</p>
@@ -139,8 +151,9 @@ export function agbStandard(f: Firma): string {
 
 <h2>§ 2 Vertragsschluss</h2>
 <p>(1) Der Vertrag kommt durch die Annahme des Auftrags durch die Werkstatt zustande. Die Annahme kann mündlich, schriftlich, per E-Mail oder durch Beginn der Arbeiten erfolgen.</p>
-<p>(2) Online-Terminbuchungen stellen ein verbindliches Angebot des Kunden dar. Die Werkstatt bestätigt den Termin per E-Mail. Der Vertrag kommt mit Erhalt der Bestätigung zustande.</p>
-<p>(3) Kostenvoranschläge sind unverbindlich, sofern nicht ausdrücklich als verbindlich bezeichnet. Bei wesentlichen Abweichungen (über 20 %) vom Kostenvoranschlag wird der Kunde vorab informiert.</p>
+<p>(2) Eine Terminanfrage über die Website ist eine unverbindliche Reservierung und noch kein Vertrag. Die Werkstatt bestätigt den reservierten Termin per E-Mail. Der Vertrag über die Arbeiten kommt erst mit der Erteilung des Werkstattauftrags zustande: in der Werkstatt (in der Regel bei Abgabe des Fahrzeugs), online über den Link zum Werkstattauftrag oder durch Annahme eines Kostenvoranschlags.</p>
+<p>(3) Kostenvoranschläge sind unverbindlich, sofern nicht ausdrücklich als verbindlich bezeichnet. Arbeiten, die über einen Kostenvoranschlag oder eine vereinbarte Kostengrenze hinausgehen, führt die Werkstatt nur nach vorheriger Zustimmung des Kunden aus.</p>
+<p>(4) Verbraucher, die den Vertrag ausschließlich über Fernkommunikationsmittel schließen (online, per E-Mail oder Telefon), haben ein gesetzliches Widerrufsrecht. Einzelheiten stehen in der <a href="/widerruf">Widerrufsbelehrung</a>.</p>
 
 <h2>§ 3 Leistungsumfang und Ausführung</h2>
 <p>(1) Die Werkstatt führt die vereinbarten Arbeiten fachgerecht und mit qualifizierten Mitarbeitern aus.</p>
@@ -182,9 +195,8 @@ export function agbStandard(f: Firma): string {
 <p>(3) Die Werkstatt haftet nicht für Schäden durch höhere Gewalt, Diebstahl oder Vandalismus, es sei denn, die Werkstatt hat ihre Sorgfaltspflichten verletzt.</p>
 
 <h2>§ 10 Terminabsage und Stornierung</h2>
-<p>(1) Online gebuchte Termine können bis 24 Stunden vor dem vereinbarten Termin kostenfrei storniert werden.</p>
-<p>(2) Bei Stornierungen innerhalb von 24 Stunden oder Nichterscheinen ohne Absage behält sich die Werkstatt das Recht vor, eine Ausfallpauschale in Höhe von 50 € zu berechnen. Dem Kunden bleibt der Nachweis vorbehalten, dass ein geringerer oder kein Schaden entstanden ist.</p>
-<p>(3) Bereits begonnene Arbeiten werden nach Aufwand berechnet.</p>
+<p>(1) Reservierte Termine können jederzeit kostenfrei abgesagt werden, online über den Link in der Terminbestätigung oder telefonisch. Wir bitten darum, möglichst frühzeitig abzusagen, damit wir den Termin anderweitig vergeben können.</p>
+<p>(2) Kündigt der Kunde einen bereits erteilten Werkstattauftrag, werden bereits begonnene Arbeiten nach Aufwand berechnet. Das gesetzliche Widerrufsrecht für Verbraucher bleibt unberührt.</p>
 
 <h2>§ 11 Datenschutz</h2>
 <p>(1) Die Werkstatt verarbeitet personenbezogene Daten des Kunden zur Vertragsabwicklung gemäß der Datenschutz-Grundverordnung (DSGVO).</p>
@@ -205,4 +217,72 @@ export function agbStandard(f: Firma): string {
 ${anschrift(f, false)}
 ${kontakt(f)}
 `.trim();
+}
+
+/**
+ * Widerrufsbelehrung für Dienstleistungen nach dem gesetzlichen Muster (Anlage 1 zu Art. 246a § 1 Abs. 2 EGBGB),
+ * mit Muster-Widerrufsformular (Anlage 2). Gilt für Verbraucher, die online über den Terminlink oder den Link des
+ * Kostenvoranschlags, per E-Mail oder Telefon beauftragen (Fernabsatz). Wer in der Werkstatt unterschreibt, hat kein
+ * gesetzliches Widerrufsrecht. Der Wortlaut bleibt beim Muster, sonst entfällt dessen Schutz (Art. 246a § 1 Abs. 2
+ * S. 2 EGBGB); er steht deshalb nicht in den änderbaren AGB, sondern immer hier (Seite /widerruf, Bestätigungsmail).
+ * Eine Quelle für HTML und Text, damit Seite und Mail nie auseinanderlaufen.
+ */
+export type WiderrufAbschnitt = { titel: string; absaetze: string[] };
+
+export function widerrufAbschnitte(f: Firma): WiderrufAbschnitt[] {
+  const wir = `${f.name}, ${f.inhaber}, ${f.strasse}, ${f.plz} ${f.ort}, Telefon ${f.telefon}, E-Mail ${f.email}`;
+  return [
+    {
+      titel: "Für wen gilt das?",
+      absaetze: [
+        "Verbraucher haben ein Widerrufsrecht, wenn sie den Vertrag ausschließlich über Fernkommunikationsmittel geschlossen haben, also online über den Link zu ihrem Termin oder Kostenvoranschlag, per E-Mail oder per Telefon. Für Aufträge, die Sie bei uns in der Werkstatt erteilen, besteht kein gesetzliches Widerrufsrecht. Eine Terminanfrage über unsere Website ist nur eine unverbindliche Reservierung und noch kein Vertrag.",
+      ],
+    },
+    {
+      titel: "Widerrufsbelehrung",
+      absaetze: [
+        "Widerrufsrecht",
+        "Sie haben das Recht, binnen vierzehn Tagen ohne Angabe von Gründen diesen Vertrag zu widerrufen.",
+        "Die Widerrufsfrist beträgt vierzehn Tage ab dem Tag des Vertragsabschlusses.",
+        `Um Ihr Widerrufsrecht auszuüben, müssen Sie uns (${wir}) mittels einer eindeutigen Erklärung (z. B. ein mit der Post versandter Brief oder E-Mail) über Ihren Entschluss, diesen Vertrag zu widerrufen, informieren. Sie können dafür das beigefügte Muster-Widerrufsformular verwenden, das jedoch nicht vorgeschrieben ist.`,
+        "Zur Wahrung der Widerrufsfrist reicht es aus, dass Sie die Mitteilung über die Ausübung des Widerrufsrechts vor Ablauf der Widerrufsfrist absenden.",
+        "Folgen des Widerrufs",
+        "Wenn Sie diesen Vertrag widerrufen, haben wir Ihnen alle Zahlungen, die wir von Ihnen erhalten haben, einschließlich der Lieferkosten (mit Ausnahme der zusätzlichen Kosten, die sich daraus ergeben, dass Sie eine andere Art der Lieferung als die von uns angebotene, günstigste Standardlieferung gewählt haben), unverzüglich und spätestens binnen vierzehn Tagen ab dem Tag zurückzuzahlen, an dem die Mitteilung über Ihren Widerruf dieses Vertrags bei uns eingegangen ist. Für diese Rückzahlung verwenden wir dasselbe Zahlungsmittel, das Sie bei der ursprünglichen Transaktion eingesetzt haben, es sei denn, mit Ihnen wurde ausdrücklich etwas anderes vereinbart; in keinem Fall werden Ihnen wegen dieser Rückzahlung Entgelte berechnet.",
+        "Haben Sie verlangt, dass die Dienstleistungen während der Widerrufsfrist beginnen soll, so haben Sie uns einen angemessenen Betrag zu zahlen, der dem Anteil der bis zu dem Zeitpunkt, zu dem Sie uns von der Ausübung des Widerrufsrechts hinsichtlich dieses Vertrags unterrichten, bereits erbrachten Dienstleistungen im Vergleich zum Gesamtumfang der im Vertrag vorgesehenen Dienstleistungen entspricht.",
+        "Ende der Widerrufsbelehrung",
+      ],
+    },
+    {
+      titel: "Vorzeitiges Erlöschen",
+      absaetze: [
+        "Das Widerrufsrecht erlischt, wenn wir die Dienstleistung vollständig erbracht haben und mit der Ausführung erst begonnen haben, nachdem Sie dazu Ihre ausdrückliche Zustimmung gegeben und gleichzeitig Ihre Kenntnis davon bestätigt haben, dass Sie Ihr Widerrufsrecht bei vollständiger Vertragserfüllung durch uns verlieren.",
+      ],
+    },
+    {
+      titel: "Muster-Widerrufsformular",
+      absaetze: [
+        "(Wenn Sie den Vertrag widerrufen wollen, dann füllen Sie bitte dieses Formular aus und senden Sie es zurück.)",
+        `An ${f.name}, ${f.inhaber}, ${f.strasse}, ${f.plz} ${f.ort}, E-Mail ${f.email}:`,
+        "Hiermit widerrufe(n) ich/wir (*) den von mir/uns (*) abgeschlossenen Vertrag über den Kauf der folgenden Waren (*)/die Erbringung der folgenden Dienstleistung (*)",
+        "Bestellt am (*)/erhalten am (*)",
+        "Name des/der Verbraucher(s)",
+        "Anschrift des/der Verbraucher(s)",
+        "Unterschrift des/der Verbraucher(s) (nur bei Mitteilung auf Papier)",
+        "Datum",
+        "(*) Unzutreffendes streichen.",
+      ],
+    },
+  ];
+}
+
+export function widerrufHtml(f: Firma): string {
+  return widerrufAbschnitte(f)
+    .map((a) => `<h2>${esc(a.titel)}</h2>\n${a.absaetze.map((p) => `<p>${esc(p)}</p>`).join("\n")}`)
+    .join("\n");
+}
+
+export function widerrufText(f: Firma): string {
+  return widerrufAbschnitte(f)
+    .map((a) => `${a.titel.toUpperCase()}\n\n${a.absaetze.join("\n\n")}`)
+    .join("\n\n");
 }

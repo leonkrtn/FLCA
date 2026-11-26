@@ -40,6 +40,10 @@ export type Kostenvoranschlag = {
   rechnung_id: string | null;
   erstellt_am: string;
   abgeschlossen_am: string | null;
+  /** Online angenommen: Der Kunde hat verlangt, dass vor Ablauf der Widerrufsfrist begonnen wird (§ 356 Abs. 4 BGB). */
+  vorab_am?: string | null;
+  /** Termin gelöscht, KV war schon verschickt: steht nur noch unter Einstellungen → Archiv */
+  archiviert_am?: string | null;
   kunde?: { nummer: number } | null;
 };
 
@@ -71,7 +75,7 @@ export async function kvLaden(id: string): Promise<Kostenvoranschlag | null> {
 
 export async function kvPerToken(token: string): Promise<Kostenvoranschlag | null> {
   if (!/^[a-f0-9]{64}$/.test(token)) return null;
-  return pruefe<Kostenvoranschlag | null>(await db().from("kostenvoranschlaege").select("*, kunde:kunden(nummer)").eq("token", token).neq("status", "entwurf").maybeSingle());
+  return pruefe<Kostenvoranschlag | null>(await db().from("kostenvoranschlaege").select("*, kunde:kunden(nummer)").eq("token", token).neq("status", "entwurf").is("archiviert_am", null).maybeSingle());
 }
 
 type Inhalt = Pick<Kostenvoranschlag, "empfaenger" | "fahrzeug" | "positionen" | "hinweis"> & { kunde_id?: string | null; termin_id?: string | null; gueltig_bis?: string | null };
@@ -220,13 +224,13 @@ export async function kvVersenden(id: string, an: string, vonBenutzer: string): 
  * Nur ein offener, nicht abgelaufener Kostenvoranschlag lässt sich beantworten; die Bedingung steht im
  * Update selbst, zwei gleichzeitige Klicks ergeben also nur eine Antwort.
  */
-export async function kvBeantworten(id: string, antwort: "angenommen" | "abgelehnt", von: { benutzer?: string; kunde?: boolean }): Promise<void> {
+export async function kvBeantworten(id: string, antwort: "angenommen" | "abgelehnt", von: { benutzer?: string; kunde?: boolean; vorab?: boolean }): Promise<void> {
   const k = await kvLaden(id);
   if (!k || k.status !== "offen") throw new Error("Dieser Kostenvoranschlag ist schon beantwortet.");
   if (von.kunde && kvAbgelaufen(k)) throw new Error("Dieser Kostenvoranschlag ist abgelaufen. Bitte rufen Sie uns kurz an.");
   const { data, error } = await db()
     .from("kostenvoranschlaege")
-    .update({ status: antwort, beantwortet_am: new Date().toISOString() })
+    .update({ status: antwort, beantwortet_am: new Date().toISOString(), ...(von.vorab && { vorab_am: new Date().toISOString() }) })
     .eq("id", id)
     .eq("status", "offen")
     .select("id");
@@ -239,7 +243,8 @@ export async function kvBeantworten(id: string, antwort: "angenommen" | "abgeleh
   // steht schon; klappt der Auftrag nicht, landet das im Fehlerprotokoll und der Knopf am KV holt es nach.
   if (antwort === "angenommen") {
     try {
-      await kvAuftragSicherstellen(k, von.kunde ? "website" : "admin", von.benutzer ?? null);
+      // k ist vor der Antwort geladen; das Verlangen nach sofortigem Beginn gehört mit an den Auftrag.
+      await kvAuftragSicherstellen(von.vorab ? { ...k, vorab_am: new Date().toISOString() } : k, von.kunde ? "website" : "admin", von.benutzer ?? null);
     } catch (error) {
       await fehlerMelden(error, "Werkstattauftrag aus angenommenem Kostenvoranschlag anlegen");
     }
