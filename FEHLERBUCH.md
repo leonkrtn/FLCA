@@ -18,6 +18,21 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-26 · Rostschutz-Kachel läuft rechts über den Rand
+
+- **Stand:** behoben
+- **Wo:** `src/components/site/leistungsbereiche.tsx` (breite Kachel „Rostschutz“ auf der Startseite)
+- **Was man sah:** (beim Prüfen der neuen Leistungsboxen, Tablet-Breite) Die breite Kachel war breiter als die
+  Reihe darüber und lief rechts aus dem Seitenrand.
+- **Ursache:** Die Kachel hatte `md:aspect-[21/8]`. Wird der Inhalt höher als das Seitenverhältnis erlaubt (Boxen
+  statt einer Chip-Zeile), wächst die Höhe, und über das Seitenverhältnis wächst im Grid die Breite mit.
+- **Behebung:** statt Seitenverhältnis eine Mindesthöhe (`md:min-h-[440px]`).
+- **Muster:** `aspect-*` an einem Element, das selbst Text oder Listen im Fluss trägt (nicht nur ein Bild mit
+  `fill`). Dort Mindesthöhe nehmen, Seitenverhältnis nur für reine Bildrahmen.
+- **Weitere Stellen:** alle `aspect-[` gesucht. Bildrahmen (Angebote, Startseite, Leistungsseite) tragen nur
+  absolut liegende Inhalte, unkritisch. Banner auf `/leistungen` (`md:aspect-[21/6]`) trägt Titel und eine Zeile
+  Text aus `BEREICHE`, passt bei den heutigen Texten; bei längeren Texten dasselbe Risiko. Offen gelassen.
+
 ### 2026-11-26 · Online-Beauftragung ohne Widerrufsbelehrung, Knopf ohne „zahlungspflichtig“, AGB nicht einbezogen
 
 - **Stand:** behoben
