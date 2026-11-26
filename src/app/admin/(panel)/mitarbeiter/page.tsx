@@ -41,12 +41,7 @@ export default async function Mitarbeiter({ searchParams }: { searchParams: Prom
     db().from("abwesenheiten").select("id, profil_id, art, von, bis, von_zeit, bis_zeit, status, notiz").eq("status", "beantragt").order("von"),
   ]);
   const personen = (profile ?? []) as Profil[];
-  const name = (id: string) => {
-    const p = personen.find((x) => x.id === id);
-    return p?.name || p?.email || "?";
-  };
   const reiter = (a: Ansicht) => `/admin/mitarbeiter${a === "wochenplan" ? "" : `?ansicht=${a}`}`;
-  const antragHref = (id: string) => `/admin/mitarbeiter/antrag/${id}?zurueck=${encodeURIComponent(reiter(ansicht))}`;
   // Ohne Planbare (nimmt_auftraege) läuft die Website nur nach Arbeitsplätzen: Das soll hier auffallen.
   const keinerPlanbar = !personen.some((p) => p.aktiv && p.rolle && istPlanbar(p.rolle, p.nimmt_auftraege));
 
@@ -61,22 +56,6 @@ export default async function Mitarbeiter({ searchParams }: { searchParams: Prom
           </p>
         </Abschnitt>
       ) : null}
-      {offen?.length ? (
-        <Abschnitt titel="Offene Anträge" className="border-l-4 border-kreide">
-          <ul className="divide-y divide-linie">
-            {(offen as Antrag[]).map((a) => (
-              <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                <Link href={antragHref(a.id)} className="min-w-0 hover:underline">
-                  <span className="font-semibold">{name(a.profil_id)}</span> · {abwesenheitText(a)} {zeitraumText(a)}
-                  {a.notiz ? <span className="block text-sm text-grau">{a.notiz}</span> : null}
-                </Link>
-                {/* Entschieden wird auf der Antragsseite: erst sehen, wer sonst fehlt und wer die Termine übernimmt. */}
-                <Link href={antragHref(a.id)} className="knopf knopf-dunkel knopf-klein">Ansehen und entscheiden</Link>
-              </li>
-            ))}
-          </ul>
-        </Abschnitt>
-      ) : null}
       <Reiter
         aktiv={reiter(ansicht)}
         eintraege={[
@@ -88,7 +67,7 @@ export default async function Mitarbeiter({ searchParams }: { searchParams: Prom
       />
       {ansicht === "wochenplan" ? (istDatum(sp.tag) || sp.tag === "heute" ? <Tagesplan tag={istDatum(sp.tag) ? sp.tag : berlinDatum()} /> : <Wochenplan woche={sp.woche} />) : null}
       {ansicht === "faehigkeiten" ? <Faehigkeiten personen={personen} /> : null}
-      {ansicht === "urlaub" ? <Urlaub personen={personen} jahrWahl={sp.jahr} monatWahl={sp.monat} /> : null}
+      {ansicht === "urlaub" ? <Urlaub personen={personen} offen={(offen ?? []) as Antrag[]} jahrWahl={sp.jahr} monatWahl={sp.monat} /> : null}
       {ansicht === "personen" ? <Personen personen={personen} standortRecht={darf(b.rolle, "einstellungen")} einladenRecht={darf(b.rolle, "benutzer")} /> : null}
     </>
   );
@@ -248,8 +227,8 @@ async function Faehigkeiten({ personen }: { personen: Profil[] }) {
   );
 }
 
-/** Urlaubskonto je Person, Monatskalender (wer fehlt wann) und wer demnächst nicht da ist. */
-async function Urlaub({ personen, jahrWahl, monatWahl }: { personen: Profil[]; jahrWahl?: string; monatWahl?: string }) {
+/** Offene Anträge, Urlaubskonto je Person, Monatskalender (wer fehlt wann) und wer demnächst nicht da ist. */
+async function Urlaub({ personen, offen, jahrWahl, monatWahl }: { personen: Profil[]; offen: Antrag[]; jahrWahl?: string; monatWahl?: string }) {
   const heute = berlinDatum();
   const jahr = jahrWahl && /^\d{4}$/.test(jahrWahl) ? jahrWahl : monatWahl && /^\d{4}-\d{2}$/.test(monatWahl) ? monatWahl.slice(0, 4) : heute.slice(0, 4);
   const monat = monatWahl && /^\d{4}-\d{2}$/.test(monatWahl) && monatWahl.startsWith(jahr) ? monatWahl : heute.startsWith(jahr) ? heute.slice(0, 7) : `${jahr}-01`;
@@ -260,8 +239,30 @@ async function Urlaub({ personen, jahrWahl, monatWahl }: { personen: Profil[]; j
   const liste = (abw ?? []) as Antrag[];
   const aktive = personen.filter((p) => p.aktiv && p.rolle);
   const kommend = liste.filter((a) => a.status === "genehmigt" && a.bis >= heute).slice(0, 20);
+  const name = (id: string) => {
+    const p = personen.find((x) => x.id === id);
+    return p?.name || p?.email || "?";
+  };
+  // Zurück auf genau diesen Monat, damit man nach der Entscheidung dort weitermacht.
+  const antragHref = (id: string) => `/admin/mitarbeiter/antrag/${id}?zurueck=${encodeURIComponent(`/admin/mitarbeiter?ansicht=urlaub&monat=${monat}`)}`;
   return (
     <>
+      {offen.length ? (
+        <Abschnitt titel="Offene Anträge" className="border-l-4 border-kreide">
+          <ul className="divide-y divide-linie">
+            {offen.map((a) => (
+              <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <Link href={antragHref(a.id)} className="min-w-0 hover:underline">
+                  <span className="font-semibold">{name(a.profil_id)}</span> · {abwesenheitText(a)} {zeitraumText(a)}
+                  {a.notiz ? <span className="block text-sm text-grau">{a.notiz}</span> : null}
+                </Link>
+                {/* Entschieden wird auf der Antragsseite: erst sehen, wer sonst fehlt und wer die Termine übernimmt. */}
+                <Link href={antragHref(a.id)} className="knopf knopf-dunkel knopf-klein">Ansehen und entscheiden</Link>
+              </li>
+            ))}
+          </ul>
+        </Abschnitt>
+      ) : null}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p className="font-semibold">Urlaubskonto {jahr} <span className="font-normal text-grau">(gezählt werden Arbeitstage laut Wochenplan)</span></p>
         <div className="flex gap-2">
