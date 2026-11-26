@@ -10,7 +10,7 @@ import { mail } from "./email/vorlagen";
 import { mailer } from "./services/email";
 import { pushSenden } from "./services/push";
 import { belegungenAm, belegungenMitPerson, leistungNamen, planPersonen, planungAktiv } from "./mitarbeiter";
-import { besteFreiePerson, freieSlotsMitPersonen, konflikte, type PersonSlot } from "./planung";
+import { besteFreiePerson, freieSlotsMitPersonen, konflikte, type PersonSlot, type PlanPerson, type Umverteilung, umverteilungVorschlagen } from "./planung";
 import { arbeitsende, type Belegung, freieSlots, type Slot } from "./slots";
 import { db, DbFehler, dbRoh, pruefe } from "./supabase/admin";
 import { berlin, berlinDatum, berlinUhrzeit, minuten, plusTage, uhrzeit as uhrzeitAus, wochentag } from "./zeit";
@@ -1309,18 +1309,10 @@ export async function vorschlagAntworten(token: string, annehmen: boolean): Prom
   return neu;
 }
 
-/**
- * Eine Person fällt aus (Urlaub genehmigt, krank, halber Tag frei): Ihre offenen Termine im Zeitraum gehen an
- * passende freie Kollegen. Was sich nicht unterbringen lässt, verliert die Person und steht in der Verwaltung
- * unter „ohne Mitarbeiter“. Liefert, wie viele umverteilt und wie viele offen sind.
- */
-export async function nachAbwesenheitUmverteilen(
-  profil: string,
-  a: { von: string; bis: string; von_zeit?: string | null; bis_zeit?: string | null },
-  vonBenutzer: string | null,
-): Promise<{ umverteilt: number; offen: number }> {
-  // Ohne Planung wird von Hand zugeteilt; dann bleibt alles, wie es ist, statt Termine stillschweigend zu leeren.
-  if (!(await planungAktiv())) return { umverteilt: 0, offen: 0 };
+type Ausfall = { von: string; bis: string; von_zeit?: string | null; bis_zeit?: string | null };
+
+/** Offene künftige Termine einer Person, die in ihre Abwesenheit fallen (Vorschau und Umverteilung). */
+async function termineImAusfall(profil: string, a: Ausfall): Promise<GeplanterTermin[]> {
   const beginn = a.von_zeit ? berlin(a.von, a.von_zeit.slice(0, 5)) : berlin(a.von);
   const ende = a.bis_zeit ? berlin(a.bis, a.bis_zeit.slice(0, 5)) : berlin(plusTage(a.bis, 1));
   const { data } = await db()
@@ -1332,19 +1324,74 @@ export async function nachAbwesenheitUmverteilen(
     .gt("ende", beginn.toISOString())
     .gte("beginn", new Date().toISOString())
     .order("beginn");
+  // Nach Zeitraum gefragt: Jeder Treffer hat eine Zeit.
+  return (data ?? []) as GeplanterTermin[];
+}
+
+const zeitraumVon = (t: GeplanterTermin) => ({ beginn: new Date(t.beginn), ende: new Date(t.ende), bis: new Date(t.belegt_bis), leistungIds: leistungIdsVon(t), id: t.id });
+
+/**
+ * Was beim Genehmigen mit den Terminen der Person geschähe: Vorschlag und Auswahl je Termin (Antragsseite).
+ * `aktiv` false: Ohne Planung bleibt beim Genehmigen alles, wie es ist.
+ */
+export async function umverteilungVorschau(
+  profil: string,
+  a: Ausfall,
+): Promise<{ aktiv: boolean; termine: (GeplanterTermin & Omit<Umverteilung, "id">)[]; personen: PlanPerson[] }> {
+  const [aktiv, termine] = await Promise.all([planungAktiv(), termineImAusfall(profil, a)]);
+  if (!aktiv || !termine.length) return { aktiv, termine: termine.map((t) => ({ ...t, vorschlag: null, moeglich: [] })), personen: [] };
+  const von = berlinDatum(new Date(termine[0].beginn));
+  const bis = berlinDatum(new Date(termine[termine.length - 1].beginn));
+  const [personen, belegungen] = await Promise.all([planPersonen(von, bis), belegungenMitPerson(berlin(von), berlin(plusTage(bis, 1)))]);
+  const vorschlaege = umverteilungVorschlagen(termine.map(zeitraumVon), personen, belegungen, profil);
+  return { aktiv, termine: termine.map((t) => ({ ...t, ...vorschlaege.find((v) => v.id === t.id)! })), personen };
+}
+
+/**
+ * Eine Person fällt aus (Urlaub genehmigt, krank, halber Tag frei): Ihre offenen Termine im Zeitraum gehen an
+ * passende freie Kollegen. Was sich nicht unterbringen lässt, verliert die Person und steht in der Verwaltung
+ * unter „ohne Mitarbeiter“. `vorgaben` (Antragsseite): je Termin die gewählte Person, null = bewusst ohne. Passt
+ * eine gewählte Person inzwischen nicht mehr, wird wie ohne Vorgabe verteilt und unter `abweichend` gezählt.
+ */
+export async function nachAbwesenheitUmverteilen(
+  profil: string,
+  a: Ausfall,
+  vonBenutzer: string | null,
+  vorgaben: Map<string, string | null> = new Map(),
+): Promise<{ umverteilt: number; offen: number; abweichend: number }> {
+  // Ohne Planung wird von Hand zugeteilt; dann bleibt alles, wie es ist, statt Termine stillschweigend zu leeren.
+  if (!(await planungAktiv())) return { umverteilt: 0, offen: 0, abweichend: 0 };
   const { buchung } = await einstellungen();
   let umverteilt = 0;
   let offen = 0;
-  // Nach Zeitraum gefragt: Jeder Treffer hat eine Zeit.
-  for (const t of (data ?? []) as GeplanterTermin[]) {
-    const z = { beginn: new Date(t.beginn), ende: new Date(t.ende), bis: new Date(t.belegt_bis), leistungIds: leistungIdsVon(t), id: t.id };
-    const neuePerson = await automatischePerson(z, [profil]);
-    try {
-      await umplanenRpc(t.id, z, neuePerson, buchung.kapazitaet, false);
-    } catch (e) {
-      // Nur wenn die Person nicht passt, ohne Person weiter; ein Datenbankfehler soll auffallen.
-      if (!(e instanceof TerminFehler)) throw e;
+  let abweichend = 0;
+  for (const t of await termineImAusfall(profil, a)) {
+    const z = zeitraumVon(t);
+    const vorgabe = vorgaben.get(t.id);
+    let erledigt = false;
+    if (vorgabe === null) {
       await umplanenRpc(t.id, z, null, buchung.kapazitaet, true);
+      erledigt = true;
+    } else if (vorgabe && vorgabe !== profil) {
+      try {
+        await personPruefen(vorgabe, z, false);
+        await umplanenRpc(t.id, z, vorgabe, buchung.kapazitaet, false);
+        erledigt = true;
+      } catch (e) {
+        // Inzwischen belegt oder abwesend: dann wie ohne Vorgabe. Ein Datenbankfehler soll auffallen.
+        if (!(e instanceof TerminFehler)) throw e;
+        abweichend++;
+      }
+    }
+    if (!erledigt) {
+      const neuePerson = await automatischePerson(z, [profil]);
+      try {
+        await umplanenRpc(t.id, z, neuePerson, buchung.kapazitaet, false);
+      } catch (e) {
+        // Nur wenn die Person nicht passt, ohne Person weiter; ein Datenbankfehler soll auffallen.
+        if (!(e instanceof TerminFehler)) throw e;
+        await umplanenRpc(t.id, z, null, buchung.kapazitaet, true);
+      }
     }
     const neu = geplant((await terminLaden(t.id))!);
     if (neu.zugewiesen_an) umverteilt++;
@@ -1363,7 +1410,7 @@ export async function nachAbwesenheitUmverteilen(
       ),
     );
   }
-  return { umverteilt, offen };
+  return { umverteilt, offen, abweichend };
 }
 
 export async function erledigen(id: string, vonBenutzer: string, status: "erledigt" | "nicht_erschienen" = "erledigt"): Promise<void> {

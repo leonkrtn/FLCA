@@ -18,6 +18,21 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-26 · Detailseiten: Adresse ohne gültige ID gab einen Datenbankfehler statt „nicht gefunden“
+
+- **Stand:** behoben für Mitarbeiter, sonst offen
+- **Wo:** `src/app/admin/(panel)/mitarbeiter/[id]/page.tsx`
+- **Was man sah:** Beim Anlegen der Antragsseite `/admin/mitarbeiter/antrag/[id]` aufgefallen: `/admin/mitarbeiter/antrag`
+  ohne ID landet in der Personenseite mit der ID „antrag“, die Datenbank lehnt das als UUID ab, und statt
+  „nicht gefunden“ kommt die Fehlerseite samt Eintrag im Fehlerprotokoll.
+- **Ursache:** Die `[id]`-Seite gibt den Pfadteil ungeprüft an eine Abfrage auf eine UUID-Spalte. Seit `db()` jeden
+  Fehler wirft, wird daraus kein leeres Ergebnis (`notFound()`), sondern ein Systemfehler.
+- **Behebung:** Personenseite prüft die Form der ID und ruft sonst `notFound()`; die Antragsseite ebenso.
+- **Muster:** Eine dynamische Seite (`[id]`), die den Pfadteil ohne Formprüfung an eine UUID-Spalte gibt. Besonders,
+  wenn daneben ein fester Unterordner liegt (`mitarbeiter/antrag`, `karriere/stelle`), den man ohne ID aufrufen kann.
+- **Weitere Stellen:** gesucht: Alle übrigen `[id]`-Seiten in `admin`, `app`, `team`, `druck` und `(site)/karriere`
+  prüfen nicht. Dort führt nur eine von Hand verstümmelte Adresse hin; bewusst offen gelassen.
+
 ### 2026-11-26 · Online-Beauftragung ohne Widerrufsbelehrung, Knopf ohne „zahlungspflichtig“, AGB nicht einbezogen
 
 - **Stand:** behoben

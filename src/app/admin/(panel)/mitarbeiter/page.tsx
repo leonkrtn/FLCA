@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { Ausblenden, Formular, Senden } from "@/components/admin/formular";
+import { Formular, Senden } from "@/components/admin/formular";
 import { StandortFelder } from "@/components/admin/standort-felder";
 import { Abschnitt, Auswahl, Feld, Kopf, Leer, Marke, Reiter, Schalter, Tabelle } from "@/components/admin/ui";
 import { FaehigkeitenMatrix } from "@/components/admin/faehigkeiten";
-import { abwesenheitEntscheiden, einladen, standortSpeichern } from "@/lib/aktionen/team";
+import { einladen, standortSpeichern } from "@/lib/aktionen/team";
 import { benutzerMitRecht } from "@/lib/auth";
 import { einstellungen } from "@/lib/einstellungen";
 import { datum, datumKurzText, datumLangText, zeit } from "@/lib/format";
@@ -46,6 +46,7 @@ export default async function Mitarbeiter({ searchParams }: { searchParams: Prom
     return p?.name || p?.email || "?";
   };
   const reiter = (a: Ansicht) => `/admin/mitarbeiter${a === "wochenplan" ? "" : `?ansicht=${a}`}`;
+  const antragHref = (id: string) => `/admin/mitarbeiter/antrag/${id}?zurueck=${encodeURIComponent(reiter(ansicht))}`;
   // Ohne Planbare (nimmt_auftraege) läuft die Website nur nach Arbeitsplätzen: Das soll hier auffallen.
   const keinerPlanbar = !personen.some((p) => p.aktiv && p.rolle && istPlanbar(p.rolle, p.nimmt_auftraege));
 
@@ -64,16 +65,14 @@ export default async function Mitarbeiter({ searchParams }: { searchParams: Prom
         <Abschnitt titel="Offene Anträge" className="border-l-4 border-kreide">
           <ul className="divide-y divide-linie">
             {(offen as Antrag[]).map((a) => (
-              <Ausblenden als="li" key={a.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                <span className="min-w-0">
+              <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <Link href={antragHref(a.id)} className="min-w-0 hover:underline">
                   <span className="font-semibold">{name(a.profil_id)}</span> · {abwesenheitText(a)} {zeitraumText(a)}
                   {a.notiz ? <span className="block text-sm text-grau">{a.notiz}</span> : null}
-                </span>
-                <Formular aktion={abwesenheitEntscheiden.bind(null, a.id)} ausblenden className="flex flex-wrap items-center gap-2">
-                  <Senden klein name="entscheidung" value="genehmigt" vorab="Genehmigt">Genehmigen</Senden>
-                  <Senden klein art="rahmen" name="entscheidung" value="abgelehnt" vorab="Abgelehnt">Ablehnen</Senden>
-                </Formular>
-              </Ausblenden>
+                </Link>
+                {/* Entschieden wird auf der Antragsseite: erst sehen, wer sonst fehlt und wer die Termine übernimmt. */}
+                <Link href={antragHref(a.id)} className="knopf knopf-dunkel knopf-klein">Ansehen und entscheiden</Link>
+              </li>
             ))}
           </ul>
         </Abschnitt>
@@ -351,9 +350,15 @@ async function UrlaubsKalender({ personen, monat, abwesenheiten }: { personen: P
                     const titel = a ? `${abwesenheitText(a)}${a.status === "beantragt" ? " (beantragt)" : ""}${a.von_zeit ? `, ${a.von_zeit.slice(0, 5)}–${a.bis_zeit?.slice(0, 5)}` : ""}` : arbeitet ? "" : "arbeitet nicht";
                     return (
                       <td key={d} className="p-0.5" title={titel || undefined}>
-                        <span
-                          className={`block h-6 rounded-sm ${a ? (a.status === "beantragt" ? "border-2 border-dashed border-kreide" : FARBE[a.art]) : arbeitet ? "bg-papier" : "bg-boden"} ${a?.von_zeit ? "opacity-60" : ""}`}
-                        />
+                        {a?.status === "beantragt" ? (
+                          <Link
+                            href={`/admin/mitarbeiter/antrag/${a.id}?zurueck=${encodeURIComponent(`/admin/mitarbeiter?ansicht=urlaub&monat=${monat}`)}`}
+                            className={`block h-6 rounded-sm border-2 border-dashed border-kreide hover:bg-kreide/40 ${a.von_zeit ? "opacity-60" : ""}`}
+                            aria-label={`${p.name || p.email}: ${titel}, Antrag öffnen`}
+                          />
+                        ) : (
+                          <span className={`block h-6 rounded-sm ${a ? FARBE[a.art] : arbeitet ? "bg-papier" : "bg-boden"} ${a?.von_zeit ? "opacity-60" : ""}`} />
+                        )}
                       </td>
                     );
                   })}

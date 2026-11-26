@@ -200,12 +200,38 @@ export async function faehigkeitenSpeichern(profil: string | null, _v: Ergebnis,
   });
 }
 
-/** Gilt eine Abwesenheit, gehen die Termine der Person an andere (siehe termine.ts). */
-async function abwesenheitWirkt(a: { profil_id: string; art: string; von: string; bis: string; von_zeit: string | null; bis_zeit: string | null }, von: string | null) {
-  const { umverteilt, offen } = await nachAbwesenheitUmverteilen(a.profil_id, a, von);
+/**
+ * Gilt eine Abwesenheit, gehen die Termine der Person an andere (siehe termine.ts). `vorgaben`: auf der
+ * Antragsseite gewählt, wer welchen Termin übernimmt.
+ */
+async function abwesenheitWirkt(
+  a: { profil_id: string; art: string; von: string; bis: string; von_zeit: string | null; bis_zeit: string | null },
+  von: string | null,
+  vorgaben?: Map<string, string | null>,
+) {
+  const { umverteilt, offen, abweichend } = await nachAbwesenheitUmverteilen(a.profil_id, a, von, vorgaben);
   after(() => melden("abwesenheit.eingetragen", { ...a, termine_umverteilt: umverteilt, termine_ohne_mitarbeiter: offen }));
   if (!umverteilt && !offen) return "";
-  return ` ${umverteilt ? `${umverteilt} ${umverteilt === 1 ? "Termin" : "Termine"} an Kollegen gegeben.` : ""}${offen ? ` ${offen} ${offen === 1 ? "Termin braucht" : "Termine brauchen"} jemand Neues (Kalender).` : ""}`;
+  return [
+    umverteilt ? ` ${umverteilt} ${umverteilt === 1 ? "Termin" : "Termine"} an Kollegen gegeben.` : "",
+    offen ? ` ${offen} ${offen === 1 ? "Termin braucht" : "Termine brauchen"} jemand Neues (Kalender).` : "",
+    abweichend ? ` ${abweichend === 1 ? "Eine Wahl passte" : `${abweichend} Wahlen passten`} inzwischen nicht mehr und ${abweichend === 1 ? "wurde" : "wurden"} automatisch vergeben.` : "",
+  ].join("");
+}
+
+/**
+ * Wer welchen Termin übernimmt, aus der Antragsseite: Feld `person_<Termin>` mit einer Person oder leer (ohne
+ * Mitarbeiter lassen). Nur wer eingeplant wird und aktiv ist; alles andere fällt weg und wird automatisch verteilt.
+ */
+async function vorgabenAus(fd: FormData, ausser: string): Promise<Map<string, string | null>> {
+  const roh = [...fd.entries()].flatMap(([k, v]) => {
+    const id = k.startsWith("person_") ? k.slice(7) : "";
+    return UUID.test(id) && typeof v === "string" && (v === "" || UUID.test(v)) ? [[id, v || null] as const] : [];
+  });
+  if (!roh.length) return new Map();
+  const { data } = await db().from("profile").select("id").eq("aktiv", true).eq("nimmt_auftraege", true);
+  const planbar = new Set((data ?? []).map((p) => p.id as string));
+  return new Map(roh.filter(([, p]) => p === null || (p !== ausser && planbar.has(p))));
 }
 
 export async function abwesenheitEntscheiden(id: string, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
@@ -221,7 +247,7 @@ export async function abwesenheitEntscheiden(id: string, _v: Ergebnis, fd: FormD
       .maybeSingle();
     if (!data) return { status: "fehler", meldung: "Der Antrag wurde schon entschieden." };
     await pushSenden({ profile: [data.profil_id] }, { titel: status === "genehmigt" ? "Urlaub genehmigt" : "Urlaub abgelehnt", text: `${data.von} bis ${data.bis}`, url: "/team/abwesenheit" });
-    const zusatz = status === "genehmigt" ? await abwesenheitWirkt(data, b.id) : "";
+    const zusatz = status === "genehmigt" ? await abwesenheitWirkt(data, b.id, await vorgabenAus(fd, data.profil_id)) : "";
     neu();
     return { status: "ok", meldung: (status === "genehmigt" ? "Genehmigt." : "Abgelehnt.") + zusatz };
   });
@@ -247,8 +273,10 @@ export async function abwesenheitMelden(fuer: string | null, _v: Ergebnis, fd: F
     const status = fuer || art === "krank" ? "genehmigt" : "beantragt";
     const zeile = { profil_id: profil, art, von, bis, von_zeit: stunden ? vonZeit : null, bis_zeit: stunden ? bisZeit : null };
     const notiz = text(fd, "notiz", 500);
-    const { error } = await db().from("abwesenheiten").insert({ ...zeile, status, notiz, entschieden_von: fuer ? b.id : null });
+    const { data: angelegt, error } = await db().from("abwesenheiten").insert({ ...zeile, status, notiz, entschieden_von: fuer ? b.id : null }).select("id").single();
     if (error) throw new DbFehler(error);
+    // Ein Antrag öffnet sich mit Kollegen und Aufträgen im Zeitraum; eine Krankmeldung gilt schon und gehört in die Übersicht.
+    const ansehen = status === "beantragt" ? `/admin/mitarbeiter/antrag/${angelegt.id}` : "/admin/mitarbeiter?ansicht=urlaub";
     const zeitraum = `${von}${bis !== von ? ` bis ${bis}` : ""}${stunden ? `, ${vonZeit}–${bisZeit} Uhr` : ""}`;
     // Krank gilt sofort: Termine gehen an Kollegen, bevor das Büro Bescheid bekommt, damit der Push sagt, was offen ist.
     const zusatz = status === "genehmigt" ? await abwesenheitWirkt(zeile, fuer ? b.id : null) : "";
@@ -256,7 +284,7 @@ export async function abwesenheitMelden(fuer: string | null, _v: Ergebnis, fd: F
       const { firma } = await einstellungen();
       const titel = art === "krank" ? `${b.name || b.email} ist krank gemeldet` : `${b.name || b.email} beantragt ${art === "urlaub" ? "Urlaub" : "frei"}`;
       await Promise.all([
-        pushSenden({ rollen: ["inhaber", "buero"] }, { titel, text: `${zeitraum}${zusatz}`, url: zusatz.includes("jemand Neues") ? "/admin/kalender" : "/admin/mitarbeiter?ansicht=urlaub" }),
+        pushSenden({ rollen: ["inhaber", "buero"] }, { titel, text: `${zeitraum}${zusatz}`, url: zusatz.includes("jemand Neues") ? "/admin/kalender" : ansehen }),
         mailer().senden({
           an: firma.email,
           betreff: titel,
@@ -265,7 +293,7 @@ export async function abwesenheitMelden(fuer: string | null, _v: Ergebnis, fd: F
             gruss: false,
             bausteine: [
               { art: "fakten", zeilen: [["Wann", zeitraum], ["Notiz", notiz || "–"], ...(zusatz ? [["Termine", zusatz.trim()] as [string, string]] : [])] },
-              { art: "knopf", text: "Bei den Mitarbeitern ansehen", url: `${ENV.siteUrl}/admin/mitarbeiter?ansicht=urlaub` },
+              { art: "knopf", text: status === "beantragt" ? "Antrag ansehen" : "Bei den Mitarbeitern ansehen", url: `${ENV.siteUrl}${ansehen}` },
             ],
           }),
         }),
