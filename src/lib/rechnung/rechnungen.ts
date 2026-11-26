@@ -638,7 +638,7 @@ export async function versenden(id: string, an: string, vonBenutzer: string): Pr
   const { text, html } = await mail(firma, {
     bausteine: [
       { art: "absatz", text: m.text },
-      { art: "link", text: "Online können Sie die Rechnung jederzeit hier ansehen und herunterladen", url: link },
+      { art: "link", text: "Sie können [die Rechnung auch online ansehen und herunterladen].", url: link },
       {
         art: "absatz",
         text: xrechnung

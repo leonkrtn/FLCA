@@ -8,7 +8,11 @@ export type Baustein =
   | { art: "absatz"; text: string }
   /** Kurze Liste „Name: Wert“, nur für Hinweise ans Büro; an Kunden stehen die Angaben im Fließtext */
   | { art: "fakten"; zeilen: [string, string][] }
-  /** Satz und darunter die Adresse auf eigener Zeile, anklickbar */
+  /**
+   * Satz mit Link. Der Teil in eckigen Klammern ist im HTML der anklickbare Text („Sie können [Ihren Termin
+   * online ansehen].“), ohne Klammern der ganze Satz. Die Textfassung zeigt den Satz und darunter die Adresse,
+   * weil man dort sonst nicht hinkommt.
+   */
   | { art: "link"; text: string; url: string };
 
 /**
@@ -42,8 +46,13 @@ export async function mail(
           return z.length ? { text: z.map(([k, v]) => `${k}: ${v}`).join("\n"), html: z.map(([k, v]) => `${esc(k)}: ${esc(v)}`).join("<br>") } : null;
         }
         case "link": {
-          const satz = b.text.trim().replace(/:$/, "");
-          return { text: `${satz}:\n${b.url}`, html: `${esc(satz)}:<br><a href="${esc(b.url)}" style="color:#1a5fb4;word-break:break-all">${esc(b.url)}</a>` };
+          const satz = b.text.trim();
+          const a = (t: string) => `<a href="${esc(b.url)}" style="color:#1a5fb4">${esc(t)}</a>`;
+          const teil = satz.match(/^([^[]*)\[([^\]]+)\]([^]*)$/);
+          return {
+            text: `${satz.replace(/[[\]]/g, "").replace(/[.:]$/, "")}:\n${b.url}`,
+            html: teil ? `${esc(teil[1])}${a(teil[2])}${esc(teil[3])}` : a(satz.replace(/:$/, "")),
+          };
         }
       }
     })
