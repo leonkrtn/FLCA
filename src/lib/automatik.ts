@@ -4,6 +4,7 @@ import { einstellungen } from "./einstellungen";
 import { ENV } from "./env";
 import { abmeldeLink } from "./einwilligung";
 import { zustellen } from "./ereignisse";
+import { mailTexte } from "./email/texte";
 import { mail } from "./email/vorlagen";
 import { monatsexport } from "./rechnung/datev";
 import { zeit } from "./format";
@@ -115,16 +116,18 @@ export async function takt(): Promise<Bericht> {
       await db().from("termine").update({ bewertung_am: new Date().toISOString() }).eq("id", t.id);
       if (!t.kunde?.email || !erlaubt.has(t.kunde.id)) continue;
       if (!(await einmalig("bewertung", `${t.kunde.id}:${berlinDatum().slice(0, 4)}`))) continue;
+      const m = mailTexte(e, "bewertung", { name: t.kunde.name, leistung: t.leistung_name });
       const inhalt = mail(e.firma, {
         abmelden: abmeldeLink(t.kunde.id),
-        ueberschrift: "Danke für Ihren Besuch.",
+        ueberschrift: m.ueberschrift,
+        gruss: m.gruss,
         bausteine: [
-          { art: "absatz", text: `Hallo ${t.kunde.name},\nwir hoffen, mit ${t.leistung_name} ist alles in Ordnung. Wenn Sie zufrieden waren, hilft uns eine kurze Bewertung bei Google sehr. Das dauert eine Minute.` },
+          ...(m.text ? [{ art: "absatz" as const, text: m.text }] : []),
           { art: "knopf", text: "Bei Google bewerten", url: e.firma.googleBewertungLink },
-          { art: "absatz", text: "Und falls etwas nicht gepasst hat: Antworten Sie einfach auf diese Mail, dann kümmern wir uns." },
+          ...(m.schluss ? [{ art: "absatz" as const, text: m.schluss }] : []),
         ],
       });
-      await mailer().senden({ an: t.kunde.email, betreff: `Wie war's bei ${e.firma.name}?`, antwortAn: e.firma.email, ...inhalt });
+      await mailer().senden({ an: t.kunde.email, betreff: m.betreff, antwortAn: e.firma.email, ...inhalt });
       gesendet++;
     }
     return gesendet;
@@ -166,22 +169,27 @@ export async function takt(): Promise<Bericht> {
       const { data } = await db().from("einlagerungen").select("kunde:kunden(id, name, email, erinnerung_mail_ok_am), fahrzeug:fahrzeuge(kennzeichen)").is("ausgelagert_am", null).eq("saison", saison);
       // Link und Dauer aus der Preisliste statt fest im Text: Ändert die Werkstatt dort etwas, stimmt die Mail weiter.
       const { data: wechsel } = await db().from("leistungen").select("slug, dauer_min").eq("slug", "radwechsel").eq("aktiv", true).eq("online_anfragbar", true).maybeSingle();
-      const dauer = wechsel?.dauer_min ? `, der Wechsel dauert rund ${wechsel.dauer_min} Minuten` : "";
+      const dauer = wechsel?.dauer_min ? `Der Wechsel dauert rund ${wechsel.dauer_min} Minuten.` : "";
       const link = `${ENV.siteUrl}/termin${wechsel ? `?leistung=${wechsel.slug}` : ""}`;
       let gesendet = 0;
       for (const z of (data ?? []) as unknown as { kunde: { id: string; name: string; email: string; erinnerung_mail_ok_am: string | null } | null; fahrzeug: { kennzeichen: string } | null }[]) {
         // Werbung für den Radwechsel: nur mit Einwilligung in Erinnerungen (Kundenbildschirm oder Kundenakte)
         if (!z.kunde?.email || !z.kunde.erinnerung_mail_ok_am) continue;
         if (!(await einmalig("saison", `${jahr}-${faellig}:${z.kunde.id}`))) continue;
+        const m = mailTexte(e, "radwechsel", {
+          name: z.kunde.name,
+          reifen: saison === "winter" ? "Winterreifen" : "Sommerreifen",
+          raeder,
+          fuer_fahrzeug: z.fahrzeug?.kennzeichen ? `für ${z.fahrzeug.kennzeichen}` : "",
+          dauer,
+        });
         const inhalt = mail(e.firma, {
           abmelden: abmeldeLink(z.kunde.id),
-          ueberschrift: faellig === "herbst" ? "Zeit für die Winterreifen." : "Zeit für die Sommerreifen.",
-          bausteine: [
-            { art: "absatz", text: `Hallo ${z.kunde.name},\nIhre ${raeder}${z.fahrzeug ? ` für ${z.fahrzeug.kennzeichen}` : ""} liegen bei uns bereit. Suchen Sie sich einen freien Termin aus${dauer}.` },
-            { art: "knopf", text: "Termin für den Radwechsel wählen", url: link },
-          ],
+          ueberschrift: m.ueberschrift,
+          gruss: m.gruss,
+          bausteine: [...(m.text ? [{ art: "absatz" as const, text: m.text }] : []), { art: "knopf", text: "Termin für den Radwechsel wählen", url: link }],
         });
-        await mailer().senden({ an: z.kunde.email, betreff: `Radwechsel bei ${e.firma.name}`, antwortAn: e.firma.email, ...inhalt });
+        await mailer().senden({ an: z.kunde.email, betreff: m.betreff, antwortAn: e.firma.email, ...inhalt });
         gesendet++;
       }
       return gesendet;
@@ -195,11 +203,9 @@ export async function takt(): Promise<Bericht> {
       const vormonat = plusMonate(`${heute.slice(0, 7)}-01`, -1).slice(0, 7);
       if (!(await einmalig("datev", vormonat))) return "schon gesendet";
       const { zip, anzahl } = await monatsexport(vormonat, d);
-      const inhalt = mail(e.firma, {
-        ueberschrift: `Rechnungen ${vormonat.slice(5)}/${vormonat.slice(0, 4)}`,
-        bausteine: [{ art: "absatz", text: `Guten Tag,\nanbei der DATEV-Buchungsstapel und ${anzahl} Rechnungen von ${e.firma.name} für ${vormonat.slice(5)}/${vormonat.slice(0, 4)}.` }],
-      });
-      const r = await mailer().senden({ an: d.email, betreff: `${e.firma.name}: Rechnungen ${vormonat}`, antwortAn: e.firma.email, ...inhalt, anhaenge: [{ dateiname: `${e.firma.name.replace(/\W+/g, "-")}-${vormonat}.zip`, inhalt: zip, typ: "application/zip" }] });
+      const m = mailTexte(e, "datev", { monat: `${vormonat.slice(5)}/${vormonat.slice(0, 4)}`, anzahl: String(anzahl) });
+      const inhalt = mail(e.firma, { ueberschrift: m.ueberschrift, gruss: m.gruss, bausteine: m.text ? [{ art: "absatz", text: m.text }] : [] });
+      const r = await mailer().senden({ an: d.email, betreff: m.betreff, antwortAn: e.firma.email, ...inhalt, anhaenge: [{ dateiname: `${e.firma.name.replace(/\W+/g, "-")}-${vormonat}.zip`, inhalt: zip, typ: "application/zip" }] });
       return r.ok ? `${anzahl} Rechnungen gesendet` : `nicht gesendet: ${r.fehler}`;
     });
 

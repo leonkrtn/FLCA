@@ -7,6 +7,7 @@ import { ENV } from "../env";
 import { melden } from "../ereignisse";
 import { type Ergebnis, ja, text, zahl } from "../forms";
 import { sicher } from "../sicher";
+import { mailTexte } from "../email/texte";
 import { mail } from "../email/vorlagen";
 import { einstellungen, einstellungenSpeichern, type Fenster } from "../einstellungen";
 import { mailer } from "../services/email";
@@ -281,8 +282,9 @@ export async function abwesenheitMelden(fuer: string | null, _v: Ergebnis, fd: F
     // Krank gilt sofort: Termine gehen an Kollegen, bevor das Büro Bescheid bekommt, damit der Push sagt, was offen ist.
     const zusatz = status === "genehmigt" ? await abwesenheitWirkt(zeile, fuer ? b.id : null) : "";
     if (!fuer) {
-      const { firma } = await einstellungen();
-      const titel = art === "krank" ? `${b.name || b.email} ist krank gemeldet` : `${b.name || b.email} beantragt ${art === "urlaub" ? "Urlaub" : "frei"}`;
+      const e = await einstellungen();
+      const { firma } = e;
+      const titel = mailTexte(e, art === "krank" ? "intern_krank" : "intern_antrag", { person: b.name || b.email, art: art === "urlaub" ? "Urlaub" : "frei" }).betreff;
       await Promise.all([
         pushSenden({ rollen: ["inhaber", "buero"] }, { titel, text: `${zeitraum}${zusatz}`, url: zusatz.includes("jemand Neues") ? "/admin/kalender" : ansehen }),
         mailer().senden({

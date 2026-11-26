@@ -5,6 +5,7 @@ import { einstellungen } from "./einstellungen";
 import { ENV } from "./env";
 import { melden, verlauf } from "./ereignisse";
 import { datum, datumLangText, datumZeit, euro, zeit } from "./format";
+import { mailTexte } from "./email/texte";
 import { mail } from "./email/vorlagen";
 import { markeUndModell } from "./kunden";
 import type { Position } from "./rechnung/berechnung";
@@ -321,23 +322,23 @@ export async function auftragVersenden(terminId: string, an: string, vonBenutzer
   const t = await auftragLaden(terminId);
   if (!t?.auftrag_nummer) throw new TerminFehler("Zu diesem Termin gibt es noch keinen Werkstattauftrag.");
   if (!t.auftrag_positionen?.length) throw new TerminFehler("Der Auftrag hat noch keine Positionen.");
-  const { firma } = await einstellungen();
+  const e = await einstellungen();
+  const { firma } = e;
   const erteilt = Boolean(t.auftrag_erteilt_am);
+  const m = mailTexte(e, erteilt ? "auftrag_kopie" : "auftrag_freigabe", { name: t.kunde?.name ?? "", nummer: t.auftrag_nummer });
   const { html, text } = mail(firma, {
-    ueberschrift: erteilt ? `Ihr Werkstattauftrag ${t.auftrag_nummer}` : `Bitte bestätigen: Werkstattauftrag ${t.auftrag_nummer}`,
+    ueberschrift: m.ueberschrift,
+    gruss: m.gruss,
     bausteine: [
-      {
-        art: "absatz",
-        text: `Hallo ${t.kunde?.name ?? ""},\n${erteilt ? "anbei Ihr Werkstattauftrag als PDF." : "anbei der Werkstattauftrag für Ihr Fahrzeug. Bitte prüfen Sie ihn und erteilen Sie uns den Auftrag mit einem Klick."}`,
-      },
+      ...(m.text ? [{ art: "absatz" as const, text: m.text }] : []),
       { art: "fakten", zeilen: auftragFakten(t) },
       ...(erteilt ? [] : [{ art: "knopf" as const, text: "Ansehen und Auftrag erteilen", url: auftragLink(t) }]),
-      { art: "absatz", text: `Fragen? Rufen Sie uns an: ${firma.telefon}` },
+      ...(m.schluss ? [{ art: "absatz" as const, text: m.schluss }] : []),
     ],
   });
   const ergebnis = await mailer().senden({
     an,
-    betreff: `Werkstattauftrag ${t.auftrag_nummer} von ${firma.name}`,
+    betreff: m.betreff,
     html,
     text,
     antwortAn: firma.email,
@@ -364,15 +365,18 @@ async function kundeBestaetigen(terminId: string): Promise<void> {
   const t = await auftragLaden(terminId);
   const an = t?.kundeVoll?.email || t?.kunde?.email;
   if (!t || !an) return;
-  const { firma } = await einstellungen();
+  const e = await einstellungen();
+  const { firma } = e;
+  const m = mailTexte(e, "auftrag_bestaetigung", { name: t.kunde?.name ?? "", nummer: t.auftrag_nummer ?? "" });
   // Nicht in der Werkstatt erteilt (online, über einen KV per Mail oder Telefon): Fernabsatz. Die Bestätigung auf
   // einem dauerhaften Datenträger muss dann die Widerrufsbelehrung und das Verlangen nach sofortigem Beginn
   // enthalten (§ 312f Abs. 2 BGB). Lieber einmal zu oft als zu selten: Bei Firmenkunden schadet sie nicht.
   const fernabsatz = t.auftrag_erteilt_wie !== "unterschrift";
   const { html, text } = mail(firma, {
-    ueberschrift: "Danke für Ihren Auftrag.",
+    ueberschrift: m.ueberschrift,
+    gruss: m.gruss,
     bausteine: [
-      { art: "absatz", text: `Hallo ${t.kunde?.name ?? ""},\nIhr Werkstattauftrag ist bei uns. Eine Kopie hängt als PDF an dieser Mail.` },
+      ...(m.text ? [{ art: "absatz" as const, text: m.text }] : []),
       { art: "fakten", zeilen: [...auftragFakten(t), ["Erteilt", erteiltText(t).replace(/^Erteilt am /, "")]] },
       { art: "knopf", text: "Termin und Auftrag ansehen", url: auftragLink(t) },
       ...(fernabsatz
@@ -388,7 +392,7 @@ async function kundeBestaetigen(terminId: string): Promise<void> {
   });
   const ergebnis = await mailer().senden({
     an,
-    betreff: `Auftragsbestätigung ${t.auftrag_nummer} von ${firma.name}`,
+    betreff: m.betreff,
     html,
     text,
     antwortAn: firma.email,

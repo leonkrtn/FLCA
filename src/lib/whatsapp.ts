@@ -1,3 +1,4 @@
+import { platzhalterFuellen } from "./email/texte";
 import { auftragStand, type AuftragFelder, ueberKostengrenze } from "./auftrag-regeln";
 import { offenerBetrag } from "./rechnung/korrektur";
 import { berlinDatum, plusTage } from "./zeit";
@@ -79,18 +80,8 @@ export const WHATSAPP_PLATZHALTER: [string, string][] = [
   ["buchen", "Seite für die Terminanfrage"],
 ];
 
-/**
- * Setzt die Werte in den Text. Unbekannte oder leere Platzhalter fallen weg, damit kein „{grenze}“ beim Kunden
- * ankommt; dabei entstehende doppelte Leerzeichen werden zusammengezogen.
- */
-export function whatsappText(vorlage: string, werte: Record<string, string | undefined>): string {
-  return vorlage
-    .replace(/\{(\w+)\}/g, (_, k: string) => werte[k]?.trim() ?? "")
-    .replace(/[ \t]{2,}/g, " ")
-    .replace(/ +([,.!?:)])/g, "$1")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/^\s+/, "");
-}
+/** Setzt die Werte in den Text (dieselben Regeln wie bei den Mailtexten). */
+export const whatsappText = platzhalterFuellen;
 
 /** „VW Golf (OF-AB 123)“, nur eines von beiden oder leer. */
 export function fahrzeugText(f: { kennzeichen?: string | null; marke_modell?: string | null } | null | undefined): string {

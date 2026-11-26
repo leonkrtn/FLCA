@@ -8,6 +8,7 @@ import { melden } from "@/lib/ereignisse";
 import { type Ergebnis, istEmail, istSpam, istTelefon, text, werteAus } from "@/lib/forms";
 import { sicher } from "@/lib/sicher";
 import { imLimit } from "@/lib/limit";
+import { mailTexte } from "@/lib/email/texte";
 import { mail } from "@/lib/email/vorlagen";
 import { mailer } from "@/lib/services/email";
 import { pushSenden } from "@/lib/services/push";
@@ -80,9 +81,12 @@ export async function bewerben(_v: Ergebnis, formData: FormData): Promise<Ergebn
     if (error) throw new DbFehler(error);
 
     after(async () => {
-      const { firma, benachrichtigung } = await einstellungen();
+      const einst = await einstellungen();
+      const { firma, benachrichtigung } = einst;
+      const mi = mailTexte(einst, "intern_bewerbung", { name: e.name, stelle: stelleTitel });
+      const mk = mailTexte(einst, "bewerbung", { name: e.name, stelle: stelleTitel });
       const intern = mail(firma, {
-        ueberschrift: `Neue Bewerbung: ${stelleTitel}`,
+        ueberschrift: mi.ueberschrift,
         gruss: false,
         bausteine: [
           { art: "fakten", zeilen: [["Name", e.name], ["Telefon", e.telefon], ["E-Mail", e.email || "–"], ["Lebenslauf", lebenslauf ? "ja" : "nein"], ...(e.nachricht ? ([["Nachricht", e.nachricht]] as [string, string][]) : [])] },
@@ -90,16 +94,13 @@ export async function bewerben(_v: Ergebnis, formData: FormData): Promise<Ergebn
         ],
       });
       await Promise.all([
-        mailer().senden({ an: benachrichtigung.emails.length ? benachrichtigung.emails : [firma.email], betreff: `Neue Bewerbung: ${e.name}`, ...intern, antwortAn: e.email || undefined }),
+        mailer().senden({ an: benachrichtigung.emails.length ? benachrichtigung.emails : [firma.email], betreff: mi.betreff, ...intern, antwortAn: e.email || undefined }),
         e.email
           ? mailer().senden({
               an: e.email,
-              betreff: `Ihre Bewerbung bei ${firma.name}`,
+              betreff: mk.betreff,
               antwortAn: firma.email,
-              ...mail(firma, {
-                ueberschrift: "Danke für Ihre Bewerbung.",
-                bausteine: [{ art: "absatz", text: `Hallo ${e.name},\nwir haben Ihre Bewerbung als ${stelleTitel} erhalten und melden uns in den nächsten Tagen telefonisch bei Ihnen.` }],
-              }),
+              ...mail(firma, { ueberschrift: mk.ueberschrift, gruss: mk.gruss, bausteine: mk.text ? [{ art: "absatz", text: mk.text }] : [] }),
             })
           : Promise.resolve(),
         pushSenden({ rollen: ["inhaber"] }, { titel: "Neue Bewerbung", text: `${e.name} · ${stelleTitel}`, url: `/admin/karriere/${neu.id}` }),

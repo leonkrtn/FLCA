@@ -15,6 +15,9 @@ function zielElement(ziel: string): HTMLElement | null {
 
 function hinscrollen(ziel: string): boolean {
   const el = zielElement(ziel);
+  // Liegt das Feld in einem zugeklappten Bereich (Mailtexte), erst aufklappen, sonst scrollt es ins Leere
+  const zu = el?.closest("details");
+  if (zu) zu.open = true;
   if (!el) return false;
   el.scrollIntoView({ behavior: "smooth", block: "center" });
   return true;
