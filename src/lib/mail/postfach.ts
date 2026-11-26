@@ -7,7 +7,7 @@ import { ENV } from "../env";
 import { melden } from "../ereignisse";
 import { fehlerMelden } from "../fehler";
 import { darf, type Rolle } from "../rollen";
-import { eingangAnhang, eingangLaden, mailer, standardAbsender } from "../services/email";
+import { eingangAnhang, eingangLaden, type Mail, mailer, standardAbsender, type Versandergebnis } from "../services/email";
 
 export { standardAbsender };
 import { pushSenden } from "../services/push";
@@ -283,6 +283,54 @@ export async function empfangen(resendId: string): Promise<void> {
       );
     }
   }
+}
+
+/**
+ * Legt eine Mail ab, die die Anwendung von sich aus verschickt hat (aus `mailer()`): im Firmenpostfach unter
+ * „Gesendet“, gescheitert im Postausgang (von dort „Erneut senden“). Das HTML bleibt wie verschickt, angezeigt wird
+ * es wie eingegangene Mails abgeschottet. Über die Resend-id kommen Message-ID (Antworten finden ihr Gespräch) und
+ * Zustellstatus per Webhook nach.
+ */
+export async function versandAblegen(mail: Mail, ergebnis: Versandergebnis): Promise<void> {
+  const von = mail.von ? adresseZerlegen(mail.von) : await standardAbsender();
+  const liste = (x: string | string[] | undefined) => [x ?? []].flat().map((a) => adresseZerlegen(a).adresse);
+  const an = liste(mail.an);
+  const anhaenge: Anhang[] = [];
+  for (const a of mail.anhaenge ?? []) {
+    try {
+      anhaenge.push(await anhangAblegen(a.dateiname, a.inhalt, a.typ));
+    } catch (fehler) {
+      // Fehlt ein Anhang im Speicher, steht die Mail trotzdem unter „Gesendet“
+      await fehlerMelden(fehler, `Anhang „${a.dateiname}“ der gesendeten Mail speichern`);
+    }
+  }
+  const g = await gespraechFinden(null, [], mail.betreff, an[0] ?? "");
+  const jetzt = new Date().toISOString();
+  await db()
+    .from("mails")
+    .insert({
+      postfach: null,
+      richtung: "ausgang",
+      ordner: ergebnis.ok ? "gesendet" : "ausgang",
+      versand: ergebnis.ok ? null : "fehler",
+      versand_fehler: ergebnis.ok ? null : ergebnis.fehler.slice(0, 500),
+      resend_id: ergebnis.ok ? (ergebnis.id ?? null) : null,
+      gespraech: g.id,
+      zugewiesen_an: g.zugewiesen,
+      von: von.adresse,
+      von_name: von.name,
+      an,
+      cc: liste(mail.cc),
+      bcc: liste(mail.bcc),
+      antwort_an: mail.antwortAn ? adresseZerlegen(mail.antwortAn).adresse : null,
+      betreff: mail.betreff.slice(0, 300),
+      text: mail.text?.trim() || htmlAlsText(mail.html),
+      html: mail.html,
+      anhaenge,
+      gelesen_am: jetzt,
+      oben_am: jetzt,
+      erstellt_am: jetzt,
+    });
 }
 
 /** Message-ID einer gesendeten Mail nachtragen (Webhook „email.sent“): Antworten finden so ihr Gespräch. */
@@ -728,6 +776,7 @@ export async function versenden(id: string): Promise<"gesendet" | "nicht_faellig
     );
     const html = htmlBereinigen(m.html ?? "");
     const ergebnis = await mailer().senden({
+      abgelegt: true,
       von: absender(m.von_name, m.von),
       an: m.an,
       cc: m.cc,

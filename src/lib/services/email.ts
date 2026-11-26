@@ -2,7 +2,7 @@ import "server-only";
 import { Resend } from "resend";
 import { einstellungen } from "../einstellungen";
 import { ENV, KONFIGURIERT } from "../env";
-import { fehlerMelden, fehlerText } from "../fehler";
+import { fehlerMelden, fehlerText, weich } from "../fehler";
 import { absender, adresseZerlegen, MAIL_NAME_MUSTER } from "../mail/adressen";
 import { mailPruefen, Warnung } from "../systemcheck/regeln";
 import { testmodus } from "./testmodus";
@@ -20,6 +20,8 @@ export type Mail = {
   bcc?: string[];
   /** Zusätzliche Kopfzeilen (Message-ID, In-Reply-To, References für den Verlauf beim Empfänger) */
   kopfzeilen?: Record<string, string>;
+  /** Liegt schon im Postfach (Versand aus dem Postfach selbst): nicht noch einmal unter „Gesendet“ ablegen */
+  abgelegt?: boolean;
 };
 
 export type Versandergebnis = { ok: true; id?: string } | { ok: false; fehler: string };
@@ -104,9 +106,25 @@ const probe: Mailer = {
   },
 };
 
+/**
+ * Jede Mail, die die Anwendung von sich aus verschickt (Rechnung, Termin, Erinnerung, Hinweis ans Büro), steht
+ * danach im Firmenpostfach unter „Gesendet“, gescheitert im Postausgang. So sieht das Büro an einer Stelle, was
+ * rausging, und Antworten der Kunden landen im selben Gespräch. Das Ablegen darf den Versand nie umwerfen.
+ */
+const mitAblage: Mailer = {
+  async senden(mail) {
+    const ergebnis = await resend.senden(mail);
+    if (!mail.abgelegt) {
+      // Dynamisch, weil das Postfach selbst über diese Datei sendet
+      await weich(async () => (await import("../mail/postfach")).versandAblegen(mail, ergebnis), undefined, "Gesendete Mail ablegen");
+    }
+    return ergebnis;
+  },
+};
+
 export function mailer(): Mailer {
   if (testmodus()) return probe;
-  return KONFIGURIERT.email ? resend : konsole;
+  return KONFIGURIERT.email ? mitAblage : konsole;
 }
 
 /**
