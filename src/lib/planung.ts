@@ -230,6 +230,45 @@ export function verfuegbareMinuten(p: PlanPerson, datum: string): number {
   return arbeitsfenster(p, datum).reduce((s, [a, b]) => s + minuten(b) - minuten(a), 0);
 }
 
+export type UmzuplanenderTermin = { id: string; beginn: Date; ende: Date; bis: Date; leistungIds: string[] };
+export type Umverteilung = { id: string; vorschlag: string | null; moeglich: string[] };
+
+/**
+ * Vorschau, wer die Termine einer ausfallenden Person übernimmt: dieselbe Wahl wie beim Genehmigen
+ * (nachAbwesenheitUmverteilen), also der Reihe nach, und jede Zuteilung belegt die Person für die folgenden.
+ * `moeglich`: wer den Termin für sich genommen machen könnte, ohne die anderen Vorschläge; das ist die Auswahl
+ * zum Anpassen, denn wer einen früheren Vorschlag ändert, macht damit vielleicht jemanden frei.
+ */
+export function umverteilungVorschlagen(termine: UmzuplanenderTermin[], personen: PlanPerson[], belegungen: PersonBelegung[], profil: string): Umverteilung[] {
+  const belegt = belegungen.map((b) => ({ ...b }));
+  return [...termine]
+    .sort((a, b) => a.beginn.getTime() - b.beginn.getTime())
+    .map((t) => {
+      const moeglich = personen.filter((p) => p.id !== profil && !konflikte(p, t, belegungen).length).map((p) => p.id);
+      const vorschlag = besteFreiePerson(personen, t, belegt, [profil])?.id ?? null;
+      const eigene = belegt.find((b) => b.id === t.id);
+      if (eigene) eigene.profil = vorschlag;
+      else belegt.push({ beginn: t.beginn.getTime(), bis: t.bis.getTime(), gewicht: 1, profil: vorschlag, id: t.id });
+      return { id: t.id, vorschlag, moeglich };
+    });
+}
+
+export type TagesLage = { verplant: number; verfuegbar: number; da: number; stufe: "ok" | "knapp" | "zu_viel" };
+
+/**
+ * Reicht die Zeit der Übrigen an einem Tag, wenn `ohne` fehlen? Verplant zählt jeder Termin, der an dem Tag
+ * beginnt (auch die der Fehlenden, denn die muss jemand anderes machen), verfügbar die Arbeitszeit der übrigen
+ * Planbaren nach Abzug genehmigter Abwesenheiten. Knapp ab 85 % wie die Auslastung im Wochenplan.
+ */
+export function tagesLage(datum: string, personen: PlanPerson[], termine: { beginn: Date; ende: Date }[], ohne: string[]): TagesLage {
+  const uebrig = personen.filter((p) => !ohne.includes(p.id));
+  const verfuegbar = uebrig.reduce((s, p) => s + verfuegbareMinuten(p, datum), 0);
+  const da = uebrig.filter((p) => verfuegbareMinuten(p, datum) > 0).length;
+  const verplant = termine.filter((t) => berlinDatum(t.beginn) === datum).reduce((s, t) => s + (t.ende.getTime() - t.beginn.getTime()) / 60000, 0);
+  const stufe = verplant > verfuegbar ? "zu_viel" : verplant > verfuegbar * 0.85 ? "knapp" : "ok";
+  return { verplant, verfuegbar, da, stufe };
+}
+
 /**
  * Urlaubstage in einem Zeitraum: gezählt werden nur Tage, an denen die Person laut Plan arbeiten würde. Ein
  * halber Tag (Abwesenheit mit Uhrzeit) zählt 0,5. Ohne Wochenplan gelten Montag bis Freitag.
