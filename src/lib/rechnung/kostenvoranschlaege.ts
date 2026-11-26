@@ -197,7 +197,7 @@ export async function kvVersenden(id: string, an: string, vonBenutzer: string): 
   const { text, html } = await mail(firma, {
     bausteine: [
       { art: "absatz", text: m.text },
-      { art: "link", text: "Ansehen und annehmen können Sie ihn hier", url: kvLink(k) },
+      { art: "link", text: "Sie können [den Kostenvoranschlag online ansehen und annehmen].", url: kvLink(k) },
       { art: "absatz", text: m.schluss },
     ],
   });

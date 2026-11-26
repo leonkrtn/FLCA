@@ -121,7 +121,7 @@ export async function takt(): Promise<Bericht> {
         abmelden: abmeldeLink(t.kunde.id),
         bausteine: [
           { art: "absatz", text: m.text },
-          { art: "link", text: "Hier geht es direkt zur Bewertung", url: e.firma.googleBewertungLink },
+          { art: "link", text: "Hier geht es [direkt zur Bewertung bei Google].", url: e.firma.googleBewertungLink },
           { art: "absatz", text: m.schluss },
         ],
       });
@@ -185,7 +185,7 @@ export async function takt(): Promise<Bericht> {
           abmelden: abmeldeLink(z.kunde.id),
           bausteine: [
             { art: "absatz", text: m.text },
-            { art: "link", text: "Einen freien Termin für den Wechsel können Sie sich hier aussuchen", url: link },
+            { art: "link", text: "Sie können sich gleich [einen freien Termin für den Wechsel aussuchen].", url: link },
           ],
         });
         await mailer().senden({ an: z.kunde.email, betreff: m.betreff, antwortAn: e.firma.email, ...inhalt });

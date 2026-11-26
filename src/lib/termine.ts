@@ -401,22 +401,22 @@ async function kundenMail(
   });
   const absatz = (text: string | null | undefined) => (text?.trim() ? [{ art: "absatz" as const, text: text.trim() }] : []);
   const bausteine: Baustein[] = {
-    eingang: [...absatz(m.text), { art: "link" as const, text: "Ihre Anfrage können Sie hier jederzeit ansehen", url: link }],
-    eingang_eng: [...absatz(m.text), { art: "link" as const, text: "Ihre Anfrage können Sie hier jederzeit ansehen", url: link }],
+    eingang: [...absatz(m.text), { art: "link" as const, text: "Sie können [Ihre Anfrage jederzeit online ansehen].", url: link }],
+    eingang_eng: [...absatz(m.text), { art: "link" as const, text: "Sie können [Ihre Anfrage jederzeit online ansehen].", url: link }],
     gegenvorschlag: [
       ...absatz(m.text),
       ...absatz(t.vorschlag_nachricht),
-      { art: "link" as const, text: "Hier können Sie den Vorschlag mit einem Klick annehmen oder ablehnen", url: link },
+      { art: "link" as const, text: "Sie können [den Vorschlag mit einem Klick annehmen oder ablehnen].", url: link },
       ...absatz(m.schluss),
     ],
-    bestaetigt: [...absatz(m.text), { art: "link" as const, text: "Ihren Termin können Sie hier ansehen oder absagen", url: link }, ...absatz(m.schluss)],
-    verschoben: [...absatz(m.text), { art: "link" as const, text: "Ihren Termin können Sie hier ansehen", url: link }],
-    abgelehnt: [...absatz(m.text), ...absatz(t.absage_grund), { art: "link" as const, text: "Einen anderen Termin können Sie sich hier aussuchen", url: `${ENV.siteUrl}/termin` }, ...absatz(m.schluss)],
+    bestaetigt: [...absatz(m.text), { art: "link" as const, text: "Sie können [Ihren Termin online ansehen oder absagen].", url: link }, ...absatz(m.schluss)],
+    verschoben: [...absatz(m.text), { art: "link" as const, text: "Sie können [Ihren Termin online ansehen].", url: link }],
+    abgelehnt: [...absatz(m.text), ...absatz(t.absage_grund), { art: "link" as const, text: "Gerne können Sie sich [einen anderen Termin aussuchen].", url: `${ENV.siteUrl}/termin` }, ...absatz(m.schluss)],
     // Die Zeit klappt nicht, der erteilte Auftrag bleibt: kein Link zu einer neuen Anfrage, das Büro meldet sich.
     zeit_abgelehnt: [...absatz(m.text), ...absatz(t.absage_grund), ...absatz(m.schluss)],
     zeit_abgesagt: [...absatz(m.text), ...absatz(m.schluss)],
-    storniert: [...absatz(m.text), { art: "link" as const, text: "Einen neuen Termin können Sie jederzeit hier anfragen", url: `${ENV.siteUrl}/termin` }],
-    erinnerung: [...absatz(m.text), { art: "link" as const, text: "Falls etwas dazwischenkommt, können Sie den Termin hier absagen", url: link }],
+    storniert: [...absatz(m.text), { art: "link" as const, text: "Einen neuen Termin können Sie jederzeit [online anfragen].", url: `${ENV.siteUrl}/termin` }],
+    erinnerung: [...absatz(m.text), { art: "link" as const, text: "Falls etwas dazwischenkommt, können Sie [den Termin online absagen].", url: link }],
   }[art];
 
   const { text, html } = await mail(firma, { bausteine });

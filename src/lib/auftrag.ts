@@ -329,7 +329,7 @@ export async function auftragVersenden(terminId: string, an: string, vonBenutzer
   const { text, html } = await mail(firma, {
     bausteine: [
       { art: "absatz", text: m.text },
-      ...(erteilt ? [] : [{ art: "link" as const, text: "Hier können Sie den Auftrag ansehen und erteilen", url: auftragLink(t) }]),
+      ...(erteilt ? [] : [{ art: "link" as const, text: "Sie können [den Auftrag online ansehen und erteilen].", url: auftragLink(t) }]),
       { art: "absatz", text: m.schluss },
     ],
   });
@@ -376,7 +376,7 @@ async function kundeBestaetigen(terminId: string): Promise<void> {
   const { text, html } = await mail(firma, {
     bausteine: [
       { art: "absatz", text: m.text },
-      { art: "link", text: "Termin und Auftrag können Sie hier jederzeit ansehen", url: auftragLink(t) },
+      { art: "link", text: "Sie können [Termin und Auftrag jederzeit online ansehen].", url: auftragLink(t) },
       ...(fernabsatz
         ? ([
             {
