@@ -18,6 +18,20 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-26 · Auftrag einplanen: Dauer 120 gilt als „kein gültiger Wert“
+
+- **Stand:** behoben
+- **Wo:** `src/components/admin/termin-aktionen.tsx` (Einplanen eines Auftrags ohne Termin, Admin und Handy-App)
+- **Was man sah:** (vom Nutzer gemeldet, iPhone) Beim Tippen auf „Einplanen, Kunde bekommt Mail“ zeigte das Feld
+  „Dauer (Minuten)“ mit 120 die Blase „Gültigen Wert eingeben“, das Formular ging nicht ab.
+- **Ursache:** `<input type="number" min={1} step={5}>`. Der Browser zählt die Schritte ab `min`, gültig waren also
+  nur 1, 6, 11, …, 116, 121. Jede runde Dauer (30, 60, 120) wurde abgelehnt.
+- **Behebung:** `step` entfernt (Schritt 1). Die Vorgabe kommt aus den Leistungen und kann jede Minutenzahl sein,
+  der Server rundet ohnehin selbst.
+- **Muster:** Zahlenfeld mit `step` größer 1, dessen `min` (oder bei fehlendem `min` die 0) kein Vielfaches des
+  Schritts ist, oder dessen Vorgabe nicht auf dem Raster liegt. Der Browser sperrt dann das Absenden.
+- **Weitere Stellen:** alle `step=` in `src` gesucht: sonst nur Schritt 1, `any` oder `0.01`, unkritisch.
+
 ### 2026-11-26 · Rostschutz-Kachel läuft rechts über den Rand
 
 - **Stand:** behoben

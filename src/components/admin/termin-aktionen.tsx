@@ -57,7 +57,7 @@ export function TerminAktionen({
             <input type="time" name="uhrzeit" defaultValue={uhrzeit} className="feld" aria-label="Uhrzeit" required />
             <label className="grid gap-1 text-sm">
               <span className="label">Dauer (Minuten)</span>
-              <input type="number" name="dauer" min={1} max={1440} step={5} defaultValue={dauer} className="feld zahlen" />
+              <input type="number" name="dauer" min={1} max={1440} defaultValue={dauer} className="feld zahlen" />
             </label>
             <label className="grid gap-1 text-sm">
               <span className="label">Mitarbeiter</span>
