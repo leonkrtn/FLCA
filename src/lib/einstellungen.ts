@@ -48,7 +48,7 @@ export type Einstellungen = {
     maxTage: number;
     /** So lange hält eine unbestätigte Anfrage ihren Slot */
     haltenStd: number;
-    /** Bis so kurz vorher darf der Kunde über seinen Link stornieren (AGB § 10) */
+    /** Bis so kurz vorher geht die Absage über den Kundenlink; danach ruft er an (eine Reservierung ist immer kostenfrei absagbar, AGB § 10) */
     stornoFristStd: number;
   };
   rechnung: {

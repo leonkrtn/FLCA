@@ -26,6 +26,7 @@ export const EREIGNIS_TYPEN = {
   "auftrag.versendet": "Ein Werkstattauftrag wurde dem Kunden zur Freigabe gesendet",
   "auftrag.erteilt": "Der Kunde hat einen Werkstattauftrag erteilt (Unterschrift, online oder Kostenvoranschlag)",
   "auftrag.zurueckgenommen": "Die Erteilung eines Werkstattauftrags wurde zurückgenommen",
+  "auftrag.mehrkosten_freigegeben": "Der Kunde hat Mehrkosten über der Kostengrenze zugestimmt (freigegeben_bis_cent, wie)",
   "auftrag.fertig": "Die Werkstatt hat einen Auftrag fertig gemeldet (rechnung_id = angelegter Rechnungsentwurf)",
   "nummernkreis.geaendert": "Der Nummernkreis der Rechnungen wurde geändert (vorher, nachher, von wem)",
   "rechnung.gestellt": "Eine Rechnung wurde gestellt",

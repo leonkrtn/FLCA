@@ -12,6 +12,7 @@ import { eingangAnhang, eingangLaden, mailer, standardAbsender } from "../servic
 export { standardAbsender };
 import { pushSenden } from "../services/push";
 import { db, dbRoh, DbFehler } from "../supabase/admin";
+import { berlinDatum } from "../zeit";
 import { absender, adresseZerlegen, betreffKern, htmlAlsText, MAIL_NAME_MUSTER, mailNameVon, nachrichtenIds, vorschau, zuordnen } from "./adressen";
 import { hatText, htmlBereinigen, verlaufAbschneiden } from "./inhalt";
 
@@ -34,6 +35,8 @@ export type MailZeile = {
   richtung: "eingang" | "ausgang";
   ordner: Ordner;
   ordner_vorher: string | null;
+  /** Aus dem Papierkorb gelöscht: nicht mehr im Postfach, nur noch unter Einstellungen → Archiv */
+  aufbewahrt_am?: string | null;
   resend_id: string | null;
   message_id: string | null;
   referenzen: string;
@@ -356,6 +359,7 @@ export async function listeLaden(
     else if (o.ansicht === "spaeter") q = q.gt("erinnern_am", jetzt).neq("ordner", "papierkorb");
     else {
       q = q.eq("ordner", o.ansicht);
+      if (o.ansicht === "papierkorb") q = q.is("aufbewahrt_am", null);
       // Zurückgestellte Mails tauchen erst zum Erinnerungszeitpunkt wieder im Posteingang auf
       if (o.ansicht === "eingang" || o.ansicht === "sonstige") q = q.or(`erinnern_am.is.null,erinnern_am.lte.${jetzt}`);
     }
@@ -451,7 +455,7 @@ export async function ordnerZahlen(z: Zugang, postfach: "firma" | "ich"): Promis
  */
 export async function gespraechLaden(z: Zugang, gespraech: string, imPapierkorb = false): Promise<MailZeile[] | null> {
   if (!/^[0-9a-f-]{36}$/.test(gespraech)) return null;
-  let q = db().from("mails").select("*").eq("gespraech", gespraech).neq("ordner", "entwuerfe");
+  let q = db().from("mails").select("*").eq("gespraech", gespraech).neq("ordner", "entwuerfe").is("aufbewahrt_am", null);
   if (!imPapierkorb) q = q.neq("ordner", "papierkorb");
   const { data } = await q.order("erstellt_am");
   const mails = (data ?? []) as MailZeile[];
@@ -489,7 +493,7 @@ export type Aktion =
  * Wendet eine Aktion auf Unterhaltungen (`gespraeche`) oder einzelne Mails (`mails`) an. `ordner` ist der Ordner,
  * in dem man gerade steht: Verschieben und Löschen betreffen nur die Mails daraus (die eigene Antwort bleibt in
  * „Gesendet“), Fahne, gelesen, Kategorie und Zuweisen gelten für die ganze Unterhaltung. Löschen im Papierkorb
- * löscht endgültig.
+ * nimmt die Mails aus der Ansicht; aufbewahrt werden sie trotzdem (`aufbewahren`).
  */
 export async function ordnen(z: Zugang, ziel: { gespraeche?: string[]; mails?: string[] }, a: Aktion, ordner: Ansicht): Promise<number> {
   const gespraeche = (ziel.gespraeche ?? []).filter((x) => /^[0-9a-f-]{36}$/.test(x)).slice(0, 500);
@@ -497,10 +501,11 @@ export async function ordnen(z: Zugang, ziel: { gespraeche?: string[]; mails?: s
   if (!gespraeche.length && !einzel.length) return 0;
 
   // Erlaubte Mails einsammeln (Zugriff je Mail; Zugewiesenes zählt für die ganze Unterhaltung)
-  const felder = "id, postfach, gespraech, ordner, richtung, zugewiesen_an, anhaenge, resend_id";
+  const felder = "id, postfach, gespraech, ordner, ordner_vorher, richtung, zugewiesen_an, anhaenge, resend_id";
+  // Aufbewahrte Mails (aus dem Papierkorb gelöscht) fasst keine Aktion mehr an, auch nicht über ihre Unterhaltung.
   const [{ data: g }, { data: e }] = await Promise.all([
-    gespraeche.length ? db().from("mails").select(felder).in("gespraech", gespraeche) : Promise.resolve({ data: [] }),
-    einzel.length ? db().from("mails").select(felder).in("id", einzel) : Promise.resolve({ data: [] }),
+    gespraeche.length ? db().from("mails").select(felder).in("gespraech", gespraeche).is("aufbewahrt_am", null) : Promise.resolve({ data: [] }),
+    einzel.length ? db().from("mails").select(felder).in("id", einzel).is("aufbewahrt_am", null) : Promise.resolve({ data: [] }),
   ]);
   const alle = [...((g ?? []) as MailZeile[]), ...((e ?? []) as MailZeile[])];
   const zugewiesenG = new Set(alle.filter((m) => m.zugewiesen_an === z.id).map((m) => m.gespraech));
@@ -568,7 +573,7 @@ export async function ordnen(z: Zugang, ziel: { gespraeche?: string[]; mails?: s
       await setzen({ ordner: a.ordner, ordner_vorher: null, geloescht_am: null }, idsOrdner.filter((id) => erlaubt.find((m) => m.id === id)?.richtung === "eingang"));
       break;
     case "loeschen":
-      if (ordner === "papierkorb") await endgueltigLoeschen(erlaubt.filter((m) => idsOrdner.includes(m.id)));
+      if (ordner === "papierkorb") await aufbewahren(erlaubt.filter((m) => idsOrdner.includes(m.id)));
       else {
         for (const m of erlaubt.filter((x) => idsOrdner.includes(x.id))) {
           await db().from("mails").update({ ordner: "papierkorb", ordner_vorher: m.ordner, geloescht_am: jetzt, versand: null }).eq("id", m.id);
@@ -584,6 +589,25 @@ export async function ordnen(z: Zugang, ziel: { gespraeche?: string[]; mails?: s
   }
   return ids.length;
 }
+
+/**
+ * „Endgültig löschen“ im Papierkorb und der Papierkorb nach 30 Tagen: Die Mails verschwinden aus dem Postfach,
+ * bleiben aber mit Anhängen erhalten (Einstellungen → Archiv), denn geschäftliche Mails sind Handels- und
+ * Geschäftsbriefe mit 6 Jahren Aufbewahrungsfrist (§ 257 HGB, § 147 AO). Danach löscht der Takt sie
+ * (`AUFBEWAHRUNG_JAHRE`). Nie verschickte Entwürfe sind kein Brief und gehen gleich weg.
+ */
+async function aufbewahren(mails: Pick<MailZeile, "id" | "anhaenge" | "resend_id" | "ordner_vorher" | "ordner">[]): Promise<void> {
+  if (!mails.length) return;
+  // Entwurf verwerfen kommt direkt aus „Entwürfe“, ein gelöschter Entwurf aus dem Papierkorb mit ordner_vorher.
+  const istEntwurf = (m: Pick<MailZeile, "ordner" | "ordner_vorher">) => m.ordner === "entwuerfe" || m.ordner_vorher === "entwuerfe";
+  const entwuerfe = mails.filter(istEntwurf);
+  const briefe = mails.filter((m) => !istEntwurf(m));
+  if (briefe.length) await db().from("mails").update({ aufbewahrt_am: new Date().toISOString(), gekennzeichnet: false, angeheftet: false, erinnern_am: null, zugewiesen_an: null }).in("id", briefe.map((m) => m.id));
+  await endgueltigLoeschen(entwuerfe);
+}
+
+/** Aufbewahrungsfrist geschäftlicher Mails, gezählt ab dem Ende des Jahres, in dem sie kamen oder gingen. */
+export const AUFBEWAHRUNG_JAHRE = 6;
 
 /** Mails endgültig löschen, mit Anhängen, die keine andere Ablage mehr braucht (eine Mail an zwei Postfächer teilt sie). */
 async function endgueltigLoeschen(mails: Pick<MailZeile, "id" | "anhaenge" | "resend_id">[]): Promise<void> {
@@ -766,10 +790,20 @@ export async function taktMail(): Promise<string> {
     }
   }
 
-  // Papierkorb nach 30 Tagen endgültig leeren
-  const { data: alt } = await db().from("mails").select("id, anhaenge, resend_id").eq("ordner", "papierkorb").lte("geloescht_am", new Date(Date.now() - 30 * 864e5).toISOString()).limit(200);
-  await endgueltigLoeschen((alt ?? []) as MailZeile[]);
-  return `${gesendet} gesendet, ${wach?.length ?? 0} erinnert, ${alt?.length ?? 0} gelöscht`;
+  // Papierkorb nach 30 Tagen leeren: aus der Ansicht ins Archiv
+  const { data: alt } = await db()
+    .from("mails")
+    .select("id, anhaenge, resend_id, ordner, ordner_vorher")
+    .eq("ordner", "papierkorb")
+    .is("aufbewahrt_am", null)
+    .lte("geloescht_am", new Date(Date.now() - 30 * 864e5).toISOString())
+    .limit(200);
+  await aufbewahren((alt ?? []) as MailZeile[]);
+  // Nach Ablauf der Aufbewahrungsfrist endgültig löschen: Mails von vor dem 1.1. vor sechs Jahren
+  const grenze = `${Number(berlinDatum().slice(0, 4)) - AUFBEWAHRUNG_JAHRE}-01-01T00:00:00Z`;
+  const { data: abgelaufen } = await db().from("mails").select("id, anhaenge, resend_id").not("aufbewahrt_am", "is", null).lt("erstellt_am", grenze).limit(200);
+  await endgueltigLoeschen((abgelaufen ?? []) as MailZeile[]);
+  return `${gesendet} gesendet, ${wach?.length ?? 0} erinnert, ${alt?.length ?? 0} aufbewahrt, ${abgelaufen?.length ?? 0} nach Ablauf gelöscht`;
 }
 
 // ---------------------------------------------------------------------------

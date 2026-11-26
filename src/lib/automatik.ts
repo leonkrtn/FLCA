@@ -2,6 +2,7 @@ import "server-only";
 import { taktMail } from "./mail/postfach";
 import { einstellungen } from "./einstellungen";
 import { ENV } from "./env";
+import { abmeldeLink } from "./einwilligung";
 import { zustellen } from "./ereignisse";
 import { mail } from "./email/vorlagen";
 import { monatsexport } from "./rechnung/datev";
@@ -56,6 +57,14 @@ type Bericht = Record<string, number | string>;
  * Ein Takt (jede Minute aus Supabase pg_cron, einmal täglich zusätzlich aus Vercel Cron). Jede
  * Aufgabe ist idempotent und für sich abgesichert: Scheitert eine, laufen die anderen weiter.
  */
+/** Kunden (aus dieser Liste), die Erinnerungen und Bewertungsbitten erlaubt haben. */
+async function mitEinwilligung(ids: (string | null | undefined)[]): Promise<Set<string>> {
+  const liste = [...new Set(ids.filter((x): x is string => Boolean(x)))];
+  if (!liste.length) return new Set();
+  const { data } = await db().from("kunden").select("id").in("id", liste).not("erinnerung_mail_ok_am", "is", null);
+  return new Set((data ?? []).map((k) => k.id as string));
+}
+
 export async function takt(): Promise<Bericht> {
   const bericht: Bericht = {};
   const e = await einstellungen();
@@ -98,11 +107,16 @@ export async function takt(): Promise<Bericht> {
       .is("bewertung_am", null)
       .lte("ende", new Date(jetzt - b.stundenNach * 3600000).toISOString())
       .gte("ende", new Date(jetzt - 7 * 86400000).toISOString());
+    // Die Bitte um eine Bewertung ist Werbung (BGH VI ZR 225/17): nur an Kunden, die eingewilligt haben.
+    const termine = (data ?? []) as Termin[];
+    const erlaubt = await mitEinwilligung(termine.map((t) => t.kunde?.id));
     let gesendet = 0;
-    for (const t of (data ?? []) as Termin[]) {
+    for (const t of termine) {
       await db().from("termine").update({ bewertung_am: new Date().toISOString() }).eq("id", t.id);
-      if (!t.kunde?.email || !(await einmalig("bewertung", `${t.kunde.id}:${berlinDatum().slice(0, 4)}`))) continue;
+      if (!t.kunde?.email || !erlaubt.has(t.kunde.id)) continue;
+      if (!(await einmalig("bewertung", `${t.kunde.id}:${berlinDatum().slice(0, 4)}`))) continue;
       const inhalt = mail(e.firma, {
+        abmelden: abmeldeLink(t.kunde.id),
         ueberschrift: "Danke für Ihren Besuch.",
         bausteine: [
           { art: "absatz", text: `Hallo ${t.kunde.name},\nwir hoffen, mit ${t.leistung_name} ist alles in Ordnung. Wenn Sie zufrieden waren, hilft uns eine kurze Bewertung bei Google sehr. Das dauert eine Minute.` },
@@ -118,7 +132,7 @@ export async function takt(): Promise<Bericht> {
 
   await schritt("webhooks", () => zustellen(50));
 
-  // Postfach: geplante Mails senden, „Später erinnern“ wecken, Papierkorb nach 30 Tagen leeren
+  // Postfach: geplante Mails senden, „Später erinnern“ wecken, Papierkorb nach 30 Tagen ins Archiv, nach Ablauf der Aufbewahrung löschen
   await schritt("mail", taktMail);
 
   // Einmal am Tag, ab 6 Uhr Berliner Zeit
@@ -142,15 +156,18 @@ export async function takt(): Promise<Bericht> {
       // Ganzjahresräder brauchen keinen Wechsel und bekommen nichts.
       const saison = faellig === "herbst" ? "winter" : "sommer";
       const raeder = saison === "winter" ? "Winterräder" : "Sommerräder";
-      const { data } = await db().from("einlagerungen").select("kunde:kunden(id, name, email), fahrzeug:fahrzeuge(kennzeichen)").is("ausgelagert_am", null).eq("saison", saison);
+      const { data } = await db().from("einlagerungen").select("kunde:kunden(id, name, email, erinnerung_mail_ok_am), fahrzeug:fahrzeuge(kennzeichen)").is("ausgelagert_am", null).eq("saison", saison);
       // Link und Dauer aus der Preisliste statt fest im Text: Ändert die Werkstatt dort etwas, stimmt die Mail weiter.
       const { data: wechsel } = await db().from("leistungen").select("slug, dauer_min").eq("slug", "radwechsel").eq("aktiv", true).eq("online_anfragbar", true).maybeSingle();
       const dauer = wechsel?.dauer_min ? `, der Wechsel dauert rund ${wechsel.dauer_min} Minuten` : "";
       const link = `${ENV.siteUrl}/termin${wechsel ? `?leistung=${wechsel.slug}` : ""}`;
       let gesendet = 0;
-      for (const z of (data ?? []) as unknown as { kunde: { id: string; name: string; email: string } | null; fahrzeug: { kennzeichen: string } | null }[]) {
-        if (!z.kunde?.email || !(await einmalig("saison", `${jahr}-${faellig}:${z.kunde.id}`))) continue;
+      for (const z of (data ?? []) as unknown as { kunde: { id: string; name: string; email: string; erinnerung_mail_ok_am: string | null } | null; fahrzeug: { kennzeichen: string } | null }[]) {
+        // Werbung für den Radwechsel: nur mit Einwilligung in Erinnerungen (Kundenbildschirm oder Kundenakte)
+        if (!z.kunde?.email || !z.kunde.erinnerung_mail_ok_am) continue;
+        if (!(await einmalig("saison", `${jahr}-${faellig}:${z.kunde.id}`))) continue;
         const inhalt = mail(e.firma, {
+          abmelden: abmeldeLink(z.kunde.id),
           ueberschrift: faellig === "herbst" ? "Zeit für die Winterreifen." : "Zeit für die Sommerreifen.",
           bausteine: [
             { art: "absatz", text: `Hallo ${z.kunde.name},\nIhre ${raeder}${z.fahrzeug ? ` für ${z.fahrzeug.kennzeichen}` : ""} liegen bei uns bereit. Suchen Sie sich einen freien Termin aus${dauer}.` },

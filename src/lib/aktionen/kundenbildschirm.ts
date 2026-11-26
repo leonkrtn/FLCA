@@ -103,13 +103,15 @@ export async function bildschirmSpeichern(schluessel: string, kundeId: string | 
       erinnerung: ja(fd, "erinnerung"),
       fahrzeuge: fahrzeugeAus(fd),
     };
-    if (!eingabe.name) return fehler("fehlerName");
-    if (!eingabe.telefon && !eingabe.email) return fehler("fehlerKontakt");
+    // Bestandskunden sehen ihre Daten nur verdeckt; leere Felder bleiben wie gespeichert (kundeSpeichern).
+    if (!kundeId && !eingabe.name) return fehler("fehlerName");
+    if (!kundeId && !eingabe.telefon && !eingabe.email) return fehler("fehlerKontakt");
     if (eingabe.email && !istEmail(eingabe.email)) return fehler("fehlerEmail");
     if (eingabe.telefon && !istTelefon(eingabe.telefon)) return fehler("fehlerTelefon");
     if (!ja(fd, "datenschutz")) return fehler("fehlerDatenschutz");
     const id = await kundeSpeichern(kundeId, eingabe);
-    const auftraege = await heutigeAuftraege(id);
+    // Über Kennzeichen oder Telefon gefunden: den Namen nicht vorbelegen, sonst stünde er doch wieder lesbar da.
+    const auftraege = (await heutigeAuftraege(id)).map((a) => (kundeId ? { ...a, kundeName: "" } : a));
     revalidatePath("/admin", "layout");
     return { status: "ok", meldung: tx(sprache, "gespeichert"), daten: { kundeId: id, auftraege }, versuch: Date.now() };
   });

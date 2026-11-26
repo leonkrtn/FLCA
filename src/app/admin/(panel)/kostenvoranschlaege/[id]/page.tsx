@@ -24,7 +24,7 @@ export default async function KostenvoranschlagSeite({ params }: { params: Promi
     entwurf ? editorDaten(k.fahrzeug) : null,
     entwurf ? kundenSuchen("", 6) : [],
     db().from("verlauf").select("text, erstellt_am").eq("bezug_typ", "kostenvoranschlag").eq("bezug_id", id).order("erstellt_am", { ascending: false }),
-    entwurf || k.termin_id ? [] : termineFuerKv(k.kunde_id),
+    entwurf || k.termin_id || k.archiviert_am ? [] : termineFuerKv(k.kunde_id),
     k.termin_id ? db().from("termine").select("id, nummer, beginn, leistung_name, status, auftrag_nummer").eq("id", k.termin_id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
   return (
@@ -32,7 +32,7 @@ export default async function KostenvoranschlagSeite({ params }: { params: Promi
       <Kopf
         titel={k.nummer ? `Kostenvoranschlag ${k.nummer}` : "Kostenvoranschlag (Entwurf)"}
         unter={<Marke ton={kvTon(k)}>{kvStatusText(k)}</Marke>}
-        zurueck={{ href: "/admin/kostenvoranschlaege", text: "Kostenvoranschläge" }}
+        zurueck={k.archiviert_am ? { href: "/admin/einstellungen?bereich=archiv", text: "Archiv" } : { href: "/admin/kostenvoranschlaege", text: "Kostenvoranschläge" }}
       >
         {entwurf ? (
           <form action={kvEntwurfLoeschen.bind(null, k.id, "admin")}>

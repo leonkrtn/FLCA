@@ -14,11 +14,12 @@ import {
   kvAmTerminVerknuepfen,
   kvAusTerminAktion,
   kvTerminLoesenAktion,
+  mehrkostenFreigebenAktion,
 } from "@/lib/aktionen/auftrag";
 import type { AuftragTermin } from "@/lib/auftrag";
 import { auftragAnBildschirmAktion } from "@/lib/aktionen/kundenbildschirm";
 import { type KalenderAnsicht, mitKal } from "@/lib/kalender-ansicht";
-import { AUFTRAG_STAND_TEXT, AUFTRAG_STAND_TON, auftragStand, erteiltText, grenzeText, TANKSTAENDE } from "@/lib/auftrag-regeln";
+import { AUFTRAG_STAND_TEXT, AUFTRAG_STAND_TON, auftragStand, erteiltText, FREIGABE_WEGE, freigabeText, grenzeText, TANKSTAENDE } from "@/lib/auftrag-regeln";
 import { datum, datumZeit, euro } from "@/lib/format";
 import { KV_STATUS } from "@/lib/rechnung/kostenvoranschlaege";
 import type { KvAmTermin } from "@/lib/termin-daten";
@@ -55,6 +56,14 @@ export function AuftragBereich({ t, ort, kal }: { t: AuftragTermin; ort: Ort; ka
       </div>
       {t.auftrag_kostengrenze_cent != null ? (
         <p className={`text-sm ${warnung ? "font-semibold text-rot" : "text-grau"}`}>{warnung || `Kostengrenze ${euro(t.auftrag_kostengrenze_cent)}`}</p>
+      ) : null}
+      {freigabeText(t) ? <p className="text-sm text-grau">{freigabeText(t)}</p> : null}
+      {warnung ? (
+        // Ohne nachweisbare Zustimmung schuldet der Kunde den Mehrbetrag nicht: Weg und Zeitpunkt festhalten.
+        <Formular aktion={mehrkostenFreigebenAktion.bind(null, t.id)} className="grid max-w-md gap-2">
+          <Auswahl label="Der Kunde hat den Mehrkosten zugestimmt" name="wie" leer="wie?" optionen={FREIGABE_WEGE.map((w): [string, string] => [w, w])} />
+          <Senden art="rahmen" klein vorab="Eingetragen">{`Zustimmung bis ${euro(t.auftrag_summe_brutto_cent ?? 0)} eintragen`}</Senden>
+        </Formular>
       ) : null}
       {t.auftrag_positionen?.length ? <PositionenUebersicht positionen={t.auftrag_positionen} /> : <p className="text-sm text-grau">Noch keine Positionen.</p>}
       <div className="knopfreihe knopfreihe-frei">

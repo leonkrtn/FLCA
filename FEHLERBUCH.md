@@ -18,6 +18,114 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-26 · Online-Beauftragung ohne Widerrufsbelehrung, Knopf ohne „zahlungspflichtig“, AGB nicht einbezogen
+
+- **Stand:** behoben
+- **Wo:** Terminanfrage (`/termin`), Werkstattauftrag über den Terminlink (`auftrag-erteilen.tsx`), Kostenvoranschlag
+  annehmen (`kv-antwort.tsx`), AGB-Standardtext (`rechtstexte-standard.ts`), Auftragsbestätigung (`auftrag.ts`)
+- **Was man sah:** (rechtliche Prüfung) Online-Beauftragung durch Verbraucher ist Fernabsatz, aber nirgends stand eine
+  Widerrufsbelehrung; die AGB machten sogar jede Terminbuchung zum Vertrag. Knöpfe „Auftrag verbindlich erteilen“
+  und „Ja, annehmen“; AGB in den Online-Wegen weder erwähnt noch verlinkt.
+- **Ursache:** Die Abläufe wurden von der Werkstatt aus gedacht (Unterschrift vor Ort), die Online-Wege kamen später dazu.
+- **Folgen ohne Behebung:** Widerrufsfrist 12 Monate und 14 Tage, nach Widerruf kein Wertersatz (§ 357a BGB); ohne
+  „zahlungspflichtig“ auf dem Knopf kein Vertrag (§ 312j Abs. 4 BGB); AGB gelten nicht (§ 305 Abs. 2 BGB).
+- **Behebung:** Terminanfrage ist laut AGB § 2 eine unverbindliche Reservierung (§ 10 ohne Ausfallpauschale).
+  Online erteilen und KV annehmen: AGB-Link, Pflicht-Häkchen „vor Ablauf der Widerrufsfrist beginnen“
+  (§ 356 Abs. 4 BGB, gespeichert in `auftrag_vorab_am`/`vorab_am`), Knopf „Zahlungspflichtig beauftragen“.
+  Seite `/widerruf` mit Mustertext und -formular (`widerrufAbschnitte`), dieselbe Belehrung in der
+  Auftragsbestätigung, wenn nicht in der Werkstatt unterschrieben wurde.
+- **Muster:** Jeder Knopf, mit dem ein Kunde online etwas Kostenpflichtiges auslöst, braucht: Beschriftung mit
+  „zahlungspflichtig“, AGB-Link direkt davor, Widerrufsbelehrung und bei Dienstleistungen das Häkchen für den
+  sofortigen Beginn, danach eine Bestätigung per Mail mit Belehrung.
+- **Weitere Stellen:** Gegenvorschlag annehmen (`vorschlag-antwort.tsx`) und Terminwahl am KV bestätigen nur eine
+  Reservierung, kein Vertrag; Kundenbildschirm ist vor Ort (kein Fernabsatz) und hatte das AGB-Häkchen schon.
+  „Zugesagt“ am KV in der Verwaltung (Kunde rief an) ist ebenfalls Fernabsatz: Die Bestätigungsmail bringt die
+  Belehrung, das Verlangen nach sofortigem Beginn muss das Büro am Telefon erfragen (nicht im System erfasst).
+
+### 2026-11-26 · Bewertungs- und Reifenmails ohne Einwilligung, Einwilligungen nur angezeigt
+
+- **Stand:** behoben
+- **Wo:** Takt (`automatik.ts`: „bewertungen“, „saison“), WhatsApp-Vorlagen (`whatsapp-daten.ts`), Kundenakte
+- **Was man sah:** (rechtliche Prüfung) Die Bitte um eine Google-Bewertung ging an jeden Kunden mit E-Mail, die
+  Reifenmail an jeden mit eingelagerten Rädern, beide ohne Abmeldelink. `whatsapp_ok_am` und
+  `erinnerung_mail_ok_am` vom Kundenbildschirm wurden nur angezeigt, nirgends geprüft; widerrufen ließ sich nur am
+  Bildschirm.
+- **Ursache:** Die Einwilligungen kamen mit dem Kundenbildschirm, die Mails gab es schon vorher; niemand hat beides
+  verbunden.
+- **Behebung:** Beide Mails nur mit `erinnerung_mail_ok_am`, mit Abmeldelink (`/abmelden/<kunde>/<schlüssel>`,
+  `src/lib/einwilligung.ts`). WhatsApp-Bewertungsbitte nur mit beiden Einwilligungen, sonst warnt der
+  WhatsApp-Knopf vor dem Öffnen. Einwilligungen in der Kundenakte eintragen und widerrufen, mit Verlauf. Text am
+  Kundenbildschirm nennt die Bewertung und das Widerrufsrecht.
+- **Muster:** Jede Nachricht, die nicht unmittelbar zu einem laufenden Auftrag gehört (Bewertung, Saison,
+  Angebote, „lange nicht gesehen“), ist Werbung: Einwilligung prüfen und `abmelden` an `mail()` geben.
+- **Weitere Stellen:** Erinnerung 24 h vor dem Termin, Terminmails, Rechnung und Mahnung gehören zum Vertrag und
+  bleiben. Hinweis: Wer vor dieser Änderung am Bildschirm „Erinnerungen“ erlaubt hat, sah den Text ohne Bewertung.
+
+### 2026-11-26 · Kundenbildschirm zeigte fremde Daten nach Eingabe eines Kennzeichens
+
+- **Stand:** behoben
+- **Wo:** `kundenFinden` (`src/lib/kundenbildschirm/daten.ts`), Formular in `bildschirm.tsx`
+- **Was man sah:** (rechtliche Prüfung) „Ich war schon einmal da“ + genaues Kennzeichen zeigte Name, Telefon,
+  E-Mail und Anschrift. Kennzeichen stehen sichtbar an den Autos auf dem Hof.
+- **Behebung:** Treffer gehen nur verdeckt an den Bildschirm (`verdecken.ts`, getestet), die Felder bleiben leer mit
+  dem verdeckten Wert als Platzhalter; leer gelassen heißt unverändert (`stammZusammenfuehren`). Beim Unterschreiben
+  danach ist der Name nicht vorbelegt.
+- **Muster:** Alles, was ohne Anmeldung über ein erratbares oder sichtbares Merkmal (Kennzeichen, Telefon) gefunden
+  wird, darf personenbezogene Daten nur verdeckt zurückgeben. Kundenlinks mit langem Zufallstoken sind etwas anderes.
+- **Weitere Stellen:** Kundenlinks `/t`, `/k`, `/r` nutzen 64-stellige Tokens (in Ordnung). Die Liste mehrerer
+  Treffer zeigt ebenfalls nur verdeckte Namen.
+
+### 2026-11-26 · Mehrkosten über der Kostengrenze ohne festgehaltene Zustimmung
+
+- **Stand:** behoben
+- **Wo:** Werkstattauftrag (`auftrag.ts`, `auftrag-regeln.ts`, `components/admin/auftrag.tsx`), Rechnungsentwurf
+- **Was man sah:** (rechtliche Prüfung) Über der Kostengrenze stand nur ein roter Hinweis; ob und wie der Kunde
+  zugestimmt hat, ließ sich nicht festhalten, die Rechnung ging trotzdem über den vollen Betrag.
+- **Behebung:** Am Auftrag „Zustimmung bis … eintragen“ mit Weg (Telefon, WhatsApp …), gespeichert in
+  `auftrag_freigabe_*`, Verlauf und Ereignis `auftrag.mehrkosten_freigegeben`. `ueberKostengrenze` rechnet ab der
+  Freigabe weiter; der Rechnungsentwurf warnt, solange die Rechnung über dem Freigegebenen liegt.
+- **Muster:** Wo eine Zusage des Kunden Geld kostet, gehört ihr Nachweis (wann, wie, wer hat es eingetragen) in die
+  Datenbank, nicht nur ein Hinweis auf den Bildschirm.
+- **Weitere Stellen:** AGB § 2 Abs. 3 sagt jetzt dasselbe (Mehrarbeiten nur nach Zustimmung).
+
+### 2026-11-26 · Termin löschen und Mail-Papierkorb löschten Geschäftsbriefe
+
+- **Stand:** behoben
+- **Wo:** `termin_loeschen` (Migration `20261205100000_rechtliches.sql`), `loeschen` in `termine.ts`, `mail/postfach.ts`
+- **Was man sah:** (rechtliche Prüfung) Termin löschen nahm verschickte Kostenvoranschläge und den unterschriebenen
+  Werkstattauftrag mit; der Papierkorb des Postfachs wurde nach 30 Tagen endgültig geleert.
+- **Behebung:** Verschickte KVs bleiben mit `archiviert_am` (aus allen Listen und ohne Kundenlink), ein verschickter
+  oder erteilter Auftrag kommt als PDF mit allen Daten, Unterschrift, Fotos und Verlauf in `archiv_auftraege`. Mails
+  aus dem Papierkorb bekommen `aufbewahrt_am` statt gelöscht zu werden, nach 6 Jahren (ab Jahresende) löscht der
+  Takt. Alles unter Einstellungen → Archiv (Mails nur mit Zugriff aufs jeweilige Postfach).
+- **Muster:** Was dem Kunden zugegangen ist (Beleg, Angebot, Auftrag, Mail), nie hart löschen, sondern archivieren.
+- **Weitere Stellen:** Rechnungen blieben schon immer (`rechnungen.termin_id → null`). `kunde_loeschen` behält
+  gestellte Belege; Kostenvoranschläge eines gelöschten Kunden bleiben ebenfalls (Fremdschlüssel `set null`).
+
+### 2026-11-26 · Datenschutzhinweise fehlten (Bewerbung, Kundenbildschirm, Mails, Beschäftigte)
+
+- **Stand:** behoben
+- **Wo:** Mitgelieferte Datenschutzerklärung, Bewerbungsformular, Team-App (Stempeln, Mehr)
+- **Was man sah:** (rechtliche Prüfung) Keine Angaben zu Bewerbungen, Kundenbildschirm, Fotos, Erinnerungen,
+  Steuerberater, Schnittstellen und Mailempfang; am Bewerbungsformular kein Hinweis; Beschäftigte wurden über
+  Standortprüfung und gespeicherte Daten nicht informiert.
+- **Behebung:** Abschnitte in `datenschutzStandard` ergänzt, Hinweis unter dem Bewerbungsformular, Hinweis beim
+  Stempeln und „Datenschutz: Was die App über mich speichert“ unter Team-App → Mehr.
+- **Muster:** Kommt eine neue Art von Daten oder ein neuer Empfänger dazu, gehört er in die Datenschutzerklärung
+  und an die Stelle, wo die Daten erhoben werden.
+- **Weitere Stellen:** Kommt die Datenschutzerklärung von einem Rechtstexte-Dienst, muss dort dasselbe ergänzt
+  werden; der mitgelieferte Text gilt nur als Ersatz.
+
+### 2026-11-26 · Nicht versendete Kundenmails nur im Server-Log
+
+- **Stand:** behoben
+- **Wo:** `kundeBestaetigen` (`auftrag.ts`), `kundenMail` (`termine.ts`)
+- **Was man sah:** Scheiterte die Auftragsbestätigung oder eine Terminmail, stand das nur per `console.warn` im Log.
+- **Behebung:** `fehlerMelden`, damit es unter Einstellungen → Fehler erscheint.
+- **Muster:** `console.warn`/`console.error` auf dem Server statt `fehlerMelden` oder `weich`.
+- **Weitere Stellen:** `sicher.ts` loggt erwartete Fehler (keine Systemfehler) bewusst nur; `push-abgleich.tsx` läuft
+  im Browser, dort gibt es kein Fehlerprotokoll.
+
 ### 2026-11-26 · Beleg-Editor: Bezeichnung der Positionen nur 50 px breit
 
 - **Stand:** behoben

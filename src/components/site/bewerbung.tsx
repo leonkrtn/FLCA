@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { bewerben, uploadVorbereiten } from "@/app/(site)/karriere/actions";
 import { Haken } from "@/components/icons";
@@ -89,6 +90,14 @@ export function BewerbungsFormular({ stelle }: { stelle: string }) {
       <button type="submit" disabled={sendet || upload === "laeuft"} className="knopf knopf-rot">
         {sendet ? "Wird gesendet …" : "Bewerbung absenden"}
       </button>
+      {/* Art. 13 DSGVO: beim Erheben sagen, wofür und wie lange */}
+      <p className="text-sm text-grau">
+        Wir verwenden Ihre Angaben nur für diese Bewerbung und löschen sie sechs Monate nach Abschluss des Verfahrens. Mehr dazu in der{" "}
+        <Link href="/datenschutz" className="underline">
+          Datenschutzerklärung
+        </Link>
+        .
+      </p>
     </form>
   );
 }

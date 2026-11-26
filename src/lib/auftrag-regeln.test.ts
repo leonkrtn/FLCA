@@ -38,6 +38,11 @@ describe("Kostengrenze", () => {
   it("Grenze 0 heißt: nichts ohne Rückfrage", () => {
     expect(ueberKostengrenze({ auftrag_summe_brutto_cent: 1, auftrag_kostengrenze_cent: 0 })).toBe(1);
   });
+  it("freigegebene Mehrkosten zählen, Ergänzungen darüber hinaus wieder nicht", () => {
+    expect(ueberKostengrenze({ auftrag_summe_brutto_cent: 61000, auftrag_kostengrenze_cent: 50000, auftrag_freigabe_bis_cent: 61000 })).toBeNull();
+    expect(ueberKostengrenze({ auftrag_summe_brutto_cent: 65000, auftrag_kostengrenze_cent: 50000, auftrag_freigabe_bis_cent: 61000 })).toBe(4000);
+    expect(grenzeText({ auftrag_summe_brutto_cent: 65000, auftrag_kostengrenze_cent: 50000, auftrag_freigabe_bis_cent: 61000 })).toMatch(/^40,00\s€ über der Freigabe von 610,00\s€/);
+  });
 });
 
 describe("annahmeAus", () => {

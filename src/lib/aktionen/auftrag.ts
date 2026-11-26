@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { annahmeAus, grenzeText } from "../auftrag-regeln";
-import { annahmeSpeichern, auftragAnlegen, auftragErteilen, auftragSpeichern, auftragVersenden, erteilungZuruecknehmen } from "../auftrag";
+import { annahmeAus, FREIGABE_WEGE, grenzeText } from "../auftrag-regeln";
+import { annahmeSpeichern, auftragAnlegen, auftragErteilen, auftragSpeichern, auftragVersenden, erteilungZuruecknehmen, mehrkostenFreigeben } from "../auftrag";
 import { benutzerMitRecht } from "../auth";
 import { type Ergebnis, istEmail, text, zahl } from "../forms";
 import { sicher } from "../sicher";
@@ -108,6 +108,18 @@ export async function erteilungZuruecknehmenAktion(id: string, _v: Ergebnis, fd:
     await erteilungZuruecknehmen(id, b.id);
     neuLaden(id);
     return { status: "ok", meldung: "Erteilung zurückgenommen." };
+  });
+}
+
+/** Zustimmung des Kunden zu Mehrkosten über der Kostengrenze festhalten (Weg aus FREIGABE_WEGE). */
+export async function mehrkostenFreigebenAktion(id: string, _v: Ergebnis, fd: FormData): Promise<Ergebnis> {
+  return sicher(fd, async () => {
+    const b = await benutzerMitRecht("termine");
+    const wie = text(fd, "wie", 60);
+    if (!(FREIGABE_WEGE as readonly string[]).includes(wie)) return { status: "fehler", meldung: "Bitte wählen, wie der Kunde zugestimmt hat." };
+    await mehrkostenFreigeben(id, wie, b.id);
+    neuLaden(id);
+    return { status: "ok", meldung: "Zustimmung eingetragen." };
   });
 }
 

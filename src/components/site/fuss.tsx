@@ -75,6 +75,7 @@ export function Fuss({ e }: { e: Einstellungen }) {
         <Link href="/impressum" className="hover:text-hell">Impressum</Link>
         <Link href="/datenschutz" className="hover:text-hell">Datenschutz</Link>
         <Link href="/agb" className="hover:text-hell">AGB</Link>
+        <Link href="/widerruf" className="hover:text-hell">Widerruf</Link>
         <Link href="/login" className="hover:text-hell">Mitarbeiter-Login</Link>
       </div>
     </footer>

@@ -2,6 +2,7 @@ import "server-only";
 import { after } from "next/server";
 import { einstellungen, type Einstellungen } from "./einstellungen";
 import { ENV } from "./env";
+import { fehlerMelden } from "./fehler";
 import { melden, verlauf } from "./ereignisse";
 import { datumLangText, kennzeichen as kennzeichenFormat, telHref, zeit } from "./format";
 import { ics } from "./ics";
@@ -522,7 +523,8 @@ async function kundenMail(
         ]
       : undefined,
   });
-  if (!ergebnis.ok) console.warn(`Mail „${art}“ zu Termin ${t.id} nicht versendet: ${ergebnis.fehler}`);
+  // Eine Kundenmail, die nicht rausgeht, gehört ins Fehlerprotokoll (Einstellungen → Fehler), nicht nur ins Log.
+  if (!ergebnis.ok) await fehlerMelden(new Error(`Mail „${art}“ zu Termin ${t.id} nicht versendet: ${ergebnis.fehler}`), "Terminmail an den Kunden");
 }
 
 async function betriebBenachrichtigen(t: GeplanterTermin, art: "neu" | "storniert" | "vorschlag_ja" | "vorschlag_nein") {
@@ -1381,33 +1383,60 @@ export async function erledigen(id: string, vonBenutzer: string, status: "erledi
 }
 
 /**
- * Löscht einen Termin endgültig, mit Fotos und Verlauf. Die späteren Terminnummern rücken nach
- * (termin_loeschen). Das geht, weil die Terminnummer nur intern in Notizen erscheint (die lesen sie bei jedem
- * Anzeigen neu), nie auf Belegen, Kundenseiten, Mails oder Webhooks. Rechnungen zum Termin bleiben, sie verlieren nur den Verweis. Der Kunde
+ * Löscht einen Termin, mit Fotos und Verlauf. Die späteren Terminnummern rücken nach (termin_loeschen). Das geht,
+ * weil die Terminnummer nur intern in Notizen erscheint (die lesen sie bei jedem Anzeigen neu), nie auf Belegen,
+ * Kundenseiten, Mails oder Webhooks. Rechnungen zum Termin bleiben, sie verlieren nur den Verweis. Der Kunde
  * bekommt keine Mail: Wer ihm Bescheid geben will, sagt den Termin vorher ab.
+ *
+ * Was der Kunde schon bekommen hat, ist ein Geschäftsbrief und bleibt (Einstellungen → Archiv): verschickte
+ * Kostenvoranschläge verlieren nur den Termin, ein verschickter oder erteilter Werkstattauftrag kommt als PDF mit
+ * allen Daten, Unterschrift, Fotos und Verlauf ins Archiv. Das PDF entsteht vorher, weil danach der Termin fehlt.
  */
 export async function loeschen(id: string, vonBenutzer: string): Promise<void> {
   const termin = await terminLaden(id);
   if (!termin) throw new TerminFehler("Termin nicht gefunden.");
   const { data: fotos } = await db().from("termin_fotos").select("pfad").eq("termin_id", id);
-  // Die Datenbank löscht die Kostenvoranschläge des Termins mit (Migration „termin_loeschen_kv“); ihr Verlauf
-  // hängt nicht am Termin und geht deshalb hier mit.
-  const { data: kvs } = await db().from("kostenvoranschlaege").select("id, nummer").eq("termin_id", id);
-  const { error } = await dbRoh().rpc("termin_loeschen", { p_id: id });
-  if (error) dbFehler(error);
-  await db().from("verlauf").delete().eq("bezug_typ", "termin").eq("bezug_id", id);
-  const kvIds = (kvs ?? []).map((k) => k.id as string);
-  if (kvIds.length) {
-    // Vor der Migration bleiben die KVs stehen (dann ohne Termin), ihr Verlauf auch.
-    const { data: geblieben } = await db().from("kostenvoranschlaege").select("id").in("id", kvIds);
-    const weg = kvIds.filter((x) => !geblieben?.some((g) => g.id === x));
-    if (weg.length) await db().from("verlauf").delete().eq("bezug_typ", "kostenvoranschlag").in("bezug_id", weg);
+  const { data: kvs } = await db().from("kostenvoranschlaege").select("id, nummer, status").eq("termin_id", id);
+  const archivieren = Boolean(termin.auftrag_nummer && (termin.auftrag_gesendet_am || termin.auftrag_erteilt_am));
+  const pdfPfad = archivieren ? await auftragArchivPdf(id) : null;
+  const { error } = await dbRoh().rpc("termin_loeschen", { p_id: id, p_pdf_pfad: pdfPfad, p_von: vonBenutzer });
+  if (error) {
+    if (pdfPfad) await db().storage.from("archiv").remove([pdfPfad]);
+    dbFehler(error);
   }
+  // Der Verlauf des Termins steht beim archivierten Auftrag in dessen Daten; der der Entwürfe geht mit ihnen.
+  await db().from("verlauf").delete().eq("bezug_typ", "termin").eq("bezug_id", id);
+  const entwuerfe = (kvs ?? []).filter((k) => k.status === "entwurf").map((k) => k.id as string);
+  if (entwuerfe.length) await db().from("verlauf").delete().eq("bezug_typ", "kostenvoranschlag").in("bezug_id", entwuerfe);
+  const archiviert = (kvs ?? []).filter((k) => k.status !== "entwurf");
+  for (const k of archiviert) await verlauf("kostenvoranschlag", k.id as string, "Termin gelöscht, Kostenvoranschlag ins Archiv gelegt", vonBenutzer);
   after(async () => {
     if (termin.status === "bestaetigt" && istGeplant(termin) && new Date(termin.beginn).getTime() > Date.now()) await personBenachrichtigen(termin.zugewiesen_an, termin, "entfaellt");
-    if (fotos?.length) await db().storage.from("auftragsfotos").remove(fotos.map((f) => f.pfad as string));
-    await melden("termin.geloescht", { ...ereignisDaten(termin), geloescht_von: vonBenutzer, kostenvoranschlaege: (kvs ?? []).map((k) => k.nummer ?? k.id) });
+    // Fotos eines archivierten Auftrags bleiben als Nachweis (Vorschäden), ihre Pfade stehen im Archiv.
+    if (fotos?.length && !archivieren) await db().storage.from("auftragsfotos").remove(fotos.map((f) => f.pfad as string));
+    await melden("termin.geloescht", {
+      ...ereignisDaten(termin),
+      geloescht_von: vonBenutzer,
+      kostenvoranschlaege: (kvs ?? []).map((k) => k.nummer ?? k.id),
+      archiviert: { auftrag: archivieren, kostenvoranschlaege: archiviert.map((k) => k.nummer ?? k.id) },
+    });
   });
+}
+
+/** PDF des Auftrags, wie er beim Löschen aussieht, in den Speicher „archiv“. Scheitert es, archiviert die Datenbank die Daten trotzdem. */
+async function auftragArchivPdf(terminId: string): Promise<string | null> {
+  const { auftragLaden, auftragPdf, auftragDateiname } = await import("./auftrag");
+  try {
+    const t = await auftragLaden(terminId);
+    if (!t) return null;
+    const pfad = `auftraege/${terminId}/${auftragDateiname(t)}`;
+    const { error } = await db().storage.from("archiv").upload(pfad, await auftragPdf(t), { contentType: "application/pdf", upsert: true });
+    if (error) throw error;
+    return pfad;
+  } catch (error) {
+    await fehlerMelden(error, "Werkstattauftrag fürs Archiv als PDF ablegen");
+    return null;
+  }
 }
 
 /** Erinnerung 24 Stunden vorher (aus dem Takt aufgerufen). */

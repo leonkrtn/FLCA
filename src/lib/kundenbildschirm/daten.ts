@@ -10,6 +10,7 @@ import { db, DbFehler, dbRoh } from "../supabase/admin";
 import { TerminFehler } from "../termine";
 import { berlin, berlinDatum, plusTage, ZONE } from "../zeit";
 import type { Sprache, TextSchluessel } from "./texte";
+import { type Stamm, STAMMFELDER, stammVerdecken, stammZusammenfuehren } from "./verdecken";
 
 /**
  * Kundenbildschirm: Kunden tragen ihre Daten selbst ein und unterschreiben den Werkstattauftrag. Das Gerät
@@ -125,6 +126,8 @@ export type BildschirmKunde = {
   whatsapp: boolean;
   erinnerung: boolean;
   fahrzeuge: BildschirmFahrzeug[];
+  /** Nur im Browser: Stammdaten verdeckt (verdecken.ts), die Felder selbst sind dann leer. */
+  maske?: Stamm;
 };
 
 const SPALTEN =
@@ -184,7 +187,13 @@ export async function kundenFinden(eingabe: string): Promise<BildschirmKunde[]> 
   if (/\d{5}/.test(eingabe.replace(/\D/g, "")) && !/[A-Za-zÄÖÜäöü]/.test(eingabe)) {
     for (const k of await kundenMitTelefon(eingabe)) treffer.set(k.id, k);
   }
-  return [...treffer.values()].slice(0, 6).map(alsAnzeige);
+  // Der Treffer geht an den Bildschirm: nur verdeckt, sonst liest jeder mit einem fremden Kennzeichen mit.
+  return [...treffer.values()].slice(0, 6).map((k) => verdeckt(alsAnzeige(k)));
+}
+
+function verdeckt(k: BildschirmKunde): BildschirmKunde {
+  const leer = Object.fromEntries(STAMMFELDER.map((f) => [f, ""])) as Stamm;
+  return { ...k, ...leer, maske: stammVerdecken(k) };
 }
 
 export async function bildschirmKunde(id: string): Promise<BildschirmKunde | null> {
@@ -237,7 +246,9 @@ export async function kundeSpeichern(id: string | null, e: KundenEingabe): Promi
     if (data && data.kunde_id !== id) throw new BildschirmFehler("fehlerKennzeichenFremd");
   }
 
-  const stamm = { name: e.name, firma: e.firma, ust_id: e.ust_id, telefon: e.telefon, email: e.email.toLowerCase(), strasse: e.strasse, plz: e.plz, ort: e.ort };
+  const eingetippt = { name: e.name, firma: e.firma, ust_id: e.ust_id, telefon: e.telefon, email: e.email.toLowerCase(), strasse: e.strasse, plz: e.plz, ort: e.ort };
+  // Bestandskunde sieht seine Daten nur verdeckt: Was er leer lässt, bleibt wie gespeichert.
+  const stamm = alt ? stammZusammenfuehren(alt, eingetippt) : eingetippt;
   const einwilligung = {
     datenschutz_am: alt?.datenschutz ? undefined : jetzt,
     whatsapp_ok_am: e.whatsapp ? (alt?.whatsapp ? undefined : jetzt) : null,

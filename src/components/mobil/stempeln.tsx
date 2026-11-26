@@ -73,7 +73,12 @@ export function Stempeln({ seit, pauseSeit, nurVorOrt, monat }: { seit: string |
         <Senden art={eingestempelt ? "rahmen" : "rot"} className="min-h-14 w-full text-lg">
           {orten ? "Standort wird geprüft …" : eingestempelt ? "Ausstempeln" : "Einstempeln"}
         </Senden>
-        {nurVorOrt && !eingestempelt ? <p className="text-xs text-grau">Einstempeln geht nur in der Werkstatt (Standort wird geprüft).</p> : null}
+        {/* Art. 13 DSGVO / § 26 BDSG: Wer geortet wird, erfährt vorher, was gespeichert wird und wer es sieht. */}
+        {nurVorOrt && !eingestempelt ? (
+          <p className="text-xs text-grau">
+            Einstempeln geht nur in der Werkstatt. Dafür prüft das Handy einmal beim Einstempeln den Standort. Gespeichert wird nur der Abstand zur Werkstatt, nicht der Ort. Versuchst du es von weiter weg, bekommt der Inhaber eine Mitteilung mit Name und Abstand.
+          </p>
+        ) : null}
         {hinweis ? <p role="status" className="text-sm font-semibold text-rot">{hinweis}</p> : null}
       </Formular>
       {/* Pause als eigenes Formular: Ein Tipp, ohne Standort; stoppt auch die Uhr am Auftrag. */}

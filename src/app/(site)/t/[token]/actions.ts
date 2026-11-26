@@ -49,9 +49,11 @@ export async function auftragOnlineErteilen(token: string, _v: Ergebnis, fd: For
     if (!t?.auftrag_nummer) return { status: "fehler", meldung: "Zu diesem Termin gibt es keinen Auftrag." };
     const name = text(fd, "name", 120);
     if (!name) return { status: "fehler", meldung: "Bitte Ihren Namen eintragen." };
-    if (!ja(fd, "einverstanden")) return { status: "fehler", meldung: "Bitte bestätigen Sie, dass Sie den Auftrag erteilen." };
+    if (!ja(fd, "einverstanden")) return { status: "fehler", meldung: "Bitte bestätigen Sie, dass Sie den Auftrag erteilen.", werte: { name } };
+    // § 356 Abs. 4 BGB: Ohne ausdrückliches Verlangen dürften wir erst nach Ablauf der Widerrufsfrist anfangen.
+    if (!ja(fd, "vorab")) return { status: "fehler", meldung: "Bitte bestätigen Sie, dass wir vor Ablauf der Widerrufsfrist beginnen sollen.", werte: { name } };
     try {
-      await auftragErteilen(t.id, "online", { name });
+      await auftragErteilen(t.id, "online", { name, vorab: true });
     } catch (error) {
       if (error instanceof TerminFehler) return { status: "fehler", meldung: error.message };
       throw error;

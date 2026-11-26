@@ -12,6 +12,7 @@ export function spracheAus(wert: unknown): Sprache {
 
 const DE = {
   willkommen: "Willkommen",
+  verdecktHinweis: "Zum Schutz Ihrer Daten zeigen wir sie hier nur teilweise. Ein leeres Feld bleibt, wie es bei uns gespeichert ist. Was sich geändert hat, tippen Sie einfach neu ein.",
   einleitung: "Hier tragen Sie Ihre Daten selbst ein. Das dauert nur eine Minute.",
   neu: "Ich bin zum ersten Mal hier",
   neuUnter: "Daten neu eintragen",
@@ -49,7 +50,8 @@ const DE = {
   datenschutzLesen: "Datenschutzhinweis lesen",
   datenschutzTitel: "Datenschutzhinweis",
   whatsapp: "Sie dürfen mich per WhatsApp kontaktieren (z. B. wenn mein Auto fertig ist).",
-  erinnerung: "Sie dürfen mich per E-Mail an Termine erinnern (z. B. HU oder Reifenwechsel).",
+  erinnerung: "Sie dürfen mich an Termine erinnern (z. B. HU oder Reifenwechsel) und nach einem Besuch um eine Bewertung bitten, per E-Mail und, wenn oben erlaubt, per WhatsApp.",
+  einwilligungHinweis: "Beides ist freiwillig. Sie können es jederzeit widerrufen: hier, per E-Mail, telefonisch oder über den Abmeldelink in jeder Erinnerung.",
   speichern: "Weiter",
   speichert: "Wird gespeichert …",
   gespeichert: "Danke, Ihre Daten sind gespeichert.",
@@ -100,6 +102,7 @@ export type TextSchluessel = keyof typeof DE;
 
 const EN: Record<TextSchluessel, string> = {
   willkommen: "Welcome",
+  verdecktHinweis: "To protect your data, we only show part of it here. An empty field stays as we have it on file. Just type in anything that has changed.",
   einleitung: "Enter your details here yourself. It only takes a minute.",
   neu: "This is my first visit",
   neuUnter: "Enter your details",
@@ -137,7 +140,8 @@ const EN: Record<TextSchluessel, string> = {
   datenschutzLesen: "Read privacy notice",
   datenschutzTitel: "Privacy notice",
   whatsapp: "You may contact me via WhatsApp (e.g. when my car is ready).",
-  erinnerung: "You may remind me of appointments by email (e.g. inspection or tyre change).",
+  erinnerung: "You may remind me of appointments (e.g. inspection or tyre change) and ask me for a review after a visit, by email and, if allowed above, via WhatsApp.",
+  einwilligungHinweis: "Both are optional. You can withdraw at any time: here, by email, by phone or via the unsubscribe link in every reminder.",
   speichern: "Continue",
   speichert: "Saving …",
   gespeichert: "Thank you, your details have been saved.",

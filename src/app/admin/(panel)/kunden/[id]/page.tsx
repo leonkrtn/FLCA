@@ -4,7 +4,7 @@ import { Formular, Senden } from "@/components/admin/formular";
 import { MarkeModell, type Typen } from "@/components/admin/marke-modell";
 import { NotizenAbschnitt } from "@/components/admin/notizen";
 import { Abschnitt, Feld, Kopf, Marke, Textfeld } from "@/components/admin/ui";
-import { fahrzeugSpeichern, kundeSpeichern } from "@/lib/aktionen/kunden";
+import { einwilligungAendern, fahrzeugSpeichern, kundeSpeichern } from "@/lib/aktionen/kunden";
 import { belegAnlegen } from "@/lib/aktionen/belege";
 import { FruehereRechnungen, fruehereSumme } from "@/components/admin/fruehere-rechnungen";
 import { KundeLoeschen, type LoeschFolgen } from "@/components/admin/kunde-loeschen";
@@ -36,7 +36,7 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
     // „*“: korrektur_zu und korrektur_grund gibt es erst nach der Migration „rechnung_korrigieren“.
     db().from("rechnungen").select("*").eq("kunde_id", id).order("erstellt_am", { ascending: false }),
     db().from("einlagerungen").select("id, lagerplatz, saison, reifengroesse, eingelagert_am, ausgelagert_am, fahrzeug:fahrzeuge(kennzeichen)").eq("kunde_id", id).order("eingelagert_am", { ascending: false }),
-    db().from("kostenvoranschlaege").select("id, nummer, status, gueltig_bis, summe_brutto_cent, datum").eq("kunde_id", id).order("erstellt_am", { ascending: false }),
+    db().from("kostenvoranschlaege").select("id, nummer, status, gueltig_bis, summe_brutto_cent, datum, archiviert_am").eq("kunde_id", id).order("erstellt_am", { ascending: false }),
     fahrzeugTypen(),
     fruehereRechnungen(id),
     // Was das Löschen verhindert, genau wie in kunde_loeschen geprüft
@@ -125,14 +125,24 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
               <p className="text-sm text-grau">Noch keine Kontaktdaten.</p>
             )}
             {k.notiz ? <p className="mt-4 whitespace-pre-line border-t border-linie pt-4 text-sm">{k.notiz}</p> : null}
-            {/* Einwilligungen vom Kundenbildschirm (Spalten erst nach der Migration „kundenbildschirm“) */}
-            {k.datenschutz_am || k.whatsapp_ok_am || k.erinnerung_mail_ok_am ? (
-              <ul className="mt-4 grid gap-1 border-t border-linie pt-4 text-sm">
-                {k.datenschutz_am ? <li>Datenschutzhinweis bestätigt {datumZeit(k.datenschutz_am)}</li> : null}
-                <li>{k.whatsapp_ok_am ? `WhatsApp erlaubt seit ${datumZeit(k.whatsapp_ok_am)}` : <span className="text-grau">WhatsApp nicht erlaubt</span>}</li>
-                <li>{k.erinnerung_mail_ok_am ? `Erinnerungen per Mail erlaubt seit ${datumZeit(k.erinnerung_mail_ok_am)}` : <span className="text-grau">Erinnerungen per Mail nicht erlaubt</span>}</li>
-              </ul>
-            ) : null}
+            {/* Einwilligungen: vom Kundenbildschirm, über den Abmeldelink oder hier eingetragen (Nachweis im Verlauf).
+                Ohne Einwilligung keine Bewertungs- und Reifenmails, WhatsApp nur mit Hinweis. */}
+            <ul className="mt-4 grid gap-2 border-t border-linie pt-4 text-sm">
+              {k.datenschutz_am ? <li>Datenschutzhinweis bestätigt {datumZeit(k.datenschutz_am)}</li> : null}
+              {(
+                [
+                  ["whatsapp", k.whatsapp_ok_am, "WhatsApp"],
+                  ["erinnerung", k.erinnerung_mail_ok_am, "Erinnerungen und Bitte um Bewertung"],
+                ] as const
+              ).map(([art, seit, name]) => (
+                <li key={art} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                  <span className={seit ? "" : "text-grau"}>{seit ? `${name} erlaubt seit ${datumZeit(seit)}` : `${name} nicht erlaubt`}</span>
+                  <Formular aktion={einwilligungAendern.bind(null, k.id, art, !seit)} bestaetigen={seit ? `Einwilligung „${name}“ widerrufen?` : `Hat der Kunde „${name}“ erlaubt (z. B. am Telefon)? Das wird mit Datum und deinem Namen festgehalten.`}>
+                    <Senden art="rahmen" klein vorab={seit ? "Widerrufen" : "Eingetragen"}>{seit ? "Widerrufen" : "Erlaubnis eintragen"}</Senden>
+                  </Formular>
+                </li>
+              ))}
+            </ul>
             {/* Bearbeiten aufklappbar: Die Akte liest man öfter, als man sie ändert. Ohne Kontaktdaten gleich offen. */}
             <details className="mt-4 border-t border-linie pt-4" open={!sichtbar.length || undefined}>
               <summary className="cursor-pointer text-sm font-semibold">Stammdaten bearbeiten</summary>
@@ -266,11 +276,11 @@ export default async function KundeDetail({ params }: { params: Promise<{ id: st
           {kv.data?.length ? (
             <Abschnitt titel="Kostenvoranschläge">
               <ul className="divide-y divide-linie text-sm">
-                {(kv.data as Pick<Kostenvoranschlag, "id" | "nummer" | "status" | "gueltig_bis" | "summe_brutto_cent" | "datum">[]).map((v) => (
+                {(kv.data as Pick<Kostenvoranschlag, "id" | "nummer" | "status" | "gueltig_bis" | "summe_brutto_cent" | "datum" | "archiviert_am">[]).map((v) => (
                   <li key={v.id}>
                     <Link href={`/admin/kostenvoranschlaege/${v.id}`} className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-3 py-2 hover:bg-papier">
                       <span><span className="zahlen">{v.nummer ?? "Entwurf"}</span> <span className="text-grau">{datum(v.datum)}</span></span>
-                      <span className="text-grau">{kvStatusText(v)}</span>
+                      <span className="text-grau">{kvStatusText(v)}{v.archiviert_am ? " · im Archiv" : ""}</span>
                       <span className="zahlen text-right">{euro(v.summe_brutto_cent)}</span>
                     </Link>
                   </li>

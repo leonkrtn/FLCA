@@ -26,7 +26,9 @@ import {
   whatsappSpeichern,
   zeitenSpeichern,
 } from "@/lib/aktionen/einstellungen";
-import { benutzerMitRecht } from "@/lib/auth";
+import { archivLaden } from "@/lib/archiv";
+import { benutzerMitRecht, type Benutzer } from "@/lib/auth";
+import { AUFBEWAHRUNG_JAHRE } from "@/lib/mail/postfach";
 import { einstellungen, WOCHENTAGE } from "@/lib/einstellungen";
 import { BEREICHE, einstellungenVerzeichnis } from "@/lib/einstellungen-suche";
 import { ENV } from "@/lib/env";
@@ -136,11 +138,11 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
           <Formular aktion={automatikSpeichern} className="grid gap-6">
             <Schalter label="Erinnerung 24 Stunden vor dem Termin" name="erinnerung" an={e.automatik.erinnerung.aktiv} hilfe="Mail an den Kunden mit Anfahrt und Absagelink" />
             <div className="grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
-              <Schalter label="Nach dem Termin um eine Google-Bewertung bitten" name="bewertung" an={e.automatik.bewertung.aktiv} hilfe="Einmal pro Kunde und Jahr, nur nach „Erledigt“. Link aus Firma → Google-Bewertungen." />
+              <Schalter label="Nach dem Termin um eine Google-Bewertung bitten" name="bewertung" an={e.automatik.bewertung.aktiv} hilfe="Einmal pro Kunde und Jahr, nur nach „Erledigt“ und nur an Kunden mit Einwilligung in Erinnerungen (Kundenbildschirm oder Kundenakte). Link aus Firma → Google-Bewertungen." />
               <Feld label="Stunden nach dem Termin" name="stundenNach" wert={e.automatik.bewertung.stundenNach} inputMode="numeric" />
             </div>
             <div className="grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_8rem_8rem]">
-              <Schalter label="Reifen-Saison-Mail an Kunden mit eingelagerten Rädern" name="saison" an={e.automatik.saison.aktiv} hilfe="Mit Link zur Terminanfrage für den Radwechsel" />
+              <Schalter label="Reifen-Saison-Mail an Kunden mit eingelagerten Rädern" name="saison" an={e.automatik.saison.aktiv} hilfe="Mit Link zur Terminanfrage für den Radwechsel, nur an Kunden mit Einwilligung in Erinnerungen" />
               <Feld label="Frühjahr (MM-TT)" name="fruehjahr" wert={e.automatik.saison.fruehjahr} />
               <Feld label="Herbst (MM-TT)" name="herbst" wert={e.automatik.saison.herbst} />
             </div>
@@ -208,6 +210,8 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
       {bereich === "schnittstellen" ? <Schnittstellen /> : null}
 
       {bereich === "uebernahme" ? <UebernahmeBereich /> : null}
+
+      {bereich === "archiv" ? <ArchivBereich b={b} /> : null}
 
       {bereich === "recht" ? (
         <Abschnitt titel="Rechtstexte">
@@ -362,6 +366,71 @@ async function FehlerBereich({ erledigte, code }: { erledigte: boolean; code?: s
  * KM-Stand und die früheren Rechnungen mit Positionen. Die Rechnungen landen nicht im Nummernkreis und
  * nicht im DATEV-Export, sondern nur in der Kundenakte (siehe Migration alt_rechnungen).
  */
+/** Was beim Löschen eines Termins oder aus dem Mail-Papierkorb verschwunden ist, aber aufbewahrt werden muss. */
+async function ArchivBereich({ b }: { b: Benutzer }) {
+  const { kvs, auftraege, mails } = await archivLaden(b);
+  return (
+    <>
+      <p className="mb-6 max-w-3xl text-sm text-grau">
+        Was der Kunde schon bekommen hat, bleibt als Geschäftsbrief erhalten, auch wenn der Termin gelöscht wird. Mails, die aus dem Papierkorb gelöscht werden, bleiben {AUFBEWAHRUNG_JAHRE} Jahre (ab Jahresende) aufbewahrt und werden danach von selbst gelöscht. Hier steht alles nur zum Nachschlagen.
+      </p>
+      <Abschnitt titel="Werkstattaufträge gelöschter Termine">
+        {auftraege.length ? (
+          <Tabelle kopf={["Auftrag", "Kunde", "Fahrzeug", "Erteilt", { text: "Betrag", zahl: true }, "Archiviert", ""]}>
+            {auftraege.map((a) => (
+              <tr key={a.id} className="border-b border-linie">
+                <td className="zahlen py-2 pr-3">{a.auftrag_nummer}</td>
+                <td className="py-2 pr-3">{a.kunde_name}</td>
+                <td className="py-2 pr-3">{a.kennzeichen}</td>
+                <td className="py-2 pr-3">{a.erteilt_am ? datum(a.erteilt_am) : a.gesendet_am ? `gesendet ${datum(a.gesendet_am)}` : ""}</td>
+                <td className="zahlen py-2 pr-3 text-right">{euro(a.summe_brutto_cent)}</td>
+                <td className="py-2 pr-3">{datum(a.archiviert_am)}</td>
+                <td className="py-2 text-right">{a.pdf_pfad ? <a href={`/admin/einstellungen/archiv/${a.id}`} target="_blank" rel="noopener" className="underline">PDF</a> : <span className="text-grau">nur Daten</span>}</td>
+              </tr>
+            ))}
+          </Tabelle>
+        ) : (
+          <Leer>Keine archivierten Aufträge.</Leer>
+        )}
+      </Abschnitt>
+      <Abschnitt titel="Kostenvoranschläge gelöschter Termine">
+        {kvs.length ? (
+          <Tabelle kopf={["Nummer", "Empfänger", "Stand", { text: "Betrag", zahl: true }, "Archiviert"]}>
+            {kvs.map((k) => (
+              <tr key={k.id} className="border-b border-linie">
+                <td className="zahlen py-2 pr-3"><Link href={`/admin/kostenvoranschlaege/${k.id}`} className="underline">{k.nummer}</Link></td>
+                <td className="py-2 pr-3">{[k.empfaenger.firma, k.empfaenger.name].filter(Boolean).join(", ")}</td>
+                <td className="py-2 pr-3">{k.status === "angenommen" ? "Angenommen" : k.status === "abgelehnt" ? "Abgelehnt" : "Offen"}</td>
+                <td className="zahlen py-2 pr-3 text-right">{euro(k.summe_brutto_cent)}</td>
+                <td className="py-2">{datum(k.archiviert_am)}</td>
+              </tr>
+            ))}
+          </Tabelle>
+        ) : (
+          <Leer>Keine archivierten Kostenvoranschläge.</Leer>
+        )}
+      </Abschnitt>
+      <Abschnitt titel="Gelöschte Mails">
+        {mails.length ? (
+          <Tabelle kopf={["Datum", "Postfach", "Von / An", "Betreff", "Gelöscht"]}>
+            {mails.map((m) => (
+              <tr key={m.id} className="border-b border-linie">
+                <td className="py-2 pr-3">{datumZeit(m.erstellt_am)}</td>
+                <td className="py-2 pr-3">{m.postfach === null ? "Firma" : "Eigenes"}</td>
+                <td className="py-2 pr-3">{m.richtung === "eingang" ? m.von_name || m.von : `an ${m.an.join(", ")}`}</td>
+                <td className="py-2 pr-3"><a href={`/druck/mail/${m.id}?e=1`} target="_blank" rel="noopener" className="underline">{m.betreff || "(ohne Betreff)"}</a></td>
+                <td className="py-2">{datum(m.aufbewahrt_am)}</td>
+              </tr>
+            ))}
+          </Tabelle>
+        ) : (
+          <Leer>Keine aufbewahrten Mails.</Leer>
+        )}
+      </Abschnitt>
+    </>
+  );
+}
+
 async function UebernahmeBereich() {
   const { count, error } = await dbRoh().from("alt_rechnungen").select("id", { count: "exact", head: true });
   const unmigriert = Boolean(error && ["42P01", "PGRST205"].includes(error.code));

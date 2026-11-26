@@ -9,6 +9,7 @@ import { sicher } from "../sicher";
 import { kennzeichen } from "../format";
 import { db, DbFehler, dbRoh } from "../supabase/admin";
 import { fehlerMelden } from "../fehler";
+import { type Einwilligung, einwilligungSetzen } from "../einwilligung";
 
 const KUNDENFELDER = ["name", "firma", "email", "telefon", "strasse", "plz", "ort", "ust_id", "leitweg_id", "notiz"] as const;
 
@@ -134,4 +135,18 @@ export async function kundeLoeschen(id: string, _v: Ergebnis): Promise<Ergebnis>
     redirect("/admin/kunden?geloescht=1");
   }
   return e;
+}
+
+/**
+ * Einwilligung in der Kundenakte eintragen oder widerrufen, z. B. weil der Kunde am Telefon gefragt wurde oder
+ * keine Nachrichten mehr will. Mit Zeitpunkt und Person im Verlauf als Nachweis (Art. 7 Abs. 1 DSGVO).
+ */
+export async function einwilligungAendern(id: string, art: Einwilligung, erteilt: boolean, _v: Ergebnis): Promise<Ergebnis> {
+  return sicher(null, async () => {
+    const b = await benutzerMitRecht("kunden");
+    await einwilligungSetzen(id, art, erteilt, { benutzer: b.id, wie: `in der Verwaltung eingetragen von ${b.name || b.email}` });
+    revalidatePath(`/admin/kunden/${id}`);
+    revalidatePath(`/app/kunden/${id}`);
+    return { status: "ok", meldung: erteilt ? "Einwilligung eingetragen." : "Einwilligung widerrufen." };
+  });
 }

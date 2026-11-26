@@ -59,6 +59,21 @@ export default async function TeamMehr() {
             <p className="text-sm text-grau">Du wirst nicht für Aufträge eingeplant.</p>
           )}
         </section>
+        {/* Art. 13 DSGVO, § 26 BDSG: Beschäftigte erfahren, was die App über sie speichert und wer es sieht. */}
+        <details className="grid gap-2">
+          <summary className="cursor-pointer font-semibold">Datenschutz: Was die App über mich speichert</summary>
+          <div className="mt-2 grid gap-2 text-sm">
+            <p>Verantwortlich ist dein Arbeitgeber. Gespeichert wird nur, was für die Arbeit nötig ist (§ 26 BDSG):</p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>Name, Rolle, Zugang, Arbeitszeitplan, Urlaub und Abwesenheiten (bei Krankheit nur „krank“, nie ein Grund). Kollegen sehen davon nur, ob du da bist.</li>
+              <li>Zeiterfassung (falls eingeschaltet): Beginn, Ende und Pausen. Das Gesetz verlangt die Aufzeichnung der Arbeitszeit.</li>
+              <li>Ist „Einstempeln nur in der Werkstatt“ eingeschaltet: einmal beim Einstempeln der Abstand zur Werkstatt, nie dein Standort. Von weiter weg bekommt der Inhaber eine Mitteilung mit Name und Abstand.</li>
+              <li>Zeit an Aufträgen, Befunde, Fotos und Teileanforderungen: für Rechnung und Nachweis gegenüber dem Kunden.</li>
+              <li>Dein Postfach ist privat; das Firmenpostfach sehen alle, die dafür freigeschaltet sind.</li>
+            </ul>
+            <p>Zugriff haben Inhaber und Büro, Personalsachen (Konto, Zeiterfassung) nur der Inhaber. Gelöscht wird, wenn der Zweck entfällt und keine Aufbewahrungspflicht mehr besteht. Fragen, Auskunft oder Berichtigung: beim Inhaber.</p>
+          </div>
+        </details>
         <Link href="/team/notizen" className="knopf knopf-rahmen w-full">Meine Erinnerungen</Link>
         {b.rolle !== "mitarbeiter" ? (
           <Link href="/app" className="knopf knopf-rahmen w-full">Zur Werkstatt-App</Link>

@@ -134,9 +134,9 @@ export function MailListe({
           ) : null}
           <IconKnopf
             klein
-            text={imPapierkorb ? "Endgültig löschen" : "Löschen"}
+            text={imPapierkorb ? "Aus dem Papierkorb löschen" : "Löschen"}
             onClick={() => {
-              if (imPapierkorb && !window.confirm(`${auswahl.length} endgültig löschen?`)) return;
+              if (imPapierkorb && !window.confirm(`${auswahl.length} aus dem Papierkorb löschen? Geschäftliche Mails bleiben 6 Jahre im Archiv (Einstellungen → Archiv).`)) return;
               ausfuehren(auswahl, { art: "loeschen" }, true);
             }}
           >

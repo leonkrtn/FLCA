@@ -57,7 +57,7 @@ export default async function AppTermin({ params }: { params: Promise<{ id: stri
               <a href={telHref(t.kunde.telefon)} className="knopf knopf-rahmen">Anrufen</a>
               {/* Nachricht passend zum Stand (Bestätigung, Freigabe, fertig …), Texte unter Einstellungen → WhatsApp */}
               {wa ? (
-                <WhatsappKnopf href={wa.href} vermerken={whatsappVermerken.bind(null, "termin", t.id, wa.vorlage)} />
+                <WhatsappKnopf href={wa.href} ohneEinwilligung={wa.ohneEinwilligung} vermerken={whatsappVermerken.bind(null, "termin", t.id, wa.vorlage)} />
               ) : (
                 <a href={whatsappHref(t.kunde.telefon)} className="knopf knopf-rahmen" rel="noopener noreferrer">WhatsApp</a>
               )}
