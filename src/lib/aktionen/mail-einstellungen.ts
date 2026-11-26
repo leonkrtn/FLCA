@@ -155,8 +155,8 @@ export async function mailTesten(_v: Ergebnis): Promise<Ergebnis> {
     const r = await mailer().senden({
       an: von.adresse,
       betreff: `Testmail ${zeit}`,
-      text: "Diese Mail prüft Senden und Empfangen. Steht sie im Firmenpostfach, ist alles eingerichtet.",
-      html: "<p>Diese Mail prüft Senden und Empfangen. Steht sie im Firmenpostfach, ist alles eingerichtet.</p>",
+      text: "Diese Mail prüft Senden und Empfangen. Steht sie im Posteingang des Firmenpostfachs, ist alles eingerichtet.",
+      html: "<p>Diese Mail prüft Senden und Empfangen. Steht sie im Posteingang des Firmenpostfachs, ist alles eingerichtet.</p>",
     });
     if (!r.ok) return { status: "fehler", meldung: `Senden ging nicht: ${r.fehler}` };
     return { status: "ok", meldung: `Gesendet an ${von.adresse}. Sie sollte in einigen Sekunden unter Mail → Firma → Posteingang stehen.` };
