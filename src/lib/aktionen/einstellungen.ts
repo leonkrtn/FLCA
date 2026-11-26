@@ -13,6 +13,7 @@ import { systemcheck } from "../systemcheck/lauf";
 import { zaehlen } from "../systemcheck/regeln";
 import { berlinDatum } from "../zeit";
 import { eingabeFehler, gleich, type Nummernkreis, nummerText } from "../rechnung/nummernkreis";
+import { GRUSS_STANDARD, MAIL_FELDER, MAIL_STANDARD, MAIL_VORLAGEN, type MailTexteEinstellung } from "../email/texte";
 import { WHATSAPP_STANDARD, WHATSAPP_VORLAGEN } from "../whatsapp";
 
 const alles = () => revalidatePath("/", "layout");
@@ -165,6 +166,36 @@ export async function whatsappSpeichern(_v: Ergebnis, fd: FormData): Promise<Erg
       texte[schluessel] = wert.trim() ? wert.replace(/^\s+/, "") : WHATSAPP_STANDARD[schluessel];
     }
     await einstellungenSpeichern("whatsapp", texte);
+    alles();
+    return { status: "ok", meldung: "Gespeichert." };
+  });
+}
+
+/**
+ * Texte der automatischen Mails. Gespeichert wird nur, was vom Standard abweicht: Ein leeres oder unverändertes
+ * Feld folgt so auch späteren Verbesserungen am Standardtext.
+ */
+export async function mailTexteSpeichern(_v: Ergebnis, fd: FormData): Promise<Ergebnis> {
+  return sicher(fd, async () => {
+    await benutzerMitRecht("einstellungen");
+    const lesen = (name: string, laenge: number) => {
+      const roh = fd.get(name);
+      return typeof roh === "string" ? roh.replace(/\r\n?/g, "\n").replace(/[^\P{C}\n\t]/gu, "").trim().slice(0, laenge) : "";
+    };
+    const neu: MailTexteEinstellung = { gruss: "", vorlagen: {} };
+    const gruss = lesen("gruss", 300);
+    if (gruss && gruss !== GRUSS_STANDARD) neu.gruss = gruss;
+    for (const { schluessel } of MAIL_VORLAGEN) {
+      const standard = MAIL_STANDARD[schluessel];
+      for (const { feld } of MAIL_FELDER) {
+        if (standard[feld] === undefined) continue;
+        const wert = lesen(`${schluessel}.${feld}`, feld === "betreff" || feld === "ueberschrift" ? 200 : 2000);
+        // Betreff und Überschrift sind einzeilig
+        const sauber = feld === "betreff" || feld === "ueberschrift" ? wert.replace(/\s*\n\s*/g, " ") : wert;
+        if (sauber && sauber !== standard[feld]) (neu.vorlagen[schluessel] ??= {})[feld] = sauber;
+      }
+    }
+    await einstellungenSpeichern("mailTexte", neu);
     alles();
     return { status: "ok", meldung: "Gespeichert." };
   });

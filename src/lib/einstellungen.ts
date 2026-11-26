@@ -3,6 +3,7 @@ import { cache } from "react";
 import { KONFIGURIERT } from "./env";
 import { db, DbFehler, dbRoh } from "./supabase/admin";
 import { fehlerMelden } from "./fehler";
+import type { MailTexteEinstellung } from "./email/texte";
 import { WHATSAPP_STANDARD, type WhatsappVorlage } from "./whatsapp";
 
 /** Zeitfenster als „HH:MM“, z. B. ["08:30", "13:00"]. */
@@ -117,6 +118,8 @@ export type Einstellungen = {
   };
   /** Vorausgefüllte WhatsApp-Nachrichten der Werkstatt-App, je Anlass ein Text mit Platzhaltern. */
   whatsapp: Record<WhatsappVorlage, string>;
+  /** Texte der automatischen Mails (Einstellungen → Mailtexte); nur Abweichungen vom Standard */
+  mailTexte: MailTexteEinstellung;
   /** Postfächer in der Anwendung (Einstellungen → E-Mail). Die Domain kommt aus MAIL_FROM (bei Resend verifiziert). */
   mail: {
     /** Name im Absender, leer = Firmenname */
@@ -238,6 +241,7 @@ export const STANDARD: Einstellungen = {
   },
   medien: { heroBild: "", heroVideo: "", ueberBild: "" },
   whatsapp: WHATSAPP_STANDARD,
+  mailTexte: { gruss: "", vorlagen: {} },
   mail: {
     absenderName: "",
     standardAdresse: "service",

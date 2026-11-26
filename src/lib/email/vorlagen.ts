@@ -26,7 +26,8 @@ export function mail(
   }: {
     ueberschrift: string;
     bausteine: Baustein[];
-    gruss?: boolean;
+    /** Gruß am Ende: Text aus den Mailtexten (`mailTexte().gruss`), `true` = Standard, `false` = keiner */
+    gruss?: boolean | string;
     /** Werbliche Mails (Erinnerung, Bewertung): Abmeldelink im Fuß, Pflicht nach § 7 UWG */
     abmelden?: string;
   },
@@ -51,6 +52,7 @@ export function mail(
     }
   });
 
+  const grussText = gruss === false ? "" : typeof gruss === "string" ? gruss : `Viele Grüße\n${firma.inhaber} und Team`;
   const fuss = `${firma.name} · ${firma.inhaber}, ${firma.titel} · ${firma.strasse}, ${firma.plz} ${firma.ort} · ${firma.telefon}`;
   // Ohne Viewport-Angabe rechnet iOS-Mail die Mail breiter und verkleinert sie, sie steht dann schmal und schief
   // im Bildschirm. Auf dem Handy füllt die Karte die volle Breite (kein grauer Rand), am Rechner bleibt sie
@@ -64,7 +66,7 @@ export function mail(
 <tr><td class="inhalt" style="padding:28px">
 <h1 style="margin:0 0 16px;font-size:22px;line-height:1.25">${esc(ueberschrift)}</h1>
 ${teile.join("\n")}
-${gruss ? `<p style="margin:0">Viele Grüße<br>${esc(firma.inhaber)} und Team</p>` : ""}
+${grussText ? `<p style="margin:0">${esc(grussText).replace(/\n/g, "<br>")}</p>` : ""}
 </td></tr>
 <tr><td class="fuss" style="padding:16px 28px;border-top:1px solid #e3e0da;color:#6b6862;font-size:12px">${esc(fuss)}<br><a href="${esc(ENV.siteUrl)}" style="color:#6b6862">${esc(ENV.siteUrl.replace(/^https?:\/\//, ""))}</a>${abmelden ? `<br>Keine Erinnerungen und Bewertungsbitten mehr? <a href="${esc(abmelden)}" style="color:#6b6862">Abmelden</a>` : ""}</td></tr>
 </table></td></tr></table></body></html>`;
@@ -84,7 +86,7 @@ ${gruss ? `<p style="margin:0">Viele Grüße<br>${esc(firma.inhaber)} und Team</
           return `${b.text}: ${b.url}\n`;
       }
     }),
-    gruss ? `Viele Grüße\n${firma.inhaber} und Team\n` : "",
+    grussText ? `${grussText}\n` : "",
     "--",
     fuss,
     ...(abmelden ? [`Keine Erinnerungen und Bewertungsbitten mehr? Abmelden: ${abmelden}`] : []),

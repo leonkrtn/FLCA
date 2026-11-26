@@ -18,6 +18,7 @@ import {
   buchungSpeichern,
   fehlerErledigt,
   firmaSpeichern,
+  mailTexteSpeichern,
   moduleSpeichern,
   rechnungEinstellungen,
   rechtstexteSpeichern,
@@ -39,6 +40,7 @@ import { datum, datumZeit, euro } from "@/lib/format";
 import { darf } from "@/lib/rollen";
 import { db, DbFehler, dbRoh } from "@/lib/supabase/admin";
 import { berlinDatum } from "@/lib/zeit";
+import { GRUSS_STANDARD, MAIL_FELDER, MAIL_GRUPPEN, MAIL_PLATZHALTER, MAIL_PLATZHALTER_JE, MAIL_STANDARD, MAIL_VORLAGEN } from "@/lib/email/texte";
 import { WHATSAPP_PLATZHALTER, WHATSAPP_STANDARD, WHATSAPP_VORLAGEN } from "@/lib/whatsapp";
 
 export const metadata = { title: "Einstellungen" };
@@ -178,6 +180,57 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
       ) : null}
 
       {bereich === "mail" ? <MailEinstellungen b={b} /> : null}
+
+      {bereich === "mailtexte" ? (
+        <Formular aktion={mailTexteSpeichern} className="grid max-w-3xl">
+          <Abschnitt titel="Mailtexte" aktion={<span className="text-sm text-grau">Alle Mails, die die App von sich aus verschickt.</span>}>
+            <p className="mb-4 text-sm text-grau">
+              Anpassbar sind Betreff, Überschrift und Text. Termin, Betrag und Nummer, Knöpfe, Anhänge und Pflichtangaben (Widerruf, AGB, Abmelden, Zahlungsangaben, E-Rechnung) setzt die App selbst dazu. Wörter in geschweiften Klammern füllt sie beim Senden. Ein leeres Feld setzt den Standardtext zurück.
+            </p>
+            <Textfeld label="Gruß am Ende jeder Mail" name="gruss" wert={e.mailTexte.gruss || GRUSS_STANDARD} zeilen={2} hilfe="Gilt für alle Mails an Kunden, Bewerber und den Steuerberater. Hinweise ans Büro gehen ohne Gruß." />
+          </Abschnitt>
+          {MAIL_GRUPPEN.map((gruppe) => (
+            <Abschnitt key={gruppe} titel={gruppe}>
+              <div className="grid">
+                {MAIL_VORLAGEN.filter((v) => v.gruppe === gruppe).map((v) => {
+                  const standard = MAIL_STANDARD[v.schluessel];
+                  const eigen = e.mailTexte.vorlagen[v.schluessel] ?? {};
+                  return (
+                    <details key={v.schluessel} id={`mail-${v.schluessel}`} className="border-b border-linie py-3 last:border-b-0">
+                      <summary className="cursor-pointer">
+                        <span className="font-semibold">{v.titel}</span>
+                        {Object.keys(eigen).length ? <span className="ml-2 text-sm text-grau">angepasst</span> : null}
+                        <span className="block text-sm text-grau">{v.wann}</span>
+                      </summary>
+                      <div className="mt-3 grid gap-3">
+                        {MAIL_FELDER.filter((f) => standard[f.feld] !== undefined).map((f) =>
+                          f.zeilen === 1 ? (
+                            <Feld key={f.feld} label={f.titel} name={`${v.schluessel}.${f.feld}`} wert={eigen[f.feld] || standard[f.feld]} />
+                          ) : (
+                            <Textfeld key={f.feld} label={f.titel} name={`${v.schluessel}.${f.feld}`} wert={eigen[f.feld] || standard[f.feld]} zeilen={f.zeilen} />
+                          ),
+                        )}
+                        <p className="text-sm text-grau">Platzhalter: {MAIL_PLATZHALTER_JE[v.schluessel].map((k) => `{${k}}`).join(", ")}</p>
+                      </div>
+                    </details>
+                  );
+                })}
+              </div>
+            </Abschnitt>
+          ))}
+          <Abschnitt titel="Platzhalter">
+            <dl className="grid gap-x-4 gap-y-1 text-sm sm:grid-cols-[9rem_minmax(0,1fr)]">
+              {MAIL_PLATZHALTER.map(([k, t]) => (
+                <div key={k} className="contents">
+                  <dt className="font-semibold">{`{${k}}`}</dt>
+                  <dd className="text-grau">{t}</dd>
+                </div>
+              ))}
+            </dl>
+          </Abschnitt>
+          <div className="mb-8"><Senden vorab="Gespeichert">Speichern</Senden></div>
+        </Formular>
+      ) : null}
 
       {bereich === "whatsapp" ? (
         <Abschnitt titel="WhatsApp-Texte" aktion={<span className="text-sm text-grau">Werkstatt-App: Termin, Kostenvoranschlag, Rechnung.</span>}>

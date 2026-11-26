@@ -3,6 +3,7 @@ import { einstellungen } from "../einstellungen";
 import { ENV } from "../env";
 import { melden, verlauf } from "../ereignisse";
 import { datum, euro } from "../format";
+import { mailTexte } from "../email/texte";
 import { mail } from "../email/vorlagen";
 import { mailer } from "../services/email";
 import { pushSenden } from "../services/push";
@@ -181,12 +182,19 @@ export const kvLink = (k: Pick<Kostenvoranschlag, "token">) => `${ENV.siteUrl}/k
 export async function kvVersenden(id: string, an: string, vonBenutzer: string): Promise<void> {
   const k = await kvLaden(id);
   if (!k || k.status === "entwurf") throw new Error("Bitte den Kostenvoranschlag zuerst abschließen.");
-  const { firma } = await einstellungen();
+  const e = await einstellungen();
+  const { firma } = e;
   const pdf = await kvPdf(k);
+  const m = mailTexte(e, "kostenvoranschlag", {
+    name: k.empfaenger.name,
+    nummer: k.nummer ?? "",
+    danach: k.termin_id ? "Damit ist der Auftrag für Ihren Termin erteilt." : "Einen Termin wählen Sie gleich danach.",
+  });
   const { html, text } = mail(firma, {
-    ueberschrift: `Ihr Kostenvoranschlag ${k.nummer}`,
+    ueberschrift: m.ueberschrift,
+    gruss: m.gruss,
     bausteine: [
-      { art: "absatz", text: `Hallo ${k.empfaenger.name},\nvielen Dank für Ihre Anfrage. Unser Kostenvoranschlag hängt als PDF an dieser Mail.` },
+      ...(m.text ? [{ art: "absatz" as const, text: m.text }] : []),
       {
         art: "fakten",
         zeilen: [
@@ -196,18 +204,13 @@ export async function kvVersenden(id: string, an: string, vonBenutzer: string): 
           ...(k.fahrzeug?.kennzeichen ? ([["Fahrzeug", k.fahrzeug.kennzeichen]] as [string, string][]) : []),
         ],
       },
-      {
-        art: "absatz",
-        text: k.termin_id
-          ? "Passt alles? Dann nehmen Sie den Kostenvoranschlag mit einem Klick an. Damit ist der Auftrag für Ihren Termin erteilt."
-          : "Passt alles? Dann nehmen Sie den Kostenvoranschlag mit einem Klick an und wählen gleich einen Termin.",
-      },
+      ...(m.schluss ? [{ art: "absatz" as const, text: m.schluss }] : []),
       { art: "knopf", text: "Ansehen und annehmen", url: kvLink(k) },
     ],
   });
   const ergebnis = await mailer().senden({
     an,
-    betreff: `Kostenvoranschlag ${k.nummer} von ${firma.name}`,
+    betreff: m.betreff,
     html,
     text,
     antwortAn: firma.email,

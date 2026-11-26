@@ -6,6 +6,7 @@
  * wird im Browser bei jedem Tastendruck. Deshalb nur Typ-Importe, sonst landet Servercode im Browser.
  */
 import { klein } from "./sprache/text";
+import { MAIL_VORLAGEN } from "./email/texte";
 import type { Einstellungen } from "./einstellungen";
 
 /** Reiter der Einstellungsseite, in dieser Reihenfolge. */
@@ -18,6 +19,7 @@ export const BEREICHE = [
   ["automatik", "Automatik"],
   ["benachrichtigung", "Benachrichtigungen"],
   ["mail", "E-Mail"],
+  ["mailtexte", "Mailtexte"],
   ["whatsapp", "WhatsApp-Texte"],
   ["module", "Module"],
   ["schnittstellen", "Schnittstellen"],
@@ -183,6 +185,18 @@ export function einstellungenVerzeichnis({ e, whatsapp }: Quelle): SuchEintrag[]
     { titel: "Mailadressen, Jobbezeichnung und Telefon der Personen", ziel: "#personen", woerter: [...mail, "mitarbeiter", "adresse", "jobbezeichnung", "position", "signatur", "telefon"] },
     { titel: "Kategorien", ziel: "#kategorien", woerter: [...mail, "kategorie", "farbe", "ordnen", "label"] },
     { titel: "Textbausteine", ziel: "#vorlagen", wert: e.mail.vorlagen.map((v) => v.name).join(", "), woerter: [...mail, "vorlage", "textbaustein", "baustein", "schnellbaustein"] },
+  ]);
+
+  add("mailtexte", [
+    { titel: "Gruß am Ende jeder Mail", ziel: "gruss", wert: e.mailTexte.gruss, woerter: ["mail", "gruß", "grußformel", "unterschrift", "viele grüße", "automatisch"] },
+    ...MAIL_VORLAGEN.map((v) => ({
+      titel: `Mail: ${v.titel}`,
+      abschnitt: v.gruppe,
+      ziel: `${v.schluessel}.betreff`,
+      hilfe: `Wann: ${v.wann}`,
+      wert: [e.mailTexte.vorlagen[v.schluessel]?.betreff, e.mailTexte.vorlagen[v.schluessel]?.text].filter(Boolean).join(" "),
+      woerter: ["mail", "e-mail", "text", "betreff", "vorlage", "automatisch", "kunde", v.gruppe.toLowerCase()],
+    })),
   ]);
 
   add(

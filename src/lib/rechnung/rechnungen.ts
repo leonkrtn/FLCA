@@ -3,6 +3,7 @@ import { einstellungen, type Einstellungen } from "../einstellungen";
 import { ENV } from "../env";
 import { melden, verlauf } from "../ereignisse";
 import { datum, euro } from "../format";
+import { mailTexte } from "../email/texte";
 import { mail } from "../email/vorlagen";
 import { mailer } from "../services/email";
 import { db, DbFehler, dbRoh, pruefe } from "../supabase/admin";
@@ -595,7 +596,8 @@ export const rechnungLink = (r: Pick<Rechnung, "token">) => `${ENV.siteUrl}/r/${
 export async function versenden(id: string, an: string, vonBenutzer: string): Promise<void> {
   const r = await rechnungLaden(id);
   if (!r || r.status === "entwurf") throw new Error("Bitte die Rechnung zuerst stellen.");
-  const { firma } = await einstellungen();
+  const e = await einstellungen();
+  const { firma } = e;
   const pdf = await pdfErzeugen(r);
   const xrechnung = istXRechnung(r);
   const link = rechnungLink(r);
@@ -607,18 +609,21 @@ export async function versenden(id: string, an: string, vonBenutzer: string): Pr
   const offen = offenerBetrag(r);
   // Nur zur Zahlung auffordern, solange etwas offen ist: nicht bei Storno, bezahlt, storniert oder verrechnet.
   const zahlen = !storno && r.status === "gestellt" && offen > 0;
-  const ueberschrift = storno ? `Stornorechnung ${r.nummer}` : korrektur ? `Ihre berichtigte Rechnung ${r.nummer}` : `Ihre Rechnung ${r.nummer}`;
-  const einleitung = storno
-    ? "anbei die Stornorechnung."
-    : korrektur
-      ? `anbei die berichtigte Rechnung. Sie ersetzt unsere Rechnung ${korrektur.nummer}${korrektur.rechnungsdatum ? ` vom ${datum(korrektur.rechnungsdatum)}` : ""}${
+  // Texte aus Einstellungen → Mailtexte; Beträge, Zahlungsangaben und der Hinweis zur E-Rechnung kommen immer dazu.
+  const m = mailTexte(e, storno ? "rechnung_storno" : korrektur ? "rechnung_korrektur" : "rechnung", {
+    name: r.empfaenger.name,
+    nummer: r.nummer ?? "",
+    ersetzt: korrektur
+      ? `Sie ersetzt unsere Rechnung ${korrektur.nummer}${korrektur.rechnungsdatum ? ` vom ${datum(korrektur.rechnungsdatum)}` : ""}${
           stornoDazu ? `, die wir mit der ebenfalls angehängten Stornorechnung ${stornoDazu.nummer} storniert haben` : ""
         }.${r.korrektur_grund ? ` Grund: ${r.korrektur_grund}.` : ""}`
-      : "vielen Dank für Ihren Auftrag. Ihre Rechnung hängt als PDF an dieser Mail.";
+      : "",
+  });
   const { html, text } = mail(firma, {
-    ueberschrift,
+    ueberschrift: m.ueberschrift,
+    gruss: m.gruss,
     bausteine: [
-      { art: "absatz", text: `Hallo ${r.empfaenger.name},\n${einleitung}` },
+      ...(m.text ? [{ art: "absatz" as const, text: m.text }] : []),
       {
         art: "fakten",
         zeilen: [
@@ -643,7 +648,7 @@ export async function versenden(id: string, an: string, vonBenutzer: string): Pr
   });
   const ergebnis = await mailer().senden({
     an,
-    betreff: `${storno ? "Stornorechnung" : korrektur ? "Berichtigte Rechnung" : "Rechnung"} ${r.nummer} von ${firma.name}`,
+    betreff: m.betreff,
     html,
     text,
     antwortAn: firma.email,
