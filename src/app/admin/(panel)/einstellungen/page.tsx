@@ -7,6 +7,7 @@ import { FruehereRechnungen, fruehereSumme } from "@/components/admin/fruehere-r
 import { GemerktePreise } from "@/components/admin/gemerkte-preise";
 import { MailEinstellungen } from "@/components/admin/mail-einstellungen";
 import { NummernkreisFormular } from "@/components/admin/nummernkreis";
+import { SystemcheckBereich } from "@/components/admin/systemcheck";
 import { TaktStatus } from "@/components/admin/takt-status";
 import { Abschnitt, Auswahl, Feld, Kopf, Leer, Marke, Reiter, Schalter, Tabelle, Textfeld } from "@/components/admin/ui";
 import {
@@ -65,7 +66,12 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
         eintraege={sichtbar.map(([k, t]) => ({ href: `/admin/einstellungen?bereich=${k}`, text: t, anzahl: k === "fehler" ? offeneFehler : undefined }))}
       />
 
-      {bereich === "fehler" ? <FehlerBereich erledigte={sp.ansicht === "erledigt"} code={sp.code} /> : null}
+      {bereich === "fehler" ? (
+        <>
+          <SystemcheckBereich />
+          <FehlerBereich erledigte={sp.ansicht === "erledigt"} code={sp.code} />
+        </>
+      ) : null}
 
       {bereich === "preise" ? <GemerktePreise sp={sp} /> : null}
 

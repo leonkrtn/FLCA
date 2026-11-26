@@ -4,6 +4,7 @@ import { ENV, KONFIGURIERT } from "../env";
 import type { Rolle } from "../rollen";
 import { db } from "../supabase/admin";
 import { fehlerMelden } from "../fehler";
+import { testmodus } from "./testmodus";
 
 export type PushNachricht = { titel: string; text: string; url: string; tag?: string };
 
@@ -18,10 +19,16 @@ function einrichten() {
 /**
  * Schickt eine Push-Nachricht an alle Geräte der Personen mit diesen Rollen (oder an bestimmte Personen).
  * Auf dem iPhone kommen Push-Nachrichten nur an, wenn die Web-App auf dem Home-Bildschirm liegt (ab iOS 16.4).
- * Abgelaufene Abos (HTTP 404/410) werden gelöscht.
+ * Abgelaufene Abos (HTTP 404/410) werden gelöscht. Im Testmodus (Systemcheck) wird nur aufgeschrieben, an wie
+ * viele Geräte es ginge.
  */
 export async function pushSenden(ziel: { rollen?: Rolle[]; profile?: string[] }, nachricht: PushNachricht): Promise<void> {
-  if (!KONFIGURIERT.push) return;
+  const probe = testmodus();
+  if (!KONFIGURIERT.push) {
+    probe?.push({ kanal: "push", an: [], text: nachricht.titel, fehler: ["Push ist nicht eingerichtet (VAPID-Schlüssel fehlen in Vercel)."] });
+    return;
+  }
+  // Wirft bei ungültigen VAPID-Schlüsseln, auch im Testmodus: Genau das soll der Systemcheck sehen.
   einrichten();
 
   let ids = ziel.profile ?? [];
@@ -29,9 +36,16 @@ export async function pushSenden(ziel: { rollen?: Rolle[]; profile?: string[] },
     const { data } = await db().from("profile").select("id").in("rolle", ziel.rollen).eq("aktiv", true);
     ids = [...ids, ...(data ?? []).map((p) => p.id as string)];
   }
-  if (!ids.length) return;
+  if (!ids.length) {
+    probe?.push({ kanal: "push", an: [], text: nachricht.titel, fehler: [] });
+    return;
+  }
 
   const { data: abos } = await db().from("push_abos").select("id, endpoint, p256dh, auth").in("profil_id", ids);
+  if (probe) {
+    probe.push({ kanal: "push", an: (abos ?? []).map((a) => new URL(a.endpoint).hostname), text: nachricht.titel, fehler: nachricht.url.startsWith("/") ? [] : [`Link muss mit / beginnen: ${nachricht.url}`] });
+    return;
+  }
   await Promise.all(
     (abos ?? []).map(async (abo) => {
       try {

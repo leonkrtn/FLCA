@@ -3,6 +3,8 @@ import { createHmac } from "node:crypto";
 import { after } from "next/server";
 import { db } from "./supabase/admin";
 import { fehlerMelden } from "./fehler";
+import { testmodus } from "./services/testmodus";
+import { webhookPruefen } from "./systemcheck/regeln";
 
 /**
  * Alle Ereignisse, die das System nach außen meldet. Neue Module ergänzen hier ihre Typen. Externe
@@ -64,8 +66,12 @@ export const EREIGNIS_TYPEN = {
 
 export type EreignisTyp = keyof typeof EREIGNIS_TYPEN;
 
-/** Zeichnet ein Ereignis auf und stellt es nach der Antwort an passende Webhooks zu. Wirft nie. */
+/**
+ * Zeichnet ein Ereignis auf und stellt es nach der Antwort an passende Webhooks zu. Wirft nie. Im Testmodus
+ * (Systemcheck) wird nichts aufgezeichnet: Abonnenten sollen keine Ereignisse aus einer Probe bekommen.
+ */
 export async function melden(typ: EreignisTyp, daten: Record<string, unknown>): Promise<void> {
+  if (testmodus()) return;
   try {
     const { data: ereignis, error } = await db().from("ereignisse").insert({ typ, daten }).select("id").single();
     if (error || !ereignis) throw error;
@@ -91,6 +97,13 @@ const WARTEZEITEN_MIN = [1, 5, 30, 120, 720, 1440];
 
 /** Stellt fällige Webhooks zu. Läuft nach jedem Ereignis und im Minutentakt (Wiederholungen). */
 export async function zustellen(limit = 25): Promise<number> {
+  // Testmodus (Systemcheck): nichts zustellen, nur die Adressen der aktiven Webhooks prüfen
+  const probe = testmodus();
+  if (probe) {
+    const { data: hooks } = await db().from("webhooks").select("name, url").eq("aktiv", true);
+    for (const h of hooks ?? []) probe.push({ kanal: "webhook", an: [h.url as string], text: h.name as string, fehler: webhookPruefen(h.url as string) });
+    return 0;
+  }
   const { data: offen } = await db()
     .from("webhook_zustellungen")
     .select("id, versuche, webhooks(url, geheimnis, aktiv), ereignisse(id, typ, daten, erstellt_am)")

@@ -9,6 +9,8 @@ import { centAus, type Ergebnis, ja, text, zahl } from "../forms";
 import { sicher } from "../sicher";
 import { db, DbFehler, dbRoh } from "../supabase/admin";
 import { alsErledigt } from "../fehlerprotokoll";
+import { systemcheck } from "../systemcheck/lauf";
+import { zaehlen } from "../systemcheck/regeln";
 import { berlinDatum } from "../zeit";
 import { eingabeFehler, gleich, type Nummernkreis, nummerText } from "../rechnung/nummernkreis";
 import { WHATSAPP_STANDARD, WHATSAPP_VORLAGEN } from "../whatsapp";
@@ -276,6 +278,17 @@ export async function apiSchluesselWiderrufen(id: string, _v: Ergebnis): Promise
     await db().from("api_schluessel").update({ widerrufen_am: new Date().toISOString() }).eq("id", id);
     revalidatePath("/admin/einstellungen");
     return { status: "ok", meldung: "Widerrufen." };
+  });
+}
+
+/** Systemcheck auf Knopfdruck (Einstellungen → Fehler). Das Ergebnis zeigt die Seite danach aus der Datenbank. */
+export async function systemcheckStarten(_v: Ergebnis): Promise<Ergebnis> {
+  return sicher(null, async () => {
+    const b = await benutzerMitRecht("einstellungen");
+    const { rot, gelb } = zaehlen(await systemcheck({ ausloeser: "knopf", benutzer: b }));
+    revalidatePath("/admin", "layout");
+    if (rot) return { status: "fehler", meldung: `${rot} ${rot === 1 ? "Prüfung ist" : "Prüfungen sind"} rot. Details unten und im Protokoll.` };
+    return { status: "ok", meldung: gelb ? `Alles läuft, ${gelb} ${gelb === 1 ? "Hinweis" : "Hinweise"}.` : "Alles grün." };
   });
 }
 
