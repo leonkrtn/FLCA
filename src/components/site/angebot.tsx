@@ -46,9 +46,9 @@ function grosseZahl(a: Pick<Angebot, "art" | "wert">): string {
 }
 
 /**
- * Laufende Angebote auf der Startseite, kompakt nebeneinander: oben der Titel, darunter Leistungen, Text und Weg
- * zur Anfrage, rechts daneben groß der Rabatt. Ohne eigenes Bild trägt die Zahl die Karte, damit keine leere
- * Fläche bleibt. Der Countdown erscheint erst kurz vor Ende (`countdownKnapp`), vorher genügt das Enddatum. Führt
+ * Laufende Angebote auf der Startseite als flache Streifen (eines allein über die volle Breite, mehrere
+ * nebeneinander): oben der Titel, darunter Leistungen, Text und Weg zur Anfrage, rechts daneben groß der Rabatt. Ein
+ * eigenes Bild liegt abgedunkelt im Hintergrund, ohne Bild trägt die Zahl den Streifen. Der Countdown erscheint erst kurz vor Ende (`countdownKnapp`), vorher genügt das Enddatum. Führt
  * zur Terminanfrage, wenn das Angebot genau eine buchbare Leistung trifft, sonst zu den Preisen.
  */
 export function AngebotsHinweise({ angebote, leistungen, heute }: { angebote: Angebot[]; leistungen: Leistung[]; heute: string }) {
@@ -66,11 +66,13 @@ export function AngebotsHinweise({ angebote, leistungen, heute }: { angebote: An
         const buchbar = getroffen.filter((l) => l.online_anfragbar);
         const ziel = buchbar.length === 1 ? { href: `/termin?leistung=${buchbar[0].slug}`, text: `${buchbar[0].name} anfragen` } : { href: "/#preise", text: "Zu den Preisen" };
         return (
-          <article key={a.id} className="flex flex-col overflow-hidden rounded-lg bg-flaeche ring-1 ring-linie">
+          <article key={a.id} className="relative isolate flex flex-col overflow-hidden rounded-lg bg-flaeche ring-1 ring-linie">
+            {/* Das Bild liegt hinter dem Text: als eigener Streifen darüber machte es die Karte doppelt so hoch */}
             {bild ? (
-              <div className="relative aspect-[21/9]">
-                <Image src={bild} alt="" fill sizes="(min-width: 1024px) 50vw, 100vw" className="object-cover" />
-              </div>
+              <>
+                <Image src={bild} alt="" fill sizes="(min-width: 1024px) 50vw, 100vw" className="-z-10 object-cover" />
+                <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/90 via-black/75 to-black/55" />
+              </>
             ) : null}
             <div className="flex flex-1 flex-col p-6 md:p-8">
               <p className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm uppercase tracking-[0.16em] text-grau">
