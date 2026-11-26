@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Formular, Senden } from "@/components/admin/formular";
 import { FaehigkeitenMatrix } from "@/components/admin/faehigkeiten";
@@ -39,6 +40,8 @@ export default async function Person({ params, searchParams }: { params: Promise
   const monat = m && /^\d{4}-\d{2}$/.test(m) ? m : berlinDatum().slice(0, 7);
   const heute = berlinDatum();
   const jahr = heute.slice(0, 4);
+  // Keine ID (z. B. „/admin/mitarbeiter/antrag“ ohne Antrag): Seite fehlt, statt die Datenbank mit Unsinn zu fragen.
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) notFound();
   const { data: p } = await db().from("profile").select("*").eq("id", id).maybeSingle();
   if (!p) notFound();
   const [{ data: zeiten }, { data: abw }, { data: ausnahmen }, { data: l }, { data: sperren }, mz, konten, konto] = await Promise.all([
@@ -202,7 +205,14 @@ export default async function Person({ params, searchParams }: { params: Promise
                   <span className="min-w-0">
                     {abwesenheitText(a)} {datum(a.von)}
                     {a.bis !== a.von ? ` bis ${datum(a.bis)}` : ""}
-                    {a.von_zeit ? `, ${a.von_zeit.slice(0, 5)}–${a.bis_zeit?.slice(0, 5)} Uhr` : ""} <span className="text-grau">· {a.status}</span>
+                    {a.von_zeit ? `, ${a.von_zeit.slice(0, 5)}–${a.bis_zeit?.slice(0, 5)} Uhr` : ""}{" "}
+                    {a.status === "beantragt" ? (
+                      <Link href={`/admin/mitarbeiter/antrag/${a.id}?zurueck=${encodeURIComponent(`/admin/mitarbeiter/${id}#abwesenheiten`)}`} className="font-semibold underline">
+                        beantragt, ansehen
+                      </Link>
+                    ) : (
+                      <span className="text-grau">· {a.status}</span>
+                    )}
                   </span>
                   <Formular aktion={abwesenheitLoeschen.bind(null, a.id)} bestaetigen="Abwesenheit löschen?">
                     <button className="text-grau underline">löschen</button>

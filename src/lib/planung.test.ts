@@ -12,6 +12,8 @@ import {
   type PlanPerson,
   schnitt,
   sollMinuten,
+  tagesLage,
+  umverteilungVorschlagen,
   urlaubstage,
 } from "./planung";
 import { berlin, berlinUhrzeit } from "./zeit";
@@ -169,5 +171,39 @@ describe("neueLeistungGesperrt", () => {
     expect(neueLeistungGesperrt(["x", "y", "z"], ["x", "y"])).toBe(true);
     // Gleichstand: darf (lieber zu viel erlauben als jemanden still aussperren)
     expect(neueLeistungGesperrt(["x", "y"], ["x"])).toBe(false);
+  });
+});
+
+describe("umverteilungVorschlagen", () => {
+  const t = (id: string, von: string, bis: string, leistungIds = ["oel"]) => ({ id, beginn: berlin(TAG, von), ende: berlin(TAG, bis), bis: berlin(TAG, bis), leistungIds });
+  const eigen = (id: string, von: string, bis: string) => ({ ...belegt("weg", von, bis), id });
+
+  it("schlägt der Reihe nach vor, jede Zuteilung belegt die Person", () => {
+    const termine = [t("2", "09:30", "10:30"), t("1", "09:00", "10:00")];
+    const v = umverteilungVorschlagen(termine, [person("weg"), person("a"), person("b")], [eigen("1", "09:00", "10:00"), eigen("2", "09:30", "10:30")], "weg");
+    expect(v.map((x) => [x.id, x.vorschlag])).toEqual([["1", "a"], ["2", "b"]]);
+    // Für sich genommen könnten beide jeden Termin machen, nie die ausfallende Person
+    expect(v[1].moeglich).toEqual(["a", "b"]);
+  });
+
+  it("niemand passt: kein Vorschlag, keine Auswahl", () => {
+    const v = umverteilungVorschlagen([t("1", "09:00", "10:00")], [person("weg"), person("a", { gesperrt: ["oel"] })], [eigen("1", "09:00", "10:00")], "weg");
+    expect(v).toEqual([{ id: "1", vorschlag: null, moeglich: [] }]);
+  });
+});
+
+describe("tagesLage", () => {
+  const termin = (von: string, bis: string) => ({ beginn: berlin(TAG, von), ende: berlin(TAG, bis) });
+  it("zählt die Zeit der Übrigen, nicht die der Fehlenden", () => {
+    const l = tagesLage(TAG, [person("weg"), person("a")], [termin("09:00", "13:00")], ["weg"]);
+    expect(l).toEqual({ verplant: 240, verfuegbar: 480, da: 1, stufe: "ok" });
+  });
+  it("knapp und zu viel", () => {
+    expect(tagesLage(TAG, [person("a")], [termin("08:00", "15:00")], []).stufe).toBe("knapp");
+    expect(tagesLage(TAG, [person("weg"), person("a")], [termin("08:00", "17:00"), termin("09:00", "10:00")], ["weg"]).stufe).toBe("zu_viel");
+  });
+  it("niemand mehr da, aber Termine", () => {
+    const l = tagesLage(TAG, [person("weg")], [termin("09:00", "10:00")], ["weg"]);
+    expect([l.da, l.stufe]).toEqual([0, "zu_viel"]);
   });
 });
