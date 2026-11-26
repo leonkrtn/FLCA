@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hatText, htmlBereinigen, oeffnungszeitenKurz, signaturHtml, verlaufAbschneiden } from "./inhalt";
+import { hatText, htmlBereinigen, oeffnungszeitenKurz, signaturHtml, signaturText, verlaufAbschneiden } from "./inhalt";
 
 describe("htmlBereinigen", () => {
   it("Skripte und Ereignisse fallen weg", () => {
@@ -67,5 +67,15 @@ describe("Signatur", () => {
   it("Öffnungszeiten zusammengefasst", () => {
     const f: [string, string][] = [["08:30", "13:00"], ["14:00", "18:00"]];
     expect(oeffnungszeitenKurz({ "1": f, "2": f, "3": f, "4": f, "5": f, "6": [["09:00", "13:00"]], "7": [] })).toBe("Mo–Fr 08:30–13:00, 14:00–18:00 · Sa 09:00–13:00");
+  });
+});
+
+describe("signaturText", () => {
+  it("dieselben Angaben wie die HTML-Signatur, als Textblöcke", () => {
+    const firma = { name: "FLC Automotive", strasse: "Siemensstraße 15", plz: "63128", ort: "Dietzenbach", inhaber: "Flavio Ciurli", titel: "Kfz-Meister", rechtsform: "Einzelunternehmen", steuernummer: "028 809 61487", ustId: "" };
+    const t = signaturText({ gruss: "Mit freundlichen Grüßen", name: "Flavio Ciurli", job: "Kfz-Meister", telefon: "0176 1", email: "service@flc.de", firma, website: "https://flc.de", oeffnungszeiten: "Mo–Fr 08:00–18:00", logoUrl: "", pflichtangaben: true });
+    expect(t).toBe(
+      "Mit freundlichen Grüßen\n\nFlavio Ciurli\nKfz-Meister\n\nTelefon 0176 1\nservice@flc.de\nflc.de\n\nFLC Automotive\nSiemensstraße 15, 63128 Dietzenbach\nMo–Fr 08:00–18:00\n\nFLC Automotive, Einzelunternehmen · Inhaber: Flavio Ciurli (Kfz-Meister) · Steuernummer 028 809 61487",
+    );
   });
 });

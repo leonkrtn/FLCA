@@ -194,8 +194,7 @@ export async function kvVersenden(id: string, an: string, vonBenutzer: string): 
     gueltig_satz: k.gueltig_bis ? `Er gilt bis zum ${datum(k.gueltig_bis)}.` : "",
     danach: k.termin_id ? "Damit ist der Auftrag für Ihren Termin erteilt." : "Einen Termin wählen Sie gleich danach.",
   });
-  const { text } = mail(firma, {
-    gruss: m.gruss,
+  const { text, html } = await mail(firma, {
     bausteine: [
       { art: "absatz", text: m.text },
       { art: "link", text: "Ansehen und annehmen können Sie ihn hier", url: kvLink(k) },
@@ -206,6 +205,7 @@ export async function kvVersenden(id: string, an: string, vonBenutzer: string): 
     an,
     betreff: m.betreff,
     text,
+    html,
     antwortAn: firma.email,
     anhaenge: [{ dateiname: kvDateiname(k), inhalt: pdf, typ: "application/pdf" }],
   });

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { fahrzeugAngabe, fuerFahrzeug, GRUSS_STANDARD, MAIL_PLATZHALTER, MAIL_PLATZHALTER_JE, MAIL_STANDARD, MAIL_VORLAGEN, mailTexte, type MailTexteEinstellung } from "./texte";
+import { fahrzeugAngabe, fuerFahrzeug, MAIL_PLATZHALTER, MAIL_PLATZHALTER_JE, MAIL_STANDARD, MAIL_VORLAGEN, mailTexte, type MailTexteEinstellung } from "./texte";
 
 const firma = { name: "FLC Automotive", inhaber: "Flavio Ciurli", telefon: "06074 123", strasse: "Siemensstraße 15", plz: "63128", ort: "Dietzenbach", hinweisAnfahrt: "Eingang in der Karl-Benz-Straße." };
 const mit = (t: MailTexteEinstellung) => ({ mailTexte: t, firma });
-const leer: MailTexteEinstellung = { gruss: "", vorlagen: {} };
+const leer: MailTexteEinstellung = { vorlagen: {} };
 
 describe("mailTexte", () => {
   it("füllt den Standard im Fließtext", () => {
@@ -18,7 +18,6 @@ describe("mailTexte", () => {
     expect(m.text).toBe(
       "Hallo Max Mustermann,\n\nvielen Dank für Ihren Auftrag. Anbei erhalten Sie unsere Rechnung RE-2026-0142 über 389,00 € für Ihr Fahrzeug VW Golf (OF-MM 123).\n\nBitte überweisen Sie den Betrag bis zum 10.12.2026.",
     );
-    expect(m.gruss).toBe("Viele Grüße\nFlavio Ciurli und Team");
   });
 
   it("ohne Fahrzeug und ohne offenen Betrag bleibt kein Loch", () => {
@@ -36,14 +35,13 @@ describe("mailTexte", () => {
   });
 
   it("nimmt eigene Texte, leere Felder fallen auf den Standard zurück", () => {
-    const m = mailTexte(mit({ gruss: "Beste Grüße\n{firma}", vorlagen: { rechnung: { text: "Moin {name}, hier ist Rechnung {nummer}.", betreff: "  " } } }), "rechnung", { name: "Jan", nummer: "RE-1" });
+    const m = mailTexte(mit({ vorlagen: { rechnung: { text: "Moin {name}, hier ist Rechnung {nummer}.", betreff: "  " } } }), "rechnung", { name: "Jan", nummer: "RE-1" });
     expect(m.text).toBe("Moin Jan, hier ist Rechnung RE-1.");
     expect(m.betreff).toBe("Ihre Rechnung RE-1");
-    expect(m.gruss).toBe("Beste Grüße\nFLC Automotive");
   });
 
   it("Betreff einzeilig, Felder, die es bei der Mail nicht gibt, bleiben leer", () => {
-    const m = mailTexte(mit({ gruss: "", vorlagen: { intern_absage: { betreff: "Absage\n{leistung}", text: "soll nicht erscheinen" } } }), "intern_absage", { leistung: "Ölwechsel" });
+    const m = mailTexte(mit({ vorlagen: { intern_absage: { betreff: "Absage\n{leistung}", text: "soll nicht erscheinen" } } }), "intern_absage", { leistung: "Ölwechsel" });
     expect(m.betreff).toBe("Absage Ölwechsel");
     expect(m.text).toBe("");
   });
@@ -72,6 +70,5 @@ describe("Standardtexte", () => {
       }
     }
     expect(Object.keys(MAIL_STANDARD).sort()).toEqual(MAIL_VORLAGEN.map((v) => v.schluessel).sort());
-    expect(GRUSS_STANDARD).toContain("{inhaber}");
   });
 });

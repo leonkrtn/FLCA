@@ -188,7 +188,6 @@ export function einstellungenVerzeichnis({ e, whatsapp }: Quelle): SuchEintrag[]
   ]);
 
   add("mailtexte", [
-    { titel: "Gruß am Ende jeder Mail", ziel: "gruss", wert: e.mailTexte.gruss, woerter: ["mail", "gruß", "grußformel", "unterschrift", "viele grüße", "automatisch"] },
     ...MAIL_VORLAGEN.map((v) => ({
       titel: `Mail: ${v.titel}`,
       abschnitt: v.gruppe,

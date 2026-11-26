@@ -233,7 +233,7 @@ function versand(anhang: Pdf | null): Promise<Eintrag>[] {
     pruefen(g, "E-Mail", async () => {
       const { firma } = await einstellungen();
       const an = firma.email || (await standardAbsender()).adresse;
-      const inhalt = mail(firma, {
+      const inhalt = await mail(firma, {
         bausteine: [{ art: "absatz", text: "Probe des Systemchecks. Diese Mail wird nicht gesendet." }],
       });
       const { versuche } = await imTestmodus(() => mailer().senden({ an, betreff: `${firma.name}: Systemcheck`, ...inhalt, anhaenge: anhang ? [anhang] : undefined }));

@@ -39,7 +39,8 @@ export type MailVorlage =
 export type MailText = { betreff: string; text?: string; schluss?: string };
 
 /** Gespeichert unter `mailTexte`: nur Abweichungen vom Standard, leer heißt Standard. */
-export type MailTexteEinstellung = { gruss: string; vorlagen: Partial<Record<MailVorlage, Partial<MailText>>> };
+/** Den Gruß bringt die Signatur mit (Einstellungen → E-Mail → Signatur), deshalb hier keiner. */
+export type MailTexteEinstellung = { vorlagen: Partial<Record<MailVorlage, Partial<MailText>>> };
 
 export const MAIL_GRUPPEN = ["Termine", "Werkstattauftrag", "Belege", "Erinnerungen", "Karriere", "Steuerberater", "Hinweise ans Büro"] as const;
 
@@ -74,8 +75,6 @@ export const MAIL_VORLAGEN: { schluessel: MailVorlage; titel: string; wann: stri
   { schluessel: "intern_krank", titel: "Krankmeldung", wann: "Mitarbeiter meldet sich in der Team-App krank", gruppe: "Hinweise ans Büro" },
   { schluessel: "intern_antrag", titel: "Urlaubsantrag", wann: "Mitarbeiter beantragt Urlaub oder frei", gruppe: "Hinweise ans Büro" },
 ];
-
-export const GRUSS_STANDARD = "Viele Grüße\n{inhaber} und Team";
 
 export const MAIL_STANDARD: Record<MailVorlage, MailText> = {
   termin_eingang: {
@@ -275,7 +274,7 @@ export function platzhalterFuellen(vorlage: string, werte: Record<string, string
     .replace(/^\s+/, "");
 }
 
-export type GefuellterMailText = { betreff: string; text: string; schluss: string; gruss: string };
+export type GefuellterMailText = { betreff: string; text: string; schluss: string };
 
 /**
  * Die geltenden Texte einer Mail, gefüllt: Gespeichertes geht vor, ein leeres Feld nimmt den Standard.
@@ -301,7 +300,6 @@ export function mailTexte(
     betreff: feld("betreff").replace(/\s*\n\s*/g, " "),
     text: feld("text"),
     schluss: feld("schluss"),
-    gruss: platzhalterFuellen(e.mailTexte.gruss.trim() || GRUSS_STANDARD, alle).trim(),
   };
 }
 

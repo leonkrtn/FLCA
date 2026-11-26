@@ -290,13 +290,13 @@ export async function abwesenheitMelden(fuer: string | null, _v: Ergebnis, fd: F
         mailer().senden({
           an: firma.email,
           betreff: titel,
-          ...mail(firma, {
-            gruss: false,
+          ...(await mail(firma, {
+            signatur: false,
             bausteine: [
               { art: "fakten", zeilen: [["Wann", zeitraum], ["Notiz", notiz || "–"], ...(zusatz ? [["Termine", zusatz.trim()] as [string, string]] : [])] },
               { art: "link", text: status === "beantragt" ? "Antrag ansehen" : "Bei den Mitarbeitern ansehen", url: `${ENV.siteUrl}${ansehen}` },
             ],
-          }),
+          })),
         }),
         melden("abwesenheit.beantragt", { profil_id: profil, art, von, bis, von_zeit: zeile.von_zeit, bis_zeit: zeile.bis_zeit }),
       ]);
