@@ -2,8 +2,10 @@ import "server-only";
 import { Resend } from "resend";
 import { einstellungen } from "../einstellungen";
 import { ENV, KONFIGURIERT } from "../env";
-import { fehlerMelden } from "../fehler";
+import { fehlerMelden, fehlerText } from "../fehler";
 import { absender, adresseZerlegen, MAIL_NAME_MUSTER } from "../mail/adressen";
+import { mailPruefen, Warnung } from "../systemcheck/regeln";
+import { testmodus } from "./testmodus";
 
 export type Mail = {
   an: string | string[];
@@ -82,8 +84,47 @@ const konsole: Mailer = {
   },
 };
 
+/**
+ * Testmodus (Systemcheck): prüft Empfänger, Absender, Betreff, Inhalt und Anhänge und schreibt auf, was
+ * gesendet worden wäre. Ruft Resend nie auf.
+ */
+const probe: Mailer = {
+  async senden(mail) {
+    let von = mail.von;
+    const vorab: string[] = [];
+    try {
+      von ??= await standardAbsenderText();
+    } catch (e) {
+      vorab.push(`Absender: ${fehlerText(e)}`);
+    }
+    const fehler = [...vorab, ...mailPruefen({ ...mail, von })];
+    const anhaenge = mail.anhaenge?.length ? ` (${mail.anhaenge.map((a) => a.dateiname).join(", ")})` : "";
+    testmodus()?.push({ kanal: "mail", an: [mail.an].flat(), text: `${mail.betreff}${anhaenge}`, fehler });
+    return fehler.length ? { ok: false, fehler: fehler.join(" ") } : { ok: true, id: "testmodus" };
+  },
+};
+
 export function mailer(): Mailer {
+  if (testmodus()) return probe;
   return KONFIGURIERT.email ? resend : konsole;
+}
+
+/**
+ * Nur lesend (Systemcheck): Ist der Resend-Schlüssel gültig und die Domain von MAIL_FROM verifiziert? Sendet
+ * nichts. Ein Schlüssel, der nur senden darf, kann die Domains nicht lesen: dann Gelb statt Rot.
+ */
+export async function resendPruefen(): Promise<string> {
+  if (!KONFIGURIERT.email) throw new Warnung("E-Mail-Versand ist nicht eingerichtet (RESEND_API_KEY, MAIL_FROM fehlen in Vercel).");
+  const domain = adresseZerlegen(ENV.mailFrom).adresse.split("@")[1] ?? "";
+  const { data, error } = await new Resend(ENV.resendApiKey).domains.list();
+  if (error) {
+    if (error.name === "restricted_api_key") throw new Warnung("Der Resend-Schlüssel darf nur senden. Ob die Domain verifiziert ist, lässt sich damit nicht prüfen.");
+    throw new Error(`Resend: ${error.message}`);
+  }
+  const eintrag = data?.data.find((d) => d.name.toLowerCase() === domain);
+  if (!eintrag) throw new Error(`Die Domain ${domain || "(leer)"} aus MAIL_FROM ist bei Resend nicht angelegt.`);
+  if (eintrag.status !== "verified") throw new Error(`Die Domain ${domain} ist bei Resend nicht verifiziert (Stand: ${eintrag.status}).`);
+  return `Schlüssel gültig, ${domain} ist verifiziert.`;
 }
 
 // ---------------------------------------------------------------------------

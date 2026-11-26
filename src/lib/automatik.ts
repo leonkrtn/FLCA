@@ -142,6 +142,13 @@ export async function takt(): Promise<Bericht> {
   const uhr = berlinUhrzeit(new Date());
   if (uhr >= "06:00" && uhr < "10:00") await schritt("tagesvorschau", () => tagesvorschau(heute));
 
+  // Systemcheck einmal pro Nacht ab 3 Uhr (ruhige Zeit, Takt und Tagesaufgaben stören nicht). Rot landet im
+  // Fehlerprotokoll, der Inhaber bekommt nur dann einen Push. Dynamisch geladen: Der Check zieht PDF und Mail
+  // mit, die der Takt jede Minute sonst nicht braucht.
+  if (uhr >= "03:00" && uhr < "06:00" && (await einmalig("systemcheck", heute))) {
+    await schritt("systemcheck", async () => (await import("./systemcheck/lauf")).nachtlauf());
+  }
+
   if (berlinUhrzeit(new Date()) >= "06:00" && (await einmalig("taeglich", heute))) {
     await schritt("saison", async () => {
       const s = e.automatik.saison;
