@@ -10,7 +10,8 @@ import { testmodus } from "./testmodus";
 export type Mail = {
   an: string | string[];
   betreff: string;
-  html: string;
+  /** Nur Mails aus dem Postfach (Editor) haben HTML; automatische Mails gehen als reiner Text */
+  html?: string;
   text: string;
   antwortAn?: string;
   anhaenge?: { dateiname: string; inhalt: Buffer; typ?: string }[];
@@ -41,7 +42,7 @@ const resend: Mailer = {
         bcc: mail.bcc?.length ? mail.bcc : undefined,
         headers: mail.kopfzeilen,
         subject: mail.betreff,
-        html: mail.html,
+        ...(mail.html ? { html: mail.html } : {}),
         text: mail.text,
         replyTo: mail.antwortAn,
         attachments: mail.anhaenge?.map((a) => ({ filename: a.dateiname, content: a.inhalt, contentType: a.typ })),

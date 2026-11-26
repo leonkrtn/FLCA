@@ -185,7 +185,7 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
         <Formular aktion={mailTexteSpeichern} className="grid max-w-3xl">
           <Abschnitt titel="Mailtexte" aktion={<span className="text-sm text-grau">Alle Mails, die die App von sich aus verschickt.</span>}>
             <p className="mb-4 text-sm text-grau">
-              Anpassbar sind Betreff, Überschrift und Text. Termin, Betrag und Nummer, Knöpfe, Anhänge und Pflichtangaben (Widerruf, AGB, Abmelden, Zahlungsangaben, E-Rechnung) setzt die App selbst dazu. Wörter in geschweiften Klammern füllt sie beim Senden. Ein leeres Feld setzt den Standardtext zurück.
+              Die Mails gehen als schlichte Textmail raus, wie von Hand geschrieben. Termin, Betrag, Nummer und Fahrzeug stehen über die Wörter in geschweiften Klammern im Text, die App füllt sie beim Senden; fehlt ein Wert, fällt das Wort weg. Links, Anhänge und Pflichtangaben (Widerruf, AGB, Abmelden, E-Rechnung) setzt die App selbst dazu. Ein leeres Feld setzt den Standardtext zurück.
             </p>
             <Textfeld label="Gruß am Ende jeder Mail" name="gruss" wert={e.mailTexte.gruss || GRUSS_STANDARD} zeilen={2} hilfe="Gilt für alle Mails an Kunden, Bewerber und den Steuerberater. Hinweise ans Büro gehen ohne Gruß." />
           </Abschnitt>
@@ -199,7 +199,7 @@ export default async function EinstellungenSeite({ searchParams }: { searchParam
                     <details key={v.schluessel} id={`mail-${v.schluessel}`} className="border-b border-linie py-3 last:border-b-0">
                       <summary className="cursor-pointer">
                         <span className="font-semibold">{v.titel}</span>
-                        {Object.keys(eigen).length ? <span className="ml-2 text-sm text-grau">angepasst</span> : null}
+                        {MAIL_FELDER.some((f) => standard[f.feld] !== undefined && eigen[f.feld]) ? <span className="ml-2 text-sm text-grau">angepasst</span> : null}
                         <span className="block text-sm text-grau">{v.wann}</span>
                       </summary>
                       <div className="mt-3 grid gap-3">

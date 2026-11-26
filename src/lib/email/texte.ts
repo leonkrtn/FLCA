@@ -1,8 +1,8 @@
 /**
  * Texte der automatischen Mails (Einstellungen → Mailtexte). Ohne Abhängigkeiten, damit Standardtexte und
- * Füllen getestet sind. Anpassbar ist das Sprachliche: Betreff, Überschrift, Text und, wo es einen gibt, der
- * Absatz am Ende. Fakten (Datum, Betrag, Nummer), Knöpfe, Anhänge und Pflichthinweise (Widerruf, AGB, Abmelden,
- * Zahlungsangaben, E-Rechnung) setzt die App selbst, damit sie nie fehlen oder falsch werden.
+ * Füllen getestet sind. Die Mails gehen als schlichte Textmail raus, wie von Hand geschrieben: Termin, Betrag,
+ * Nummer und Fahrzeug stehen über Platzhalter im Fließtext. Links, Anhänge und Pflichtangaben (Widerruf, AGB,
+ * Abmelden, E-Rechnung) setzt die App selbst, damit sie nie fehlen.
  */
 
 export type MailVorlage =
@@ -36,7 +36,7 @@ export type MailVorlage =
   | "intern_antrag";
 
 /** Was sich je Mail anpassen lässt. Felder, die der Standard nicht hat, gibt es bei dieser Mail nicht. */
-export type MailText = { betreff: string; ueberschrift?: string; text?: string; schluss?: string };
+export type MailText = { betreff: string; text?: string; schluss?: string };
 
 /** Gespeichert unter `mailTexte`: nur Abweichungen vom Standard, leer heißt Standard. */
 export type MailTexteEinstellung = { gruss: string; vorlagen: Partial<Record<MailVorlage, Partial<MailText>>> };
@@ -79,147 +79,136 @@ export const GRUSS_STANDARD = "Viele Grüße\n{inhaber} und Team";
 
 export const MAIL_STANDARD: Record<MailVorlage, MailText> = {
   termin_eingang: {
-    betreff: "Ihre Terminanfrage: {leistung}",
-    ueberschrift: "Danke, Ihre Anfrage ist da.",
-    text: "Hallo {name},\nwir haben Ihre Anfrage erhalten und halten den Termin für Sie frei. Sie bekommen eine zweite Mail, sobald wir ihn bestätigt haben, meist am selben Tag.",
+    betreff: "Ihre Terminanfrage für {leistung}",
+    text: "Hallo {name},\n\nvielen Dank für Ihre Anfrage. Wir haben sie erhalten und halten Ihnen den Termin am {datum} um {uhrzeit} Uhr für {leistung} ({fahrzeug}) frei.\n\nSobald wir den Termin bestätigt haben, bekommen Sie eine zweite Mail von uns, meistens noch am selben Tag.",
   },
   termin_eingang_eng: {
-    betreff: "Ihre Terminanfrage: {leistung}",
-    ueberschrift: "Danke, Ihre Anfrage ist da.",
-    text: "Hallo {name},\nzu Ihrer Wunschzeit ist es bei uns eng. Wir schauen, ob es trotzdem klappt, und melden uns meist am selben Tag: mit einer Zusage oder einem anderen Terminvorschlag.",
+    betreff: "Ihre Terminanfrage für {leistung}",
+    text: "Hallo {name},\n\nvielen Dank für Ihre Anfrage für {leistung} am {datum} um {uhrzeit} Uhr. Zu dieser Zeit ist es bei uns leider schon eng.\n\nWir schauen, ob es trotzdem klappt, und melden uns meistens noch am selben Tag bei Ihnen, entweder mit einer Zusage oder mit einem anderen Terminvorschlag.",
   },
   termin_gegenvorschlag: {
-    betreff: "Unser Vorschlag: {datum}, {uhrzeit} Uhr",
-    ueberschrift: "Wie wäre es mit diesem Termin?",
-    text: "Hallo {name},\n{wunschzeit} klappt es leider nicht. Wir schlagen Ihnen diesen Termin vor und halten ihn für Sie frei {frei_bis}.",
-    schluss: "Oder rufen Sie uns an: {telefon}",
+    betreff: "Terminvorschlag: {datum}, {uhrzeit} Uhr",
+    text: "Hallo {name},\n\n{wunschzeit} klappt es bei uns leider nicht. Wir können Ihnen aber {datum} um {uhrzeit} Uhr für {leistung} anbieten und halten Ihnen den Termin {frei_bis} frei.",
+    schluss: "Sie können uns auch gerne anrufen: {telefon}",
   },
   termin_bestaetigt: {
-    betreff: "Termin bestätigt: {datum}, {uhrzeit} Uhr",
-    ueberschrift: "Ihr Termin steht.",
-    text: "Hallo {name},\nwir haben Ihren Termin bestätigt. Die Kalenderdatei hängt an dieser Mail.",
-    schluss: "Absagen ist bis {frist} Stunden vorher kostenlos über den Link möglich.",
+    betreff: "Ihr Termin am {datum} um {uhrzeit} Uhr",
+    text: "Hallo {name},\n\nIhr Termin für {leistung} ({fahrzeug}) am {datum} um {uhrzeit} Uhr ist bestätigt. Die Kalenderdatei hängt an dieser Mail.\n\nSie finden uns in der {adresse}. {anfahrt}",
+    schluss: "Bis {frist} Stunden vorher können Sie kostenlos absagen.",
   },
   termin_verschoben: {
-    betreff: "Neuer Termin: {datum}, {uhrzeit} Uhr",
-    ueberschrift: "Ihr Termin wurde verschoben.",
-    text: "Hallo {name},\nIhr Termin hat eine neue Uhrzeit. Die aktualisierte Kalenderdatei hängt an.",
+    betreff: "Ihr Termin ist verschoben: {datum}, {uhrzeit} Uhr",
+    text: "Hallo {name},\n\nwir haben Ihren Termin für {leistung} verschoben. Der neue Termin ist am {datum} um {uhrzeit} Uhr. Die aktualisierte Kalenderdatei hängt an dieser Mail.",
   },
   termin_abgelehnt: {
-    betreff: "Ihre Terminanfrage: {leistung}",
-    ueberschrift: "Zu dieser Zeit klappt es leider nicht.",
-    text: "Hallo {name},\nden angefragten Termin am {datum} um {uhrzeit} Uhr können wir leider nicht annehmen.",
-    schluss: "Oder rufen Sie uns an: {telefon}",
+    betreff: "Ihre Terminanfrage für {leistung}",
+    text: "Hallo {name},\n\nleider können wir Ihre Anfrage für {leistung} am {datum} um {uhrzeit} Uhr nicht annehmen.",
+    schluss: "Oder rufen Sie uns einfach an: {telefon}",
   },
   termin_zeit_abgelehnt: {
-    betreff: "Ihr Termin: {leistung}",
-    ueberschrift: "Zu dieser Zeit klappt es leider nicht.",
-    text: "Hallo {name},\nden Termin am {datum} um {uhrzeit} Uhr können wir leider nicht einrichten. Ihr Auftrag bleibt bestehen, wir melden uns mit einem neuen Termin.",
-    schluss: "Oder rufen Sie uns an: {telefon}",
+    betreff: "Ihr Termin für {leistung}",
+    text: "Hallo {name},\n\nden Termin am {datum} um {uhrzeit} Uhr können wir leider nicht einrichten. Ihr Auftrag bleibt aber bestehen, wir melden uns mit einem neuen Termin bei Ihnen.",
+    schluss: "Bei Fragen erreichen Sie uns unter {telefon}.",
   },
   termin_zeit_abgesagt: {
-    betreff: "Termin abgesagt: {datum}",
-    ueberschrift: "Ihr Termin ist abgesagt.",
-    text: "Hallo {name},\nder folgende Termin ist abgesagt. Ihr Auftrag bleibt bestehen, wir melden uns mit einem neuen Termin.",
-    schluss: "Fragen? Rufen Sie uns an: {telefon}",
+    betreff: "Ihr Termin am {datum} ist abgesagt",
+    text: "Hallo {name},\n\nIhr Termin am {datum} um {uhrzeit} Uhr für {leistung} ist abgesagt. Ihr Auftrag bleibt aber bestehen, wir melden uns mit einem neuen Termin bei Ihnen.",
+    schluss: "Bei Fragen erreichen Sie uns unter {telefon}.",
   },
   termin_storniert: {
-    betreff: "Termin abgesagt: {datum}",
-    ueberschrift: "Ihr Termin ist abgesagt.",
-    text: "Hallo {name},\nder folgende Termin ist abgesagt.",
+    betreff: "Ihr Termin am {datum} ist abgesagt",
+    text: "Hallo {name},\n\nIhr Termin am {datum} um {uhrzeit} Uhr für {leistung} ist abgesagt.",
   },
   termin_erinnerung: {
-    betreff: "Erinnerung: morgen {uhrzeit} Uhr bei {firma}",
-    ueberschrift: "Bis morgen.",
-    text: "Hallo {name},\nwir erinnern Sie an Ihren Termin.",
+    betreff: "Erinnerung an Ihren Termin morgen um {uhrzeit} Uhr",
+    text: "Hallo {name},\n\nwir möchten Sie kurz an Ihren Termin morgen, {datum}, um {uhrzeit} Uhr erinnern ({leistung}).\n\nSie finden uns in der {adresse}. {anfahrt}",
   },
   auftrag_freigabe: {
-    betreff: "Werkstattauftrag {nummer} von {firma}",
-    ueberschrift: "Bitte bestätigen: Werkstattauftrag {nummer}",
-    text: "Hallo {name},\nanbei der Werkstattauftrag für Ihr Fahrzeug. Bitte prüfen Sie ihn und erteilen Sie uns den Auftrag mit einem Klick.",
-    schluss: "Fragen? Rufen Sie uns an: {telefon}",
+    betreff: "Werkstattauftrag {nummer} zur Freigabe",
+    text: "Hallo {name},\n\nanbei erhalten Sie den Werkstattauftrag {nummer} {fuer_fahrzeug}. Die Arbeiten kosten voraussichtlich {betrag}. {grenze_satz} {termin_satz}\n\nBitte schauen Sie sich den Auftrag an und erteilen Sie ihn uns mit einem Klick.",
+    schluss: "Bei Fragen erreichen Sie uns unter {telefon}.",
   },
   auftrag_kopie: {
-    betreff: "Werkstattauftrag {nummer} von {firma}",
-    ueberschrift: "Ihr Werkstattauftrag {nummer}",
-    text: "Hallo {name},\nanbei Ihr Werkstattauftrag als PDF.",
-    schluss: "Fragen? Rufen Sie uns an: {telefon}",
+    betreff: "Ihr Werkstattauftrag {nummer}",
+    text: "Hallo {name},\n\nanbei erhalten Sie Ihren Werkstattauftrag {nummer} {fuer_fahrzeug} als PDF. {termin_satz}",
+    schluss: "Bei Fragen erreichen Sie uns unter {telefon}.",
   },
   auftrag_bestaetigung: {
-    betreff: "Auftragsbestätigung {nummer} von {firma}",
-    ueberschrift: "Danke für Ihren Auftrag.",
-    text: "Hallo {name},\nIhr Werkstattauftrag ist bei uns. Eine Kopie hängt als PDF an dieser Mail.",
+    betreff: "Auftragsbestätigung {nummer}",
+    text: "Hallo {name},\n\nvielen Dank für Ihren Auftrag {nummer} {fuer_fahrzeug}. {erteilt} Eine Kopie hängt als PDF an dieser Mail.\n\nDie Arbeiten kosten voraussichtlich {betrag}. {grenze_satz} {termin_satz}",
   },
   kostenvoranschlag: {
-    betreff: "Kostenvoranschlag {nummer} von {firma}",
-    ueberschrift: "Ihr Kostenvoranschlag {nummer}",
-    text: "Hallo {name},\nvielen Dank für Ihre Anfrage. Unser Kostenvoranschlag hängt als PDF an dieser Mail.",
-    schluss: "Passt alles? Dann nehmen Sie den Kostenvoranschlag mit einem Klick an. {danach}",
+    betreff: "Ihr Kostenvoranschlag {nummer}",
+    text: "Hallo {name},\n\nvielen Dank für Ihre Anfrage. Anbei erhalten Sie unseren Kostenvoranschlag {nummer} {fuer_fahrzeug} über {betrag}. {gueltig_satz}\n\nWenn alles passt, können Sie den Kostenvoranschlag mit einem Klick annehmen. {danach}",
+    schluss: "Bei Fragen erreichen Sie uns unter {telefon}.",
   },
   rechnung: {
-    betreff: "Rechnung {nummer} von {firma}",
-    ueberschrift: "Ihre Rechnung {nummer}",
-    text: "Hallo {name},\nvielen Dank für Ihren Auftrag. Ihre Rechnung hängt als PDF an dieser Mail.",
+    betreff: "Ihre Rechnung {nummer}",
+    text: "Hallo {name},\n\nvielen Dank für Ihren Auftrag. Anbei erhalten Sie unsere Rechnung {nummer} über {betrag} {fuer_fahrzeug}.\n\n{zahlung}",
   },
   rechnung_korrektur: {
-    betreff: "Berichtigte Rechnung {nummer} von {firma}",
-    ueberschrift: "Ihre berichtigte Rechnung {nummer}",
-    text: "Hallo {name},\nanbei die berichtigte Rechnung. {ersetzt}",
+    betreff: "Ihre berichtigte Rechnung {nummer}",
+    text: "Hallo {name},\n\nanbei erhalten Sie die berichtigte Rechnung {nummer} über {betrag}. {ersetzt}\n\n{zahlung}",
   },
   rechnung_storno: {
-    betreff: "Stornorechnung {nummer} von {firma}",
-    ueberschrift: "Stornorechnung {nummer}",
-    text: "Hallo {name},\nanbei die Stornorechnung.",
+    betreff: "Stornorechnung {nummer}",
+    text: "Hallo {name},\n\nanbei erhalten Sie die Stornorechnung {nummer}. {storniert}",
   },
   bewertung: {
     betreff: "Wie war's bei {firma}?",
-    ueberschrift: "Danke für Ihren Besuch.",
-    text: "Hallo {name},\nwir hoffen, mit {leistung} ist alles in Ordnung. Wenn Sie zufrieden waren, hilft uns eine kurze Bewertung bei Google sehr. Das dauert eine Minute.",
-    schluss: "Und falls etwas nicht gepasst hat: Antworten Sie einfach auf diese Mail, dann kümmern wir uns.",
+    text: "Hallo {name},\n\nvielen Dank für Ihren Besuch bei uns. Wir hoffen, mit {leistung} ist alles in Ordnung.\n\nWenn Sie zufrieden waren, würden wir uns sehr über eine kurze Bewertung bei Google freuen. Das dauert nur eine Minute.",
+    schluss: "Und falls etwas nicht gepasst hat, antworten Sie einfach auf diese Mail. Dann kümmern wir uns darum.",
   },
   radwechsel: {
-    betreff: "Radwechsel bei {firma}",
-    ueberschrift: "Zeit für die {reifen}.",
-    text: "Hallo {name},\nIhre {raeder} {fuer_fahrzeug} liegen bei uns bereit. Suchen Sie sich einen freien Termin aus. {dauer}",
+    betreff: "Zeit für die {reifen}",
+    text: "Hallo {name},\n\nbald ist es wieder Zeit für die {reifen}. Ihre {raeder} {fuer_fahrzeug} liegen bei uns bereit. {dauer}",
   },
   bewerbung: {
     betreff: "Ihre Bewerbung bei {firma}",
-    ueberschrift: "Danke für Ihre Bewerbung.",
-    text: "Hallo {name},\nwir haben Ihre Bewerbung als {stelle} erhalten und melden uns in den nächsten Tagen telefonisch bei Ihnen.",
+    text: "Hallo {name},\n\nvielen Dank für Ihre Bewerbung als {stelle}. Wir haben sie erhalten und melden uns in den nächsten Tagen telefonisch bei Ihnen.",
   },
   datev: {
     betreff: "{firma}: Rechnungen {monat}",
-    ueberschrift: "Rechnungen {monat}",
-    text: "Guten Tag,\nanbei der DATEV-Buchungsstapel und {anzahl} Rechnungen von {firma} für {monat}.",
+    text: "Guten Tag,\n\nanbei erhalten Sie den DATEV-Buchungsstapel und die {anzahl} Rechnungen von {firma} für {monat}.",
   },
   intern_anfrage: { betreff: "Neue Anfrage: {leistung} {belegt}" },
   intern_absage: { betreff: "Kunde hat abgesagt: {leistung}" },
   intern_vorschlag_ja: { betreff: "Vorschlag angenommen: {leistung}" },
   intern_vorschlag_nein: { betreff: "Vorschlag passt dem Kunden nicht: {leistung}" },
-  intern_bewerbung: { betreff: "Neue Bewerbung: {name}", ueberschrift: "Neue Bewerbung: {stelle}" },
+  intern_bewerbung: { betreff: "Neue Bewerbung: {name} ({stelle})" },
   intern_krank: { betreff: "{person} ist krank gemeldet" },
   intern_antrag: { betreff: "{person} beantragt {art}" },
 };
 
 /** Platzhalter für die Hilfe in den Einstellungen. Welche bei einer Mail gefüllt sind, sagt `MAIL_PLATZHALTER_JE`. */
 export const MAIL_PLATZHALTER: [string, string][] = [
-  ["name", "Name des Kunden (bei Hinweisen ans Büro: des Bewerbers)"],
+  ["name", "Name des Kunden (bei Hinweisen ans Büro: des Kunden oder Bewerbers)"],
   ["firma", "Firmenname"],
   ["inhaber", "Name des Inhabers"],
   ["telefon", "Telefon der Werkstatt"],
+  ["adresse", "Adresse der Werkstatt"],
+  ["anfahrt", "Hinweis zur Anfahrt (Einstellungen → Firma)"],
   ["leistung", "Leistungen des Termins"],
-  ["datum", "Tag des Termins"],
+  ["datum", "Tag des Termins, z. B. „Montag, 1. Dezember“"],
   ["uhrzeit", "Uhrzeit des Termins"],
+  ["fahrzeug", "Marke, Modell und Kennzeichen"],
+  ["fuer_fahrzeug", "„für Ihr Fahrzeug …“ mit Marke, Modell und Kennzeichen"],
   ["wunschzeit", "„am … um … Uhr“ oder „zu Ihrer Wunschzeit“"],
   ["frei_bis", "„bis …“, solange der Vorschlag gehalten wird"],
   ["frist", "Stunden, bis zu denen kostenlos abgesagt werden kann"],
   ["nummer", "Nummer von Auftrag, Kostenvoranschlag oder Rechnung"],
-  ["ersetzt", "Satz, welche Rechnung die berichtigte ersetzt (mit Storno und Grund)"],
+  ["betrag", "Betrag von Auftrag, Kostenvoranschlag oder Rechnung"],
+  ["grenze_satz", "Satz zur Kostengrenze, falls eine vereinbart ist"],
+  ["termin_satz", "Satz zum Termin des Auftrags (oder dass er noch vereinbart wird)"],
+  ["erteilt", "Satz, wann und wie der Auftrag erteilt wurde"],
+  ["gueltig_satz", "Satz, bis wann der Kostenvoranschlag gilt"],
   ["danach", "Was nach dem Annehmen passiert (Auftrag erteilt oder Termin wählen)"],
+  ["zahlung", "Zahlungsaufforderung mit Frist und Bankverbindung, bereits Bezahltes; leer, wenn nichts offen ist"],
+  ["ersetzt", "Satz, welche Rechnung die berichtigte ersetzt (mit Storno und Grund)"],
+  ["storniert", "Satz, welche Rechnung storniert wird"],
   ["reifen", "Winterreifen oder Sommerreifen"],
   ["raeder", "Winterräder oder Sommerräder"],
-  ["fuer_fahrzeug", "„für“ und Kennzeichen"],
-  ["dauer", "Dauer des Radwechsels laut Preisliste"],
+  ["dauer", "Dauer des Radwechsels laut Preisliste, als Satz"],
   ["stelle", "Stelle der Bewerbung"],
   ["monat", "Monat des Versands an den Steuerberater"],
   ["anzahl", "Anzahl der Rechnungen im Monat"],
@@ -228,8 +217,10 @@ export const MAIL_PLATZHALTER: [string, string][] = [
   ["art", "Urlaub oder frei"],
 ];
 
-const ALLGEMEIN = ["firma", "inhaber", "telefon"];
-const TERMIN = ["name", "leistung", "datum", "uhrzeit", ...ALLGEMEIN];
+const ALLGEMEIN = ["firma", "inhaber", "telefon", "adresse"];
+const TERMIN = ["name", "leistung", "datum", "uhrzeit", "fahrzeug", "fuer_fahrzeug", "anfahrt", ...ALLGEMEIN];
+const AUFTRAG = ["name", "nummer", "betrag", "fahrzeug", "fuer_fahrzeug", "grenze_satz", "termin_satz", ...ALLGEMEIN];
+const BELEG = ["name", "nummer", "betrag", "fahrzeug", "fuer_fahrzeug", ...ALLGEMEIN];
 
 /** Welche Platzhalter je Mail gefüllt werden (Hilfe unter dem Feld). */
 export const MAIL_PLATZHALTER_JE: Record<MailVorlage, string[]> = {
@@ -243,13 +234,13 @@ export const MAIL_PLATZHALTER_JE: Record<MailVorlage, string[]> = {
   termin_zeit_abgesagt: TERMIN,
   termin_storniert: TERMIN,
   termin_erinnerung: TERMIN,
-  auftrag_freigabe: ["name", "nummer", ...ALLGEMEIN],
-  auftrag_kopie: ["name", "nummer", ...ALLGEMEIN],
-  auftrag_bestaetigung: ["name", "nummer", ...ALLGEMEIN],
-  kostenvoranschlag: ["name", "nummer", "danach", ...ALLGEMEIN],
-  rechnung: ["name", "nummer", ...ALLGEMEIN],
-  rechnung_korrektur: ["name", "nummer", "ersetzt", ...ALLGEMEIN],
-  rechnung_storno: ["name", "nummer", ...ALLGEMEIN],
+  auftrag_freigabe: AUFTRAG,
+  auftrag_kopie: AUFTRAG,
+  auftrag_bestaetigung: [...AUFTRAG, "erteilt"],
+  kostenvoranschlag: [...BELEG, "gueltig_satz", "danach"],
+  rechnung: [...BELEG, "zahlung"],
+  rechnung_korrektur: [...BELEG, "zahlung", "ersetzt"],
+  rechnung_storno: [...BELEG, "storniert"],
   bewertung: ["name", "leistung", ...ALLGEMEIN],
   radwechsel: ["name", "reifen", "raeder", "fuer_fahrzeug", "dauer", ...ALLGEMEIN],
   bewerbung: ["name", "stelle", ...ALLGEMEIN],
@@ -265,9 +256,8 @@ export const MAIL_PLATZHALTER_JE: Record<MailVorlage, string[]> = {
 
 export const MAIL_FELDER: { feld: keyof MailText; titel: string; zeilen: number }[] = [
   { feld: "betreff", titel: "Betreff", zeilen: 1 },
-  { feld: "ueberschrift", titel: "Überschrift", zeilen: 1 },
-  { feld: "text", titel: "Text", zeilen: 4 },
-  { feld: "schluss", titel: "Absatz am Ende", zeilen: 2 },
+  { feld: "text", titel: "Text", zeilen: 7 },
+  { feld: "schluss", titel: "Satz nach dem Link", zeilen: 2 },
 ];
 
 /**
@@ -277,36 +267,58 @@ export const MAIL_FELDER: { feld: keyof MailText; titel: string; zeilen: number 
 export function platzhalterFuellen(vorlage: string, werte: Record<string, string | undefined>): string {
   return vorlage
     .replace(/\{(\w+)\}/g, (_, k: string) => werte[k]?.trim() ?? "")
+    // Klammern, deren Platzhalter leer blieb („für Ölwechsel ()“)
+    .replace(/[ \t]*\([ \t]*\)/g, "")
     .replace(/[ \t]{2,}/g, " ")
     .replace(/ +([,.!?:)])/g, "$1")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/^\s+/, "");
 }
 
-export type GefuellterMailText = { betreff: string; ueberschrift: string; text: string; schluss: string; gruss: string };
+export type GefuellterMailText = { betreff: string; text: string; schluss: string; gruss: string };
 
 /**
- * Die geltenden Texte einer Mail, gefüllt: Gespeichertes geht vor, ein leeres Feld nimmt den Standard. Ohne
- * eigene Überschrift gilt der Betreff (Hinweise ans Büro). Zeilenumbrüche im Betreff fallen weg.
+ * Die geltenden Texte einer Mail, gefüllt: Gespeichertes geht vor, ein leeres Feld nimmt den Standard.
+ * Zeilenumbrüche im Betreff fallen weg, im Text bleiben höchstens eine Leerzeile zwischen Absätzen.
  */
 export function mailTexte(
-  e: { mailTexte: MailTexteEinstellung; firma: { name: string; inhaber: string; telefon: string } },
+  e: { mailTexte: MailTexteEinstellung; firma: { name: string; inhaber: string; telefon: string; strasse: string; plz: string; ort: string; hinweisAnfahrt: string } },
   schluessel: MailVorlage,
   werte: Record<string, string | undefined>,
 ): GefuellterMailText {
   const standard = MAIL_STANDARD[schluessel];
   const eigen = e.mailTexte.vorlagen[schluessel] ?? {};
-  const alle = { firma: e.firma.name, inhaber: e.firma.inhaber, telefon: e.firma.telefon, ...werte };
+  const f = e.firma;
+  const alle = { firma: f.name, inhaber: f.inhaber, telefon: f.telefon, adresse: `${f.strasse}, ${f.plz} ${f.ort}`, anfahrt: f.hinweisAnfahrt, ...werte };
   const feld = (k: keyof MailText) => {
     const roh = standard[k] === undefined ? "" : eigen[k]?.trim() ? eigen[k]! : (standard[k] ?? "");
-    return platzhalterFuellen(roh, alle).trim();
+    return platzhalterFuellen(roh, alle)
+      .replace(/\n[ \t]+/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
   };
-  const betreff = feld("betreff").replace(/\s*\n\s*/g, " ");
   return {
-    betreff,
-    ueberschrift: feld("ueberschrift").replace(/\s*\n\s*/g, " ") || betreff,
+    betreff: feld("betreff").replace(/\s*\n\s*/g, " "),
     text: feld("text"),
     schluss: feld("schluss"),
     gruss: platzhalterFuellen(e.mailTexte.gruss.trim() || GRUSS_STANDARD, alle).trim(),
   };
+}
+
+type FahrzeugAngabe = { kennzeichen?: string | null; marke_modell?: string | null; marke?: string | null; modell?: string | null } | null | undefined;
+
+/** Marke und Modell aus Termin (`marke_modell`) oder Beleg (`marke`, `modell`). */
+const markeModell = (f: FahrzeugAngabe) => (f?.marke_modell ?? [f?.marke, f?.modell].filter((x) => x?.trim()).join(" ")).trim();
+
+/** Für `{fahrzeug}`: „VW Golf, OF-AB 123“, eines von beiden oder leer (steht im Text oft schon in Klammern). */
+export function fahrzeugAngabe(f: FahrzeugAngabe): string {
+  return [markeModell(f), f?.kennzeichen?.trim()].filter(Boolean).join(", ");
+}
+
+/** Für `{fuer_fahrzeug}`: „für Ihr Fahrzeug VW Golf (OF-AB 123)“ oder leer. */
+export function fuerFahrzeug(f: FahrzeugAngabe): string {
+  const mm = markeModell(f);
+  const kz = f?.kennzeichen?.trim();
+  const was = mm && kz ? `${mm} (${kz})` : mm || kz;
+  return was ? `für Ihr Fahrzeug ${was}` : "";
 }

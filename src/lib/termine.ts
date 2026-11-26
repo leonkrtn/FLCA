@@ -4,9 +4,9 @@ import { einstellungen, type Einstellungen } from "./einstellungen";
 import { ENV } from "./env";
 import { fehlerMelden } from "./fehler";
 import { melden, verlauf } from "./ereignisse";
-import { datumLangText, kennzeichen as kennzeichenFormat, telHref, zeit } from "./format";
+import { datumLangText, kennzeichen as kennzeichenFormat, zeit } from "./format";
 import { ics } from "./ics";
-import { mailTexte } from "./email/texte";
+import { fahrzeugAngabe, fuerFahrzeug, mailTexte } from "./email/texte";
 import { type Baustein, mail } from "./email/vorlagen";
 import { mailer } from "./services/email";
 import { pushSenden } from "./services/push";
@@ -385,57 +385,45 @@ async function kundenMail(
   if (!t.kunde?.email) return;
   const e = await einstellungen();
   const { firma, buchung } = e;
-  const fakten = terminFakten(t, firma);
   const link = terminLink(t);
-  // Texte aus Einstellungen → Mailtexte; Fakten, Knöpfe und der Grund der Absage kommen immer dazu.
+  // Texte aus Einstellungen → Mailtexte, Termin und Fahrzeug stehen im Fließtext. Links und der Grund einer
+  // Absage kommen immer dazu.
   const m = mailTexte(e, `termin_${art}`, {
     name: t.kunde.name,
     leistung: t.leistung_name,
     datum: datumLangText(t.beginn),
     uhrzeit: zeit(t.beginn),
+    fahrzeug: fahrzeugAngabe(t.fahrzeug),
+    fuer_fahrzeug: fuerFahrzeug(t.fahrzeug),
     wunschzeit: t.wunsch_beginn ? `am ${datumLangText(t.wunsch_beginn)} um ${zeit(t.wunsch_beginn)} Uhr` : "zu Ihrer Wunschzeit",
-    frei_bis: t.halten_bis ? `bis ${datumLangText(t.halten_bis)}, ${zeit(t.halten_bis)} Uhr` : "",
+    frei_bis: t.halten_bis ? `bis ${datumLangText(t.halten_bis)}, ${zeit(t.halten_bis)} Uhr,` : "",
     frist: String(buchung.stornoFristStd),
   });
-  const absatz = (text: string) => (text ? [{ art: "absatz" as const, text }] : []);
-  const mitGrund = absatz(`${m.text}${t.absage_grund ? `\n\n${t.absage_grund}` : ""}`.trim());
+  const absatz = (text: string | null | undefined) => (text?.trim() ? [{ art: "absatz" as const, text: text.trim() }] : []);
   const bausteine: Baustein[] = {
-    eingang: [...absatz(m.text), { art: "fakten" as const, zeilen: fakten }, { art: "knopf" as const, text: "Anfrage ansehen", url: link }],
-    eingang_eng: [...absatz(m.text), { art: "fakten" as const, zeilen: fakten }, { art: "knopf" as const, text: "Anfrage ansehen", url: link }],
+    eingang: [...absatz(m.text), { art: "link" as const, text: "Ihre Anfrage können Sie hier jederzeit ansehen", url: link }],
+    eingang_eng: [...absatz(m.text), { art: "link" as const, text: "Ihre Anfrage können Sie hier jederzeit ansehen", url: link }],
     gegenvorschlag: [
       ...absatz(m.text),
-      { art: "fakten" as const, zeilen: fakten },
-      ...(t.vorschlag_nachricht ? [{ art: "hinweis" as const, text: t.vorschlag_nachricht }] : []),
-      { art: "knopf" as const, text: "Vorschlag annehmen oder ablehnen", url: link },
+      ...absatz(t.vorschlag_nachricht),
+      { art: "link" as const, text: "Hier können Sie den Vorschlag mit einem Klick annehmen oder ablehnen", url: link },
       ...absatz(m.schluss),
     ],
-    bestaetigt: [
-      ...absatz(m.text),
-      { art: "fakten" as const, zeilen: fakten },
-      { art: "hinweis" as const, text: firma.hinweisAnfahrt },
-      { art: "knopf" as const, text: "Termin ansehen oder absagen", url: link },
-      ...absatz(m.schluss),
-    ],
-    verschoben: [...absatz(m.text), { art: "fakten" as const, zeilen: fakten }, { art: "knopf" as const, text: "Termin ansehen", url: link }],
-    abgelehnt: [...mitGrund, { art: "knopf" as const, text: "Anderen Termin wählen", url: `${ENV.siteUrl}/termin` }, ...absatz(m.schluss)],
+    bestaetigt: [...absatz(m.text), { art: "link" as const, text: "Ihren Termin können Sie hier ansehen oder absagen", url: link }, ...absatz(m.schluss)],
+    verschoben: [...absatz(m.text), { art: "link" as const, text: "Ihren Termin können Sie hier ansehen", url: link }],
+    abgelehnt: [...absatz(m.text), ...absatz(t.absage_grund), { art: "link" as const, text: "Einen anderen Termin können Sie sich hier aussuchen", url: `${ENV.siteUrl}/termin` }, ...absatz(m.schluss)],
     // Die Zeit klappt nicht, der erteilte Auftrag bleibt: kein Link zu einer neuen Anfrage, das Büro meldet sich.
-    zeit_abgelehnt: [...mitGrund, ...absatz(m.schluss)],
-    zeit_abgesagt: [...absatz(m.text), { art: "fakten" as const, zeilen: fakten }, ...absatz(m.schluss)],
-    storniert: [...absatz(m.text), { art: "fakten" as const, zeilen: fakten }, { art: "knopf" as const, text: "Neuen Termin anfragen", url: `${ENV.siteUrl}/termin` }],
-    erinnerung: [
-      ...absatz(m.text),
-      { art: "fakten" as const, zeilen: fakten },
-      { art: "hinweis" as const, text: firma.hinweisAnfahrt },
-      { art: "knopf" as const, text: "Termin ansehen oder absagen", url: link },
-    ],
+    zeit_abgelehnt: [...absatz(m.text), ...absatz(t.absage_grund), ...absatz(m.schluss)],
+    zeit_abgesagt: [...absatz(m.text), ...absatz(m.schluss)],
+    storniert: [...absatz(m.text), { art: "link" as const, text: "Einen neuen Termin können Sie jederzeit hier anfragen", url: `${ENV.siteUrl}/termin` }],
+    erinnerung: [...absatz(m.text), { art: "link" as const, text: "Falls etwas dazwischenkommt, können Sie den Termin hier absagen", url: link }],
   }[art];
 
-  const { html, text } = mail(firma, { ueberschrift: m.ueberschrift, gruss: m.gruss, bausteine });
+  const { text } = mail(firma, { gruss: m.gruss, bausteine });
   const mitKalender = art === "bestaetigt" || art === "verschoben" || art === "storniert" || art === "zeit_abgesagt";
   const ergebnis = await mailer().senden({
     an: t.kunde.email,
     betreff: m.betreff,
-    html,
     text,
     antwortAn: firma.email,
     anhaenge: mitKalender
@@ -476,8 +464,7 @@ async function betriebBenachrichtigen(t: GeplanterTermin, art: "neu" | "stornier
   await Promise.all([
     pushSenden({ rollen: ["inhaber", "buero"] }, { titel, text, url: `/app/termine/${t.id}`, tag: `termin-${t.id}` }),
     (async () => {
-      const { html, text: klartext } = mail(firma, {
-        ueberschrift: titel,
+      const { text: klartext } = mail(firma, {
         gruss: false,
         bausteine: [
           {
@@ -490,12 +477,11 @@ async function betriebBenachrichtigen(t: GeplanterTermin, art: "neu" | "stornier
               ...(t.notiz_kunde ? ([["Notiz", t.notiz_kunde]] as [string, string][]) : []),
             ],
           },
-          { art: "knopf", text: art === "neu" ? "Anfrage öffnen" : "Termin öffnen", url: `${ENV.siteUrl}/admin/termine/${t.id}` },
-          ...(t.kunde?.telefon ? [{ art: "absatz" as const, text: `Anrufen: ${telHref(t.kunde.telefon).replace("tel:", "")}` }] : []),
+          { art: "link", text: art === "neu" ? "Anfrage öffnen" : "Termin öffnen", url: `${ENV.siteUrl}/admin/termine/${t.id}` },
         ],
       });
       const an = benachrichtigung.emails.length ? benachrichtigung.emails : [firma.email];
-      await mailer().senden({ an, betreff: titel, html, text: klartext, antwortAn: t.kunde?.email || undefined });
+      await mailer().senden({ an, betreff: titel, text: klartext, antwortAn: t.kunde?.email || undefined });
     })(),
   ]);
 }

@@ -58,7 +58,7 @@ export function pushText(liste: Pick<Pruefung, "gruppe" | "name" | "stand">[]): 
 type PruefMail = {
   an: string | string[];
   betreff: string;
-  html: string;
+  html?: string;
   text: string;
   von?: string;
   cc?: string[];
@@ -83,10 +83,10 @@ export function mailPruefen(mail: PruefMail): string[] {
   if (mail.von !== undefined && !istAdresse(adresseZerlegen(mail.von).adresse)) fehler.push(`Ungültiger Absender: ${mail.von || "(leer)"}`);
   if (!mail.betreff.trim()) fehler.push("Betreff fehlt.");
   if (!mail.text.trim()) fehler.push("Textfassung fehlt.");
-  if (!mail.html.trim()) fehler.push("HTML-Fassung fehlt.");
-  // Ohne Viewport wird die Mail auf dem iPhone schmal (Fehlerbuch): Mails nur über mail() bauen.
-  else if (!/name=["']?viewport/i.test(mail.html)) fehler.push("HTML ohne Viewport (nicht über mail() gebaut).");
-  let groesse = Buffer.byteLength(mail.html) + Buffer.byteLength(mail.text);
+  // Automatische Mails sind reiner Text. Gibt es doch HTML (selbst gebaut), braucht es den Viewport, sonst wird
+  // die Mail auf dem iPhone schmal (Fehlerbuch).
+  if (mail.html && !/name=["']?viewport/i.test(mail.html)) fehler.push("HTML ohne Viewport (nicht über mail() gebaut).");
+  let groesse = Buffer.byteLength(mail.html ?? "") + Buffer.byteLength(mail.text);
   for (const a of mail.anhaenge ?? []) {
     groesse += a.inhalt.length;
     if (!a.dateiname.trim()) fehler.push("Anhang ohne Dateinamen.");

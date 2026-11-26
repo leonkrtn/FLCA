@@ -3,7 +3,7 @@ import { einstellungen } from "../einstellungen";
 import { ENV } from "../env";
 import { melden, verlauf } from "../ereignisse";
 import { datum, euro } from "../format";
-import { mailTexte } from "../email/texte";
+import { fahrzeugAngabe, fuerFahrzeug, mailTexte } from "../email/texte";
 import { mail } from "../email/vorlagen";
 import { mailer } from "../services/email";
 import { pushSenden } from "../services/push";
@@ -188,30 +188,23 @@ export async function kvVersenden(id: string, an: string, vonBenutzer: string): 
   const m = mailTexte(e, "kostenvoranschlag", {
     name: k.empfaenger.name,
     nummer: k.nummer ?? "",
+    betrag: euro(k.summe_brutto_cent),
+    fahrzeug: fahrzeugAngabe(k.fahrzeug),
+    fuer_fahrzeug: fuerFahrzeug(k.fahrzeug),
+    gueltig_satz: k.gueltig_bis ? `Er gilt bis zum ${datum(k.gueltig_bis)}.` : "",
     danach: k.termin_id ? "Damit ist der Auftrag für Ihren Termin erteilt." : "Einen Termin wählen Sie gleich danach.",
   });
-  const { html, text } = mail(firma, {
-    ueberschrift: m.ueberschrift,
+  const { text } = mail(firma, {
     gruss: m.gruss,
     bausteine: [
-      ...(m.text ? [{ art: "absatz" as const, text: m.text }] : []),
-      {
-        art: "fakten",
-        zeilen: [
-          ["Nummer", k.nummer!],
-          ["Betrag", euro(k.summe_brutto_cent)],
-          ...(k.gueltig_bis ? ([["Gültig bis", datum(k.gueltig_bis)]] as [string, string][]) : []),
-          ...(k.fahrzeug?.kennzeichen ? ([["Fahrzeug", k.fahrzeug.kennzeichen]] as [string, string][]) : []),
-        ],
-      },
-      ...(m.schluss ? [{ art: "absatz" as const, text: m.schluss }] : []),
-      { art: "knopf", text: "Ansehen und annehmen", url: kvLink(k) },
+      { art: "absatz", text: m.text },
+      { art: "link", text: "Ansehen und annehmen können Sie ihn hier", url: kvLink(k) },
+      { art: "absatz", text: m.schluss },
     ],
   });
   const ergebnis = await mailer().senden({
     an,
     betreff: m.betreff,
-    html,
     text,
     antwortAn: firma.email,
     anhaenge: [{ dateiname: kvDateiname(k), inhalt: pdf, typ: "application/pdf" }],

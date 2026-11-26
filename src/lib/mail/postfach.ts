@@ -288,7 +288,7 @@ export async function empfangen(resendId: string): Promise<void> {
 /**
  * Legt eine Mail ab, die die Anwendung von sich aus verschickt hat (aus `mailer()`): im Firmenpostfach unter
  * „Gesendet“, gescheitert im Postausgang (von dort „Erneut senden“). Das HTML bleibt wie verschickt, angezeigt wird
- * es wie eingegangene Mails abgeschottet. Über die Resend-id kommen Message-ID (Antworten finden ihr Gespräch) und
+ * es wie eingegangene Mails abgeschottet (automatische Mails sind reiner Text). Über die Resend-id kommen Message-ID (Antworten finden ihr Gespräch) und
  * Zustellstatus per Webhook nach.
  */
 export async function versandAblegen(mail: Mail, ergebnis: Versandergebnis): Promise<void> {
@@ -324,8 +324,8 @@ export async function versandAblegen(mail: Mail, ergebnis: Versandergebnis): Pro
       bcc: liste(mail.bcc),
       antwort_an: mail.antwortAn ? adresseZerlegen(mail.antwortAn).adresse : null,
       betreff: mail.betreff.slice(0, 300),
-      text: mail.text?.trim() || htmlAlsText(mail.html),
-      html: mail.html,
+      text: mail.text?.trim() || htmlAlsText(mail.html ?? ""),
+      html: mail.html ?? null,
       anhaenge,
       gelesen_am: jetzt,
       oben_am: jetzt,

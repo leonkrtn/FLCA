@@ -4,7 +4,7 @@ import { einstellungen } from "./einstellungen";
 import { ENV } from "./env";
 import { abmeldeLink } from "./einwilligung";
 import { zustellen } from "./ereignisse";
-import { mailTexte } from "./email/texte";
+import { fuerFahrzeug, mailTexte } from "./email/texte";
 import { mail } from "./email/vorlagen";
 import { monatsexport } from "./rechnung/datev";
 import { zeit } from "./format";
@@ -119,12 +119,11 @@ export async function takt(): Promise<Bericht> {
       const m = mailTexte(e, "bewertung", { name: t.kunde.name, leistung: t.leistung_name });
       const inhalt = mail(e.firma, {
         abmelden: abmeldeLink(t.kunde.id),
-        ueberschrift: m.ueberschrift,
         gruss: m.gruss,
         bausteine: [
-          ...(m.text ? [{ art: "absatz" as const, text: m.text }] : []),
-          { art: "knopf", text: "Bei Google bewerten", url: e.firma.googleBewertungLink },
-          ...(m.schluss ? [{ art: "absatz" as const, text: m.schluss }] : []),
+          { art: "absatz", text: m.text },
+          { art: "link", text: "Hier geht es direkt zur Bewertung", url: e.firma.googleBewertungLink },
+          { art: "absatz", text: m.schluss },
         ],
       });
       await mailer().senden({ an: t.kunde.email, betreff: m.betreff, antwortAn: e.firma.email, ...inhalt });
@@ -180,14 +179,16 @@ export async function takt(): Promise<Bericht> {
           name: z.kunde.name,
           reifen: saison === "winter" ? "Winterreifen" : "Sommerreifen",
           raeder,
-          fuer_fahrzeug: z.fahrzeug?.kennzeichen ? `für ${z.fahrzeug.kennzeichen}` : "",
+          fuer_fahrzeug: fuerFahrzeug(z.fahrzeug),
           dauer,
         });
         const inhalt = mail(e.firma, {
           abmelden: abmeldeLink(z.kunde.id),
-          ueberschrift: m.ueberschrift,
           gruss: m.gruss,
-          bausteine: [...(m.text ? [{ art: "absatz" as const, text: m.text }] : []), { art: "knopf", text: "Termin für den Radwechsel wählen", url: link }],
+          bausteine: [
+            { art: "absatz", text: m.text },
+            { art: "link", text: "Einen freien Termin für den Wechsel können Sie sich hier aussuchen", url: link },
+          ],
         });
         await mailer().senden({ an: z.kunde.email, betreff: m.betreff, antwortAn: e.firma.email, ...inhalt });
         gesendet++;
@@ -204,7 +205,7 @@ export async function takt(): Promise<Bericht> {
       if (!(await einmalig("datev", vormonat))) return "schon gesendet";
       const { zip, anzahl } = await monatsexport(vormonat, d);
       const m = mailTexte(e, "datev", { monat: `${vormonat.slice(5)}/${vormonat.slice(0, 4)}`, anzahl: String(anzahl) });
-      const inhalt = mail(e.firma, { ueberschrift: m.ueberschrift, gruss: m.gruss, bausteine: m.text ? [{ art: "absatz", text: m.text }] : [] });
+      const inhalt = mail(e.firma, { gruss: m.gruss, bausteine: [{ art: "absatz", text: m.text }] });
       const r = await mailer().senden({ an: d.email, betreff: m.betreff, antwortAn: e.firma.email, ...inhalt, anhaenge: [{ dateiname: `${e.firma.name.replace(/\W+/g, "-")}-${vormonat}.zip`, inhalt: zip, typ: "application/zip" }] });
       return r.ok ? `${anzahl} Rechnungen gesendet` : `nicht gesendet: ${r.fehler}`;
     });
