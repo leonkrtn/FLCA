@@ -18,6 +18,23 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-27 · Website zeigt dieselben Fotos mehrfach
+
+- **Stand:** behoben
+- **Wo:** `src/app/(site)/page.tsx` („Aus der Halle“), `src/app/(site)/karriere/page.tsx`
+- **Was man sah:** (vom Nutzer gemeldet) Das Hallenfoto vom Start stand in „Aus der Halle“ noch einmal, der
+  Panamera aus „Aus der Halle“ war zugleich Kopfbild der Karriereseite.
+- **Ursache:** Bei nur acht Fotos wurde dasselbe Asset an mehreren Stellen eingebunden, ohne dass jemand die
+  Seiten nebeneinander gesehen hat.
+- **Behebung:** neue Hallenfotos ergänzt (Kennzeichen unkenntlich gemacht), „Aus der Halle“ ohne das Startfoto und
+  mit acht Bildern, Karriere mit eigenem Hallenfoto (`halle-kran.jpg`), die Reifenkachel mit der neueren Aufnahme
+  derselben Maschine.
+- **Muster:** Ein Bild aus `src/assets/` wird in mehr als einer Datei unter `(site)` oder `components/site`
+  importiert. Vor dem Einbinden `grep -rn "assets/<name>" src` laufen lassen. Ausnahme mit Absicht: die Bilder aus
+  `BEREICHE` stehen auf der Startseite und als Banner auf `/leistungen`.
+- **Weitere Stellen:** alle Importe aus `@/assets` geprüft; sonst nur Logo-Dateien mehrfach (gewollt). Neue Fotos
+  mit Kunden-Kennzeichen vorher unkenntlich machen.
+
 ### 2026-11-26 · Automatische Mails ohne die Signatur aus dem Postfach
 
 - **Stand:** behoben

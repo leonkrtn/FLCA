@@ -1,7 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
+import amgBuehne from "@/assets/amg-buehne.jpg";
+import amgMotor from "@/assets/amg-motor.jpg";
+import m3Heck from "@/assets/bmw-m3-heck.jpg";
+import m4Buehne from "@/assets/bmw-m4-buehne.jpg";
 import halle from "@/assets/halle-lancia.jpg";
 import handschuhe from "@/assets/handschuhe.jpg";
+import jaguar from "@/assets/jaguar-motor.jpg";
 import lanciaHeck from "@/assets/lancia-heck.jpg";
 import panamera from "@/assets/panamera-reifen.jpg";
 import porsche from "@/assets/porsche-felge.jpg";
@@ -141,15 +146,23 @@ export default async function Startseite() {
         <div className="rand mb-8">
           <h2 id="halle-titel" className="schmal text-3xl sm:text-4xl md:text-7xl">Aus der Halle</h2>
         </div>
-        <div className="rand flex snap-x snap-mandatory gap-4 quer-scrollen pb-2 [scrollbar-width:none] md:grid md:grid-cols-2 md:overflow-visible lg:grid-cols-4">
+        {/*
+          Jedes Foto nur einmal auf der Website: das Hallenfoto vom Start und die Bilder der Leistungskacheln stehen hier
+          nicht noch einmal. Bis zum Desktop seitlich wischbar, bei acht Bildern wäre ein Zweierraster sehr lang.
+        */}
+        <div className="rand flex snap-x snap-mandatory gap-4 quer-scrollen pb-2 [scrollbar-width:none] lg:grid lg:grid-cols-4 lg:overflow-visible">
           {[
             { src: porsche, alt: "Porsche 911 mit schwarzen Felgen und gelben Bremssätteln in der Halle" },
+            { src: m4Buehne, alt: "BMW M4 von hinten auf der Hebebühne, Blick auf Auspuffanlage und Unterboden" },
             { src: panamera, alt: "Weißer Porsche Panamera auf der Hebebühne, davor ein Stapel Reifen und die Reifenmontiermaschine" },
+            { src: amgBuehne, alt: "Mercedes-AMG GLC auf der Hebebühne, davor ein Opel mit offener Motorhaube" },
             { src: lanciaHeck, alt: "Roter Lancia Delta von hinten, daneben ein schwarzer BMW" },
-            { src: halle, alt: "Werkstatthalle mit geöffneter Motorhaube" },
+            { src: jaguar, alt: "Jaguar XF mit offener Motorhaube und Arbeitslampe" },
+            { src: m3Heck, alt: "Schwarzes BMW M3 Cabrio von hinten in der Halle" },
+            { src: amgMotor, alt: "V8-Motor eines Mercedes-AMG unter der geöffneten Motorhaube" },
           ].map((b, i) => (
-            // Jedes zweite Bild versetzt, damit die Reihe nicht wie ein Raster wirkt (erst ab vier Spalten, darunter stünden die Lücken mitten im Zweierraster)
-            <div key={b.alt} className={`group relative aspect-[3/4] w-[78vw] shrink-0 snap-start overflow-hidden rounded-lg sm:w-[45vw] md:w-auto ${i % 2 === 1 ? "lg:mt-12" : ""}`}>
+            // Jedes zweite Bild versetzt, damit die Reihen nicht wie ein Raster wirken (nur im Viererraster, beim Wischen nicht)
+            <div key={b.alt} className={`group relative aspect-[3/4] w-[78vw] shrink-0 snap-start overflow-hidden rounded-lg sm:w-[45vw] lg:w-auto ${i % 2 === 1 ? "lg:mt-12" : ""}`}>
               <Image src={b.src} alt={b.alt} fill sizes="(min-width: 1024px) 23vw, (min-width: 768px) 45vw, 78vw" className="object-cover transition-transform duration-700 group-hover:scale-[1.04]" />
             </div>
           ))}
