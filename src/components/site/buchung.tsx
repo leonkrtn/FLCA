@@ -5,6 +5,7 @@ import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { anfrageSenden } from "@/app/(site)/termin/actions";
 import { Haken } from "@/components/icons";
 import { FALLE, LEER } from "@/lib/forms";
+import { dauerText } from "@/lib/format";
 
 type LeistungKurz = {
   id: string;
@@ -52,8 +53,6 @@ const summenPreis = (l: LeistungKurz[]) => {
 
 /** Wie MAX_LEISTUNGEN in src/lib/termine.ts (dort wird geprüft, hier nur die Auswahl begrenzt). */
 const MAX_LEISTUNGEN = 8;
-
-const dauerText = (min: number) => (min >= 420 ? "ganzer Tag" : min >= 60 ? `ca. ${String(Math.round((min / 60) * 2) / 2).replace(".", ",")} Std.` : `ca. ${min} Min.`);
 
 const heute = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin" }).format(new Date());
 const plusTage = (d: string, n: number) => {

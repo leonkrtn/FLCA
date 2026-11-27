@@ -73,7 +73,7 @@ export default async function Startseite() {
         */}
         <div className="border-t border-white/10 bg-black/40 backdrop-blur-xl">
           <div className="rand flex min-h-14 flex-wrap items-center gap-x-8 gap-y-1 py-3 text-sm text-hell/85 md:text-base">
-            <a href={mapsHref(f.strasse, f.plz, f.ort)} rel="noopener noreferrer" className="hover:text-hell">
+            <a href={mapsHref(f.strasse, f.plz, f.ort)} rel="noopener noreferrer" className="-my-2 py-2 hover:text-hell">
               {/* Auf dem Telefon nur die Straße, damit alles in eine Zeile passt; der Ort steht groß darüber */}
               {f.strasse}
               <span className="hidden sm:inline">

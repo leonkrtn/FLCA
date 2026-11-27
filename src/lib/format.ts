@@ -62,6 +62,7 @@ export function mapsHref(strasse: string, plz: string, ort: string): string {
 
 const datumFormat = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeZone: ZONE });
 const datumLang = new Intl.DateTimeFormat("de-DE", { weekday: "long", day: "numeric", month: "long", timeZone: ZONE });
+const tagMonatFormat = new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-digit", timeZone: ZONE });
 const datumKurz = new Intl.DateTimeFormat("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", timeZone: ZONE });
 const monatFormat = new Intl.DateTimeFormat("de-DE", { month: "long", year: "numeric", timeZone: ZONE });
 const zeitFormat = new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: ZONE });
@@ -76,6 +77,19 @@ export function datum(wert: string | Date | null | undefined): string {
 /** Dienstag, 1. Dezember */
 export function datumLangText(wert: string | Date): string {
   return datumLang.format(alsDatum(wert));
+}
+/** 30.11. (Ende eines Angebots, das Jahr ist klar) */
+export function tagMonat(wert: string | Date): string {
+  return tagMonatFormat.format(alsDatum(wert));
+}
+/**
+ * Dauer einer Leistung für Kunden: „ca. 30 Min.“, „ca. 1,5 Std.“, ab sieben Stunden „ganzer Tag“. Lang
+ * („ca. 30 Minuten“) auf der Seite einer einzelnen Leistung.
+ */
+export function dauerText(min: number, lang = false): string {
+  if (min >= 420) return "ganzer Tag";
+  if (min >= 60) return `ca. ${String(Math.round((min / 60) * 2) / 2).replace(".", ",")} ${lang ? "Stunden" : "Std."}`;
+  return `ca. ${min} ${lang ? "Minuten" : "Min."}`;
 }
 /** Di., 01.12. */
 export function datumKurzText(wert: string | Date): string {

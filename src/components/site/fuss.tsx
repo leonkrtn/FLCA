@@ -51,32 +51,30 @@ export function Fuss({ e }: { e: Einstellungen }) {
         </div>
         <div className="text-sm">
           <p className="mb-2 font-semibold text-hell">Kontakt</p>
-          <p>
-            <a href={telHref(f.telefon)} className="hover:text-hell">
+          {/* Je Zeile ein eigenes Ziel mit Höhe für den Daumen, nicht nur so hoch wie die Schrift */}
+          <p className="flex flex-col items-start">
+            <a href={telHref(f.telefon)} className="py-1.5 hover:text-hell">
               {f.telefon}
             </a>
-            <br />
-            <a href={`mailto:${f.email}`} className="hover:text-hell">
+            <a href={`mailto:${f.email}`} className="py-1.5 hover:text-hell">
               {f.email}
             </a>
             {f.instagram ? (
-              <>
-                <br />
-                <a href={`https://www.instagram.com/${f.instagram}/`} className="hover:text-hell" rel="noopener noreferrer">
-                  Instagram @{f.instagram}
-                </a>
-              </>
+              <a href={`https://www.instagram.com/${f.instagram}/`} className="py-1.5 hover:text-hell" rel="noopener noreferrer">
+                Instagram @{f.instagram}
+              </a>
             ) : null}
           </p>
         </div>
       </div>
-      <div className="rand mt-12 flex flex-wrap gap-x-6 gap-y-2 border-t border-white/10 pt-6 text-xs text-grau-hell">
-        <span>© {new Date().getFullYear()} {f.name}</span>
-        <Link href="/impressum" className="hover:text-hell">Impressum</Link>
-        <Link href="/datenschutz" className="hover:text-hell">Datenschutz</Link>
-        <Link href="/agb" className="hover:text-hell">AGB</Link>
-        <Link href="/widerruf" className="hover:text-hell">Widerruf</Link>
-        <Link href="/login" className="hover:text-hell">Mitarbeiter-Login</Link>
+      {/* Die Links waren nur so hoch wie die kleine Schrift (18 px) und am Telefon schwer zu treffen: py-3 */}
+      <div className="rand mt-12 flex flex-wrap items-center gap-x-6 border-t border-white/10 pt-3 text-xs text-grau-hell">
+        <span className="py-3">© {new Date().getFullYear()} {f.name}</span>
+        <Link href="/impressum" className="py-3 hover:text-hell">Impressum</Link>
+        <Link href="/datenschutz" className="py-3 hover:text-hell">Datenschutz</Link>
+        <Link href="/agb" className="py-3 hover:text-hell">AGB</Link>
+        <Link href="/widerruf" className="py-3 hover:text-hell">Widerruf</Link>
+        <Link href="/login" className="py-3 hover:text-hell">Mitarbeiter-Login</Link>
       </div>
     </footer>
   );

@@ -6,7 +6,7 @@ import { Zurueck } from "@/components/icons";
 import { AngebotsChip, AngebotsPreisText } from "@/components/site/angebot";
 import { laufendeAngebote } from "@/lib/angebote/daten";
 import { countdownKnapp } from "@/lib/angebote/preise";
-import { absaetze, datum, preis } from "@/lib/format";
+import { absaetze, dauerText, preis } from "@/lib/format";
 import { oeffentlicheLeistungen } from "@/lib/inhalte";
 import { websiteDatei } from "@/lib/supabase/admin";
 import { berlinDatum } from "@/lib/zeit";
@@ -31,7 +31,7 @@ export default async function LeistungSeite({ params }: { params: Promise<{ slug
   const angebot = l.angebot ? angebote.find((a) => a.id === l.angebot!.id) : undefined;
   const countdown = countdownKnapp(l.angebot?.bis ?? null, berlinDatum());
   const bild = websiteDatei(l.bild_pfad);
-  const dauer = l.dauer_min >= 420 ? "ganzer Tag" : l.dauer_min >= 60 ? `ca. ${String(Math.round((l.dauer_min / 60) * 2) / 2).replace(".", ",")} Stunden` : `ca. ${l.dauer_min} Minuten`;
+  const dauer = dauerText(l.dauer_min, true);
   return (
     <div className="rand grid gap-10 pb-24 pt-8 md:grid-cols-12 md:pt-14">
       <div className="md:col-span-7">
@@ -59,9 +59,8 @@ export default async function LeistungSeite({ params }: { params: Promise<{ slug
         {l.angebot ? (
           <div className="mt-6 max-w-md rounded-lg bg-flaeche p-5 ring-1 ring-linie">
             <p className="flex flex-wrap items-center gap-3">
-              <AngebotsChip angebot={l.angebot} className="text-sm" />
+              <AngebotsChip angebot={l.angebot} />
               {countdown ? <span className="zahlen text-sm">{countdown}</span> : null}
-              {l.angebot.bis ? <span className="zahlen text-sm text-grau">bis {datum(l.angebot.bis)}</span> : null}
             </p>
             {angebot?.kurztext ? <p className="mt-3 text-grau">{angebot.kurztext}</p> : null}
             {angebot?.bedingungen ? <p className="mt-3 text-xs text-grau">{angebot.bedingungen}</p> : null}

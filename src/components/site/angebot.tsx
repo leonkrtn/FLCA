@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Pfeil } from "@/components/icons";
 import { countdownKnapp, rabattText, type Angebot, type AngebotsPreis } from "@/lib/angebote/preise";
-import { absaetze, datum, preis } from "@/lib/format";
+import { absaetze, datum, preis, tagMonat } from "@/lib/format";
 import { websiteDatei } from "@/lib/supabase/admin";
 import type { Leistung } from "@/lib/termine";
 
@@ -11,12 +11,14 @@ import type { Leistung } from "@/lib/termine";
  * dunkler Schrift, Token „rot“ ist dort umgestellt), der alte Preis steht durchgestrichen davor.
  */
 
-/** „Reifensaison −20 %“ als Chip. */
-export function AngebotsChip({ angebot, className = "" }: { angebot: Pick<AngebotsPreis, "titel" | "rabatt">; className?: string }) {
+/**
+ * „Angebot · bis 30.11.“ als Chip. Name und Art des Angebots stehen nicht darin: nebeneinander lasen sie sich
+ * wie ein Wort („Radwechsel-Angebot Aktionspreis“), und was es kostet, zeigt der Preis daneben.
+ */
+export function AngebotsChip({ angebot, className = "" }: { angebot: Pick<AngebotsPreis, "bis">; className?: string }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-md bg-rot px-2.5 py-1 text-xs font-semibold text-auf-rot ${className}`}>
-      {angebot.titel}
-      <span className="zahlen">{angebot.rabatt}</span>
+    <span className={`zahlen inline-flex w-fit items-center whitespace-nowrap rounded-md bg-rot px-2 py-1 text-[11px] font-semibold uppercase leading-none tracking-[0.12em] text-auf-rot ${className}`}>
+      Angebot{angebot.bis ? ` · bis ${tagMonat(angebot.bis)}` : ""}
     </span>
   );
 }
