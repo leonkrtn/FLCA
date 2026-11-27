@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { LeistungenReiter } from "@/components/site/leistungen-reiter";
-import { BEREICHE } from "@/components/site/leistungsbereiche";
 import { AngebotsStreifen, LeistungsZeile, TafelKopf } from "@/components/site/preistafel";
 import { KATEGORIEN, oeffentlicheLeistungen } from "@/lib/inhalte";
 
@@ -22,7 +21,6 @@ export default async function LeistungenSeite() {
     .map(([schluessel, name]) => ({
       schluessel,
       name,
-      text: BEREICHE.find((b) => b.kategorie === schluessel)?.text,
       liste: leistungen.filter((l) => l.kategorie === schluessel),
     }))
     .filter((b) => b.liste.length);
@@ -46,7 +44,6 @@ export default async function LeistungenSeite() {
               <h2 id={`titel-${b.schluessel}`} className="schmal mt-3 text-4xl md:text-5xl">
                 {b.name}
               </h2>
-              {b.text ? <p className="mt-2 max-w-xl text-grau">{b.text}</p> : null}
               <div className="mt-6">
                 <TafelKopf />
                 <ul className="grid gap-2">
