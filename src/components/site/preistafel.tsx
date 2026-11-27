@@ -19,20 +19,22 @@ function alterPreis(l: Pick<Leistung, "preis_cent" | "angebot">): number | null 
  * Preis groß unten rechts, als käme er aus dem Boden seiner Box: Die Box hat unten keinen Innenabstand und schneidet
  * ab (overflow-hidden), die Ziffern sitzen auf ihrer Unterkante. Nur die leere Unterlänge der Schrift verschwindet
  * dabei, die Ziffern selbst bleiben ganz.
+ * `flach`: Der alte Preis macht die Zeile nicht höher. Am Telefon steht er links neben dem Preis, am PC schwebt er
+ * über ihm im Raum, den die Mindesthöhe der Zeile ohnehin lässt (Zeilen mit Angebot sind so hoch wie die ohne).
  */
-export function GrossPreis({ l, gross = false, className = "" }: { l: Pick<Leistung, "preis_cent" | "preis_ab" | "angebot">; gross?: boolean; className?: string }) {
+export function GrossPreis({ l, gross = false, flach = false, className = "" }: { l: Pick<Leistung, "preis_cent" | "preis_ab" | "angebot">; gross?: boolean; flach?: boolean; className?: string }) {
   if (l.preis_cent === null) return <span className={`schmal justify-self-end whitespace-nowrap pb-4 text-right text-xl leading-none text-grau md:text-2xl ${className}`}>auf Anfrage</span>;
   const alt = alterPreis(l);
   return (
-    <span className={`zahlen flex flex-col items-end ${className}`}>
+    <span className={`zahlen ${flach ? "flex items-baseline gap-2 justify-self-end md:relative md:block" : "flex flex-col items-end"} ${className}`}>
       {alt !== null ? (
-        <span className="text-sm text-grau">
+        <span className={`text-sm text-grau ${flach ? "leading-none md:absolute md:bottom-full md:right-0 md:mb-1" : ""}`}>
           <span className="sr-only">statt </span>
           <s>{preis(alt, l.preis_ab)}</s>
           <span className="sr-only"> jetzt</span>
         </span>
       ) : null}
-      <span className={`schmal flex translate-y-[0.04em] items-baseline gap-1.5 whitespace-nowrap leading-[0.82] ${gross ? "text-7xl md:text-8xl" : "text-[3.25rem] md:text-6xl"}`}>
+      <span className={`schmal flex translate-y-[0.04em] items-baseline justify-end gap-1.5 whitespace-nowrap leading-[0.82] ${gross ? "text-7xl md:text-8xl" : "text-[3.25rem] md:text-6xl"}`}>
         {l.preis_ab ? <span className="text-xl normal-case text-grau">ab</span> : null}
         {preis(l.preis_cent)}
       </span>
@@ -65,15 +67,18 @@ export function TafelKopf() {
 export function LeistungsZeile({ l, nr }: { l: Leistung; nr: number }) {
   return (
     <li
-      className={`relative isolate grid grid-cols-[1.75rem_minmax(0,1fr)_auto] gap-x-3 overflow-hidden rounded-lg bg-flaeche px-4 pt-4 transition-colors hover:bg-white/[0.06] md:items-center md:gap-x-6 md:px-6 md:pt-0 ${SPALTEN}`}
+      className={`relative isolate grid grid-cols-[1.75rem_minmax(0,1fr)_auto] gap-x-3 overflow-hidden rounded-lg bg-flaeche px-4 pt-4 transition-colors hover:bg-white/[0.06] md:min-h-22 md:items-center md:gap-x-6 md:px-6 md:pt-0 ${SPALTEN}`}
     >
       <Link href={`/leistungen/${l.slug}`} className="absolute inset-0 rounded-lg focus-visible:outline-offset-[-2px]">
         <span className="sr-only">{l.name}: Beschreibung</span>
       </Link>
       <span className={`zahlen pt-1 text-grau-hell md:pt-0 ${ETIKETT}`}>{String(nr).padStart(2, "0")}</span>
-      <div className="col-span-2 md:col-span-1 md:py-6">
-        {l.angebot ? <AngebotsChip angebot={l.angebot} className="mb-2" /> : null}
+      {/* Zeile mit Angebot so hoch wie die anderen: am Telefon steht der Chip neben dem Namen, am PC darüber, aber in
+          der festen Mindesthöhe der Zeile (min-h-22), die ohne Chip nur Rand ist. Die Höhe reicht auch für den alten
+          Preis über dem großen */}
+      <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 md:col-span-1 md:flex-col-reverse md:items-start md:py-3">
         <h3 className="text-[17px] font-semibold leading-snug">{l.name}</h3>
+        {l.angebot ? <AngebotsChip angebot={l.angebot} /> : null}
       </div>
       <p className="col-span-2 col-start-2 mt-1 line-clamp-2 text-sm text-grau md:col-span-1 md:col-start-auto md:mt-0 md:text-[15px]">{l.kurz || l.beschreibung}</p>
       <p className={`col-start-2 self-end pb-4 pt-3 text-grau md:col-start-auto md:self-center md:p-0 md:text-[15px] md:font-normal md:normal-case md:tracking-normal ${ETIKETT}`}>
@@ -87,7 +92,7 @@ export function LeistungsZeile({ l, nr }: { l: Leistung; nr: number }) {
       ) : (
         <span className="hidden md:block" />
       )}
-      <GrossPreis l={l} className="self-end" />
+      <GrossPreis l={l} flach className="self-end" />
     </li>
   );
 }
