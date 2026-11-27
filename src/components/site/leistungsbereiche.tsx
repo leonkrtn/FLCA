@@ -7,26 +7,23 @@ import { Pfeil } from "@/components/icons";
 import { preis } from "@/lib/format";
 import type { Leistung } from "@/lib/termine";
 
-/** Bereiche mit Foto und Kurztext; die Seite „Leistungen“ nimmt die Texte unter ihre Reiter (ohne die Fotos). */
-export const BEREICHE: { kategorie: string; titel: string; text: string; bild: StaticImageData; alt: string }[] = [
+/** Bereiche mit Foto, bewusst ohne Satz unter dem Titel (Wunsch des Betreibers). */
+export const BEREICHE: { kategorie: string; titel: string; bild: StaticImageData; alt: string }[] = [
   {
     kategorie: "reifen",
     titel: "Reifen",
-    text: "Radwechsel in rund 30 Minuten, gewuchtet und mit Drehmoment angezogen.",
     bild: reifenmaschine,
     alt: "Reifenmontiermaschine und Wuchtmaschine in der Werkstatt in Dietzenbach",
   },
   {
     kategorie: "service",
     titel: "Service und Reparatur",
-    text: "Ölwechsel, Inspektion, Bremsen, Klima. Preis vorher.",
     bild: oelstand,
     alt: "Ölstand wird mit dem Messstab und einem Tuch geprüft",
   },
   {
     kategorie: "schutz",
     titel: "Rostschutz",
-    text: "Hohlraum und Unterboden, damit Schweller und Boden halten.",
     bild: schweissen,
     alt: "Schweißarbeit im Dunkeln, Lichtbogen am Metall",
   },
@@ -35,7 +32,7 @@ export const BEREICHE: { kategorie: string; titel: string; text: string; bild: S
 const ETIKETT = "text-[11px] font-semibold uppercase leading-none tracking-[0.16em] text-grau";
 
 /**
- * Startseite: nur die Bereiche, jeder mit freiem Foto (kein Text darüber), Titel, einem Satz und zwei kleinen
+ * Startseite: nur die Bereiche, jeder mit freiem Foto (kein Text darüber), Titel und zwei kleinen
  * Feldern (Anzahl, günstigster Preis). Die einzelnen Preise stehen auf der Seite „Leistungen“, die Kachel führt
  * direkt zu ihrem Reiter. Ohne Rahmen und Trennstriche, nur Flächen.
  */
@@ -62,9 +59,8 @@ export function Leistungsbereiche({ leistungen }: { leistungen: Leistung[] }) {
                   {String(i + 1).padStart(2, "0")}
                 </span>
               </div>
-              <h3 className="schmal mt-4 text-3xl md:text-4xl">{b.titel}</h3>
-              <p className="mb-4 mt-1.5 text-grau">{b.text}</p>
-              {/* mt-auto: die Felder stehen in allen drei Spalten auf einer Höhe, auch bei längerem Text */}
+              <h3 className="schmal mb-4 mt-4 text-3xl md:text-4xl">{b.titel}</h3>
+              {/* mt-auto: die Felder stehen in allen drei Spalten auf einer Höhe, auch wenn ein Titel umbricht */}
               <div className="zahlen mt-auto grid grid-cols-[1fr_1fr_3.25rem] gap-1.5">
                 <span className="rounded-md bg-flaeche px-3 py-2.5">
                   <span className={`block ${ETIKETT}`}>Leistungen</span>
