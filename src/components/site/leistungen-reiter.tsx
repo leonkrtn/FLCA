@@ -24,7 +24,7 @@ function abonnieren(neu: () => void) {
 const ausAdresse = () => (window.location.hash.startsWith(PRAEFIX) ? window.location.hash.slice(PRAEFIX.length) : "");
 const aufDemServer = () => "";
 
-export function LeistungenReiter({ bereiche }: { bereiche: { schluessel: string; kurz: string; anzahl: number; inhalt: React.ReactNode }[] }) {
+export function LeistungenReiter({ bereiche }: { bereiche: { schluessel: string; kurz: string; inhalt: React.ReactNode }[] }) {
   const gewuenscht = useSyncExternalStore(abonnieren, ausAdresse, aufDemServer);
   const aktiv = bereiche.some((b) => b.schluessel === gewuenscht) ? gewuenscht : bereiche[0]?.schluessel;
 
@@ -46,11 +46,9 @@ export function LeistungenReiter({ bereiche }: { bereiche: { schluessel: string;
             aria-selected={b.schluessel === aktiv}
             aria-controls={`tafel-${b.schluessel}`}
             onClick={() => waehlen(b.schluessel)}
-            className="zahlen min-h-11 whitespace-nowrap rounded-md px-2 text-xs font-semibold uppercase tracking-[0.08em] text-grau transition-colors [-webkit-tap-highlight-color:transparent] aria-selected:bg-rot aria-selected:text-auf-rot max-[380px]:px-1 max-[380px]:text-[11px] max-[380px]:tracking-[0.04em] sm:text-[13px] sm:tracking-[0.12em] md:px-6"
+            className="min-h-11 whitespace-nowrap rounded-md px-2 text-xs font-semibold uppercase tracking-[0.08em] text-grau transition-colors [-webkit-tap-highlight-color:transparent] aria-selected:bg-rot aria-selected:text-auf-rot max-[380px]:px-1 max-[380px]:text-[11px] max-[380px]:tracking-[0.04em] sm:text-[13px] sm:tracking-[0.12em] md:px-6"
           >
             {b.kurz}
-            {/* Die Anzahl erst ab sm: am Telefon reicht die Breite sonst nicht für drei gleich breite Reiter */}
-            <span className="ml-1.5 hidden opacity-60 sm:inline">{b.anzahl}</span>
           </button>
         ))}
       </div>

@@ -37,7 +37,6 @@ export default async function LeistungenSeite() {
         bereiche={bereiche.map((b, i) => ({
           schluessel: b.schluessel,
           kurz: KURZ[b.schluessel] ?? b.name,
-          anzahl: b.liste.length,
           inhalt: (
             <section aria-labelledby={`titel-${b.schluessel}`} className="pt-8">
               <p className={`zahlen ${ETIKETT}`}>Bereich {String(i + 1).padStart(2, "0")}</p>
