@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import panamera from "@/assets/panamera-reifen.jpg";
+import halleKran from "@/assets/halle-kran.jpg";
 import { Pfeil } from "@/components/icons";
 import { BewerbungsFormular } from "@/components/site/bewerbung";
 import { einstellungen } from "@/lib/einstellungen";
@@ -17,11 +17,11 @@ export default async function KarriereSeite() {
   return (
     <>
       {/*
-        Kopf mit Foto aus der Halle wie auf der Startseite: Wer sich bewirbt, will zuerst sehen, wo er arbeiten würde.
+        Kopf mit Foto aus der Halle (ein anderes als auf der Startseite): Wer sich bewirbt, will zuerst sehen, wo er arbeiten würde.
         Unter den durchscheinenden Seitenkopf gezogen (-mt-16), die Schrift beginnt erst darunter.
       */}
       <section className="relative isolate -mt-16 flex min-h-[26rem] flex-col justify-end overflow-hidden bg-graphit text-hell md:min-h-[34rem]">
-        <Image src={panamera} alt="" fill priority sizes="100vw" className="-z-20 object-cover object-[center_60%]" />
+        <Image src={halleKran} alt="" fill priority sizes="100vw" className="-z-20 object-cover object-[center_70%]" />
         <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/85 via-black/55 to-black/40" />
         <div className="rand einblenden pb-12 pt-28 md:pb-16">
           <p className="mb-3 text-sm uppercase tracking-[0.16em] text-hell/60">Karriere</p>
