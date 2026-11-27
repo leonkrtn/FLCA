@@ -18,6 +18,36 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-27 · Website: Angebots-Chip liest sich wie ein Wort
+
+- **Stand:** behoben
+- **Wo:** `src/components/site/angebot.tsx` (`AngebotsChip`), Seite „Leistungen“, Kacheln der Startseite
+- **Was man sah:** (vom Nutzer per Bildschirmfoto gezeigt) Im Chip stand „Radwechsel-Angebot  Aktionspreis“: Name
+  und Art des Angebots klebten ohne Trennung aneinander, und „Aktionspreis“ sagte nichts, was der Preis daneben
+  nicht schon zeigte.
+- **Ursache:** Zwei Texte aus der Verwaltung (Titel, `rabattText`) nebeneinander in einem kleinen Chip, nur mit
+  einem schmalen Abstand. Beim Festpreis ist `rabattText` „Aktionspreis“, also kein eigener Inhalt.
+- **Behebung:** Der Chip zeigt „Angebot · bis 30.11.“ (`tagMonat`), was es kostet, steht im Preis daneben. Der
+  einzelne „bis …“-Text auf der Seite einer Leistung ist dadurch entfallen.
+- **Muster:** Zwei frei eingegebene Texte ohne Trennzeichen in einem Element. Was der Betreiber einträgt, kann
+  beliebig enden; dazwischen gehört ein sichtbares Zeichen („·“) oder ein eigenes Element.
+- **Weitere Stellen:** `titel`/`rabatt` sonst nur in `AngebotsHinweise` (Titel und Zahl getrennt), Belege und
+  Spracheingabe setzen „Rabatt …“ davor. Nichts weiter.
+
+### 2026-11-27 · Website: Links im Fuß zu klein für den Daumen
+
+- **Stand:** behoben
+- **Wo:** `src/components/site/fuss.tsx`, Adresse in der Leiste der Startseite (`src/app/(site)/page.tsx`)
+- **Was man sah:** (beim Durchsehen der Handy-Ansicht bemerkt) Impressum, Datenschutz, AGB, Widerruf und
+  Mitarbeiter-Login waren nur 18 px hoch, die Adresse in der Leiste 20 px. Am Telefon trifft man leicht daneben.
+- **Ursache:** Reine Textlinks sind nur so hoch wie ihre Schrift.
+- **Behebung:** `py-3` an den Links im Fuß (rund 40 px), Kontaktlinks untereinander mit `py-1.5` statt `<br>`,
+  Adresse mit `-my-2 py-2` (größere Fläche, gleiche Leiste).
+- **Muster:** Textlink mit kleiner Schrift (`text-xs`, `text-sm`) ohne Innenabstand auf einer Seite, die am Telefon
+  benutzt wird. Ziel: mindestens etwa 40 px hoch.
+- **Weitere Stellen:** Website mit Playwright vermessen (alle Links unter 32 px): außer diesen nur „Details“ und
+  „Alle Leistungen mit Beschreibung“, beide mit dem neuen Leistungen-Design entfallen bzw. mit `py-3` neu.
+
 ### 2026-11-27 · Website: Handy-Menü unsauber und bleibt nach dem Tippen offen
 
 - **Stand:** behoben
@@ -51,8 +81,8 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
   mit acht Bildern, Karriere mit eigenem Hallenfoto (`halle-kran.jpg`), die Reifenkachel mit der neueren Aufnahme
   derselben Maschine.
 - **Muster:** Ein Bild aus `src/assets/` wird in mehr als einer Datei unter `(site)` oder `components/site`
-  importiert. Vor dem Einbinden `grep -rn "assets/<name>" src` laufen lassen. Ausnahme mit Absicht: die Bilder aus
-  `BEREICHE` stehen auf der Startseite und als Banner auf `/leistungen`.
+  importiert. Vor dem Einbinden `grep -rn "assets/<name>" src` laufen lassen. `BEREICHE` stehen nur
+  noch auf der Startseite; `/leistungen` nimmt seit 2026-11-27 nur ihre Texte, keine Fotos.
 - **Weitere Stellen:** alle Importe aus `@/assets` geprüft; sonst nur Logo-Dateien mehrfach (gewollt). Neue Fotos
   mit Kunden-Kennzeichen vorher unkenntlich machen.
 
