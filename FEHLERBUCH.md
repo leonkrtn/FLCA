@@ -18,6 +18,27 @@ Betrieb. Hier stehen Fehler im Code und in der Gestaltung.
 
 ## Einträge
 
+### 2026-11-27 · Website: Handy-Menü unsauber und bleibt nach dem Tippen offen
+
+- **Stand:** behoben
+- **Wo:** `src/components/site/kopf.tsx`, neu `src/components/site/mobil-menue.tsx`
+- **Was man sah:** (vom Nutzer gemeldet) Das Menü auf dem Telefon sah nicht sauber aus: kleines Kästchen am
+  Knopf über der Seite. Nach einem Tipp auf „Leistungen“ stand es auf der neuen Seite weiter offen; Tippen daneben
+  oder Escape schloss es nicht, der Knopf zeigte nie ein Schließen-Zeichen.
+- **Ursache:** Das Menü war `details/summary` im Layout. Der Kopf bleibt beim Seitenwechsel im Browser stehen,
+  also auch der Zustand `open`. Ein `fixed` Menü im Kopf ginge nicht: `backdrop-blur` macht den Kopf zum
+  Bezugsrahmen für `fixed`, das Menü bliebe in dessen Höhe gefangen.
+- **Behebung:** `MobilMenue` (Client) deckt die Seite zwischen Kopf und unterer Leiste ab (`fixed inset-0`, über
+  ein Portal am body, mit eigener Klasse `dunkel`), große Einträge in Barlow Condensed, darunter Telefon und
+  heutige Öffnungszeit. Offen gilt nur für den Pfad, auf dem es geöffnet wurde; schließt beim Tippen auf einen
+  Eintrag, mit Escape und über das Kreuz; die Seite darunter scrollt nicht mit.
+- **Muster:** `details/summary` als Navigationsmenü in einem Layout (bleibt über Seitenwechsel offen). Und:
+  `fixed` in einem Element mit `backdrop-blur`/`filter`/`transform` (bezieht sich dann auf dieses Element, nicht
+  aufs Fenster).
+- **Weitere Stellen:** alle `<details>` gesucht: übrige sind Aufklapper im Seiteninhalt oder ein Formular
+  (`schulung-liste.tsx`), keines navigiert aus einem Layout heraus. `fixed` in Elementen mit `backdrop-blur`:
+  sonst keines (`mobil-leiste.tsx` ist selbst die feste Leiste).
+
 ### 2026-11-27 · Website zeigt dieselben Fotos mehrfach
 
 - **Stand:** behoben

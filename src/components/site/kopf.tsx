@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
-import { Menue, Telefon } from "@/components/icons";
+import { Telefon } from "@/components/icons";
+import { MobilMenue } from "@/components/site/mobil-menue";
 import type { Einstellungen } from "@/lib/einstellungen";
 import { telHref } from "@/lib/format";
 import { berlinDatum, wochentag } from "@/lib/zeit";
@@ -12,13 +13,13 @@ const NAV = [
   { href: "/#anfahrt", label: "Anfahrt" },
 ];
 
-/** Kopfzeile. Auf dem Telefon nur Logo, „Termin“ und ein Menü ohne JavaScript (details/summary). */
 /** „Heute 08:30–13:00, 14:00–18:00“ bzw. „Heute geschlossen“. */
 function heuteText(o: Einstellungen["oeffnungszeiten"]): string {
   const f = o[String(wochentag(berlinDatum())) as keyof typeof o];
   return f.length ? `Heute ${f.map(([a, b]) => `${a}–${b}`).join(", ")}` : "Heute geschlossen";
 }
 
+/** Kopfzeile. Auf dem Telefon nur Logo, „Termin“ und der Menüknopf (`MobilMenue`). */
 export function Kopf({ module, telefon, oeffnungszeiten }: { module: { karriere: boolean }; telefon: string; oeffnungszeiten: Einstellungen["oeffnungszeiten"] }) {
   const nav = NAV.filter((n) => n.href !== "/karriere" || module.karriere);
   return (
@@ -48,18 +49,7 @@ export function Kopf({ module, telefon, oeffnungszeiten }: { module: { karriere:
           <Link href="/termin" className="knopf knopf-rot knopf-klein">
             Termin
           </Link>
-          <details className="group relative">
-            <summary className="flex size-10 cursor-pointer list-none items-center justify-center rounded-sm [&::-webkit-details-marker]:hidden" aria-label="Menü">
-              <Menue className="size-6" />
-            </summary>
-            <nav aria-label="Menü" className="absolute right-0 top-12 w-56 overflow-hidden rounded-md bg-flaeche py-2 shadow-[0_20px_50px_rgb(0_0_0/0.5)] ring-1 ring-linie">
-              {nav.map((n) => (
-                <Link key={n.href} href={n.href} className="block px-4 py-3 font-medium">
-                  {n.label}
-                </Link>
-              ))}
-            </nav>
-          </details>
+          <MobilMenue nav={nav} telefon={telefon} heute={heuteText(oeffnungszeiten)} />
         </div>
       </div>
     </header>
