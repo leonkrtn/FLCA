@@ -38,6 +38,8 @@ export type AngebotsPreis = {
   /** Preis laut Preisliste (für den durchgestrichenen Preis); null = dort ohne Preis */
   listen_cent: number | null;
   bis: string | null;
+  /** Bild des Angebots (Website-Speicher), für den Angebotsstreifen auf „Leistungen“ */
+  bild_pfad: string | null;
 };
 
 /** Am Termin festgehalten (termine.angebot_preise), Schlüssel ist die Leistung. */
@@ -74,7 +76,7 @@ export function rabattText(a: Pick<Angebot, "art" | "wert">): string {
   return "Aktionspreis";
 }
 
-const hinweis = (a: Angebot, listen: number | null): AngebotsPreis => ({ id: a.id, titel: a.titel, rabatt: rabattText(a), listen_cent: listen, bis: a.bis });
+const hinweis = (a: Angebot, listen: number | null): AngebotsPreis => ({ id: a.id, titel: a.titel, rabatt: rabattText(a), listen_cent: listen, bis: a.bis, bild_pfad: a.bild_pfad });
 
 /**
  * Preis einer Leistung unter den laufenden Angeboten. Ohne Listenpreis („auf Anfrage“) nennt nur ein

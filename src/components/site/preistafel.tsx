@@ -1,7 +1,9 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Pfeil } from "@/components/icons";
 import { AngebotsChip } from "@/components/site/angebot";
 import { dauerText, preis } from "@/lib/format";
+import { websiteDatei } from "@/lib/supabase/admin";
 import type { Leistung } from "@/lib/termine";
 
 /**
@@ -97,25 +99,38 @@ export function LeistungsZeile({ l, nr }: { l: Leistung; nr: number }) {
   );
 }
 
-/** Laufende Angebote über den Reitern: eine Fläche je Leistung im Angebot, Preis noch größer. */
+/**
+ * Laufende Angebote über den Reitern: eine Fläche je Leistung im Angebot, Preis noch größer. Mit Bild liegt es
+ * abgedunkelt hinter dem Text (Foto der Leistung, sonst das des Angebots), wie bei den Angeboten der Startseite.
+ * Bewusst keine Fotos aus src/assets als Ersatz: die stehen schon auf anderen Seiten (Fehlerbuch, doppelte Fotos).
+ */
 export function AngebotsStreifen({ leistungen }: { leistungen: Leistung[] }) {
   const imAngebot = leistungen.filter((l) => l.angebot);
   if (!imAngebot.length) return null;
   return (
     <ul className={`mt-8 grid gap-3 ${imAngebot.length > 1 ? "lg:grid-cols-2" : ""}`}>
-      {imAngebot.map((l) => (
-        <li key={l.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 overflow-hidden rounded-lg bg-flaeche px-5 pt-5 md:px-7 md:pt-6">
-          <div className="pb-5 md:pb-6">
-            {l.angebot ? <AngebotsChip angebot={l.angebot} /> : null}
-            <h2 className="mt-3 text-lg font-semibold leading-snug">{l.name}</h2>
-            <p className="mt-1 line-clamp-2 text-sm text-grau">{l.kurz || l.beschreibung}</p>
-            <Link href={l.online_anfragbar ? `/termin?leistung=${l.slug}` : `/leistungen/${l.slug}`} className="knopf knopf-rot knopf-klein mt-5">
-              {l.online_anfragbar ? "Anfragen" : "Mehr dazu"} <Pfeil className="size-4" />
-            </Link>
-          </div>
-          <GrossPreis l={l} gross className="self-end" />
-        </li>
-      ))}
+      {imAngebot.map((l) => {
+        const bild = websiteDatei(l.bild_pfad) ?? websiteDatei(l.angebot?.bild_pfad);
+        return (
+          <li key={l.id} className="relative isolate grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 overflow-hidden rounded-lg bg-flaeche px-5 pt-5 md:px-7 md:pt-6">
+            {bild ? (
+              <>
+                <Image src={bild} alt="" fill sizes={imAngebot.length > 1 ? "(min-width: 1024px) 50vw, 100vw" : "100vw"} className="-z-10 object-cover" />
+                <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/90 via-black/75 to-black/55" />
+              </>
+            ) : null}
+            <div className="pb-5 md:pb-6">
+              {l.angebot ? <AngebotsChip angebot={l.angebot} /> : null}
+              <h2 className="mt-3 text-lg font-semibold leading-snug">{l.name}</h2>
+              <p className="mt-1 line-clamp-2 text-sm text-grau">{l.kurz || l.beschreibung}</p>
+              <Link href={l.online_anfragbar ? `/termin?leistung=${l.slug}` : `/leistungen/${l.slug}`} className="knopf knopf-rot knopf-klein mt-5">
+                {l.online_anfragbar ? "Anfragen" : "Mehr dazu"} <Pfeil className="size-4" />
+              </Link>
+            </div>
+            <GrossPreis l={l} gross className="self-end" />
+          </li>
+        );
+      })}
     </ul>
   );
 }
